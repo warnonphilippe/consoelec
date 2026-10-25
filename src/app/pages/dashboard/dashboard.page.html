@@ -59,6 +59,61 @@
     </div>
   }
 
+  @if (inverter.settings().enabled) {
+    <section class="card live">
+      <div class="live-head">
+        <span class="kpi-label"><app-icon name="sun" [size]="15" /> Production en direct</span>
+        <button
+          type="button"
+          class="icon-btn"
+          title="Lire maintenant"
+          aria-label="Lire l'onduleur maintenant"
+          [disabled]="inverter.busy() || !inverter.ready()"
+          (click)="inverter.refresh()"
+        >
+          <app-icon name="refresh" [size]="15" />
+        </button>
+      </div>
+      @if (!inverter.ready()) {
+        <p class="small muted">
+          {{
+            vault.unlocked()
+              ? 'Ajoutez la clé de l’onduleur dans les réglages.'
+              : 'Déverrouillez le coffre pour lire l’onduleur.'
+          }}
+          <a routerLink="/reglages" fragment="onduleur">Réglages</a>
+        </p>
+      } @else if (inverter.live(); as r) {
+        @if (r.error) {
+          <p class="small tone-danger"><app-icon name="alert" [size]="13" /> {{ r.error }}</p>
+        } @else {
+          <div class="live-values">
+            <div>
+              <span class="live-value">{{ r.powerW === null ? '—' : (r.powerW | num) }}</span>
+              <span class="live-unit">W</span>
+              <span class="small faint">{{
+                r.powerW === null ? 'pas de production' : 'maintenant'
+              }}</span>
+            </div>
+            <div>
+              <span class="live-value">{{ (r.dayWh ?? 0) / 1000 | num: 1 }}</span>
+              <span class="live-unit">kWh</span>
+              <span class="small faint">aujourd'hui</span>
+            </div>
+            <div>
+              <span class="live-value">{{ (r.totalWh ?? 0) / 1000 | num }}</span>
+              <span class="live-unit">kWh</span>
+              <span class="small faint">index total</span>
+            </div>
+          </div>
+        }
+        <p class="small faint">Lu à {{ r.at | date: 'HH:mm' }} · rafraîchi chaque minute</p>
+      } @else {
+        <p class="small muted">Lecture en cours…</p>
+      }
+    </section>
+  }
+
   @if (analysis().hasIntervals) {
     <div class="grid kpis">
       <div class="card kpi">

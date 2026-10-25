@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { MONTH_LABELS } from '../../core/calc/time';
 import { evAnnualKwh } from '../../core/calc/ev';
+import { measuredYield } from '../../core/calc/pv-yield';
 import {
   pvKwp,
   type ChargeWindow,
@@ -24,13 +25,17 @@ type EvNumberField = 'kmPerYear' | 'kWhPer100km' | 'homeChargingPct' | 'chargerK
   styleUrl: './house.page.css',
 })
 export default class HousePage {
-  private readonly store = inject(DataStore);
+  protected readonly store = inject(DataStore);
 
   protected readonly house = this.store.house;
   protected readonly settings = this.store.settings;
   protected readonly reference = computed(() => this.store.analysis().reference);
   protected readonly evKwh = computed(() => evAnnualKwh(this.house().ev));
   protected readonly kwp = computed(() => pvKwp(this.house().pv));
+  /** Rendement réel d'après l'index de production de l'onduleur enregistré au fil des jours. */
+  protected readonly measured = computed(() =>
+    measuredYield(this.store.data().pvDaily, this.reference(), this.kwp()),
+  );
   protected readonly months = MONTH_LABELS;
   /** Rapport puissance des panneaux / puissance de l'onduleur. */
   protected readonly dcAcRatio = computed(() => this.kwp() / this.house().pv.inverterKva);

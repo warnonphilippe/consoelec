@@ -1,5 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { InverterService } from '../../core/services/inverter.service';
+import { VaultService } from '../../core/services/vault.service';
 import { REGISTER_KEYS, pvKwp } from '../../core/models/app-data.model';
 import { DataStore } from '../../core/services/data-store.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -10,13 +13,15 @@ import { cumulativeNetChart, monthBars, monthlyBalanceChart } from './dashboard-
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [RouterLink, IconComponent, ChartComponent, ...FORMAT_PIPES],
+  imports: [RouterLink, DatePipe, IconComponent, ChartComponent, ...FORMAT_PIPES],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './dashboard.page.html',
   styleUrl: './dashboard.page.css',
 })
 export default class DashboardPage {
   protected readonly store = inject(DataStore);
+  protected readonly inverter = inject(InverterService);
+  protected readonly vault = inject(VaultService);
   private readonly toast = inject(ToastService);
 
   protected readonly analysis = this.store.analysis;

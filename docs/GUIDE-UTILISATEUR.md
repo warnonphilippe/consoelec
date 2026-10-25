@@ -208,16 +208,42 @@ Le bouton **Assistant IA** de la barre latérale ouvre un panneau, disponible su
 
 ### Activer l'assistant
 
-1. Créez une clé API sur [console.anthropic.com](https://console.anthropic.com/).
-2. Dans **Réglages → Assistant IA**, collez-la et cliquez sur **Enregistrer**, puis sur **Tester la connexion**.
-3. Choisissez le modèle Claude à utiliser (modifiable à tout moment).
+1. Créez le **coffre chiffré** (voir plus bas) s'il n'existe pas encore.
+2. Créez une clé API sur [console.anthropic.com](https://console.anthropic.com/).
+3. Dans **Réglages → Assistant IA**, collez-la et cliquez sur **Enregistrer**, puis sur **Tester la connexion**.
+4. Choisissez le modèle Claude à utiliser (modifiable à tout moment).
 
 ### Confidentialité et coût
 
-- La clé est **chiffrée par votre système** (Trousseau macOS, DPAPI sous Windows) dans un fichier séparé. Elle n'est **jamais exposée à la page**, n'est **pas exportée** et n'est **pas synchronisée** avec vos données.
+- La clé est rangée dans le **coffre chiffré par votre clé SSH**. Elle n'est **jamais exposée à la page**, n'est **pas exportée** et n'est **pas synchronisée** avec vos données.
 - Vos données ne quittent l'ordinateur que **lorsque vous posez une question** ou déposez une photo : elles sont envoyées à Claude (Anthropic) via votre clé.
 - Les appels sont **facturés par Anthropic** selon votre usage ; la lecture d'une photo et une question coûtent chacune quelques centimes au plus.
 - L'assistant donne des ordres de grandeur et des pistes, pas de conseil financier ni juridique. Vérifiez ses chiffres sur le tableau de bord.
+
+## Coffre chiffré par votre clé SSH
+
+La clé API Claude et la clé de l'onduleur sont rangées dans un **coffre** chiffré (AES-256) par votre **clé SSH** personnelle, par exemple `~/.ssh/id_rsa`.
+
+- **Création** : **Réglages → Coffre chiffré**, indiquez la clé SSH et sa phrase de passe, puis **Créer le coffre**. Une clé API enregistrée auparavant dans le Trousseau macOS y est reprise automatiquement.
+- **Au démarrage**, ConsoElec demande la phrase de passe de la clé SSH. **Plus tard** laisse l'application utilisable sans l'assistant ni la lecture de l'onduleur ; le coffre peut être ouvert ensuite depuis les réglages.
+- **Comment ça marche** : `ssh-keygen` signe un défi fixe avec votre clé ; cette signature (identique à chaque fois avec une clé RSA ou Ed25519) donne la clé de chiffrement. La phrase de passe n'est transmise qu'à `ssh-keygen`, sur ce Mac, et n'est enregistrée nulle part. Les clés ECDSA ne conviennent pas.
+- **Sauvegarde** : le coffre (`secrets.vault`) n'est ni exporté ni synchronisé. Sur un autre Mac, recréez-le et ressaisissez les clés. Si vous changez de clé SSH, le coffre ne s'ouvre plus : recréez-le de même.
+
+## Lecture de l'onduleur
+
+ConsoElec peut lire directement un onduleur **SMA** (comme le Sunny Tripower STP5.0-3AV-40) sur votre réseau local, via son interface web (WebConnect) et la même connexion sécurisée que celle-ci.
+
+1. L'onduleur doit être raccordé à votre Wi-Fi ou à votre box.
+2. **Réglages → Onduleur** : cochez **Lire l'onduleur automatiquement**, vérifiez l'adresse (`SMA` + numéro de série + `.local`, ou son adresse IP) et saisissez la **clé WPA2-PSK** imprimée sur la plaque. Sur ce modèle, c'est elle qui ouvre le profil « Utilisateur ».
+3. **Tester la connexion** affiche la puissance, la production du jour et l'index total.
+
+Ensuite, tant que l'application est ouverte :
+- le tableau de bord affiche la **production en direct**, rafraîchie chaque minute ;
+- la **production du jour** est enregistrée dans vos données (une ligne par jour, exportée et fusionnée avec le reste) ;
+- le champ « production solaire totale » d'un nouveau relevé est **pré-rempli** avec l'index de l'onduleur ;
+- la page Maison affiche le **rendement mesuré** (kWh/kWc/an) à côté du réglage, après deux semaines de lectures.
+
+Le certificat de l'onduleur est **épinglé** à la première connexion : si un autre appareil répond à la même adresse, la connexion est refusée. Après un remplacement de l'onduleur, utilisez **Oublier le certificat épinglé**.
 
 ## Partager entre plusieurs ordinateurs
 
@@ -275,4 +301,6 @@ L'enregistrement est automatique ; la version précédente est conservée en `.b
 
 **Faut-il relever chaque jour ?** Non : un relevé par mois suffit, la répartition journalière tient compte de la saison. Relevé le 1er de chaque mois, les mois sont exacts ; relevé à mi-mois, l'erreur sur un mois reste de l'ordre de 3 % pour le soutirage et 9 % pour l'injection ; tous les deux ou trois mois, elle monte à 5-6 % et 10-12 %. Les totaux sur l'année restent exacts. Au-delà de deux mois sans relevé, l'intervalle est signalé comme approximatif.
 
-**L'assistant ou la lecture de photo ne fonctionnent pas.** Ils nécessitent l'application de bureau, une clé API valide (Réglages → Tester la connexion) et une connexion internet.
+**L'assistant ou la lecture de photo ne fonctionnent pas.** Ils nécessitent l'application de bureau, le coffre déverrouillé, une clé API valide (Réglages → Tester la connexion) et une connexion internet.
+
+**La lecture de l'onduleur échoue.** Vérifiez que le Mac et l'onduleur sont sur le même réseau, l'adresse dans les réglages et la clé WPA2-PSK (16 caractères, majuscules et minuscules). La nuit, la puissance est vide mais la production du jour et l'index total restent lisibles.

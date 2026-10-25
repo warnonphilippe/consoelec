@@ -236,6 +236,23 @@
         très ensoleillés d'été. Rendement utilisé avant écrêtage :
         {{ settings().specificYieldKwhPerKwp | num }} kWh/kWc/an (modifiable dans les réglages).
       </span>
+      @if (measured(); as m) {
+        <div
+          class="callout small"
+          [class.warning]="
+            m.kwhPerKwp > settings().specificYieldKwhPerKwp * 1.1 ||
+            m.kwhPerKwp < settings().specificYieldKwhPerKwp * 0.9
+          "
+        >
+          <app-icon name="sun" [size]="16" />
+          <div>
+            Rendement mesuré sur l'onduleur :
+            <strong>{{ m.kwhPerKwp | num }} kWh/kWc/an</strong> ({{ m.measuredKwh | num }} kWh
+            produits en {{ m.days | num }} jours, soit ~{{ m.annualKwh | kwh }} par an). Ajustez le
+            réglage du rendement si l'écart persiste sur plusieurs mois.
+          </div>
+        </div>
+      }
     </section>
   </div>
 

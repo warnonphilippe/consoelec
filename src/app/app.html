@@ -137,3 +137,46 @@
     </div>
   }
 </dialog>
+
+<dialog #unlockDialog class="modal" (cancel)="$event.preventDefault(); postponeUnlock()">
+  <form class="modal-body form" (submit)="$event.preventDefault(); unlock()">
+    <div class="modal-head">
+      <app-icon name="key" class="tone-accent" />
+      <h2>Déverrouiller le coffre</h2>
+    </div>
+    <p class="muted">
+      La clé API Claude et la clé de l'onduleur sont chiffrées par votre clé SSH
+      <code>{{ vault.status()?.sshKeyPath }}</code
+      >. Saisissez sa phrase de passe pour les utiliser pendant cette session.
+    </p>
+    <input
+      class="input"
+      type="password"
+      autocomplete="off"
+      spellcheck="false"
+      aria-label="Phrase de passe de la clé SSH"
+      placeholder="Phrase de passe de la clé SSH"
+      [value]="unlockPassphrase()"
+      (input)="unlockPassphrase.set($any($event.target).value)"
+    />
+    @if (unlockError(); as e) {
+      <div class="callout danger small">
+        <app-icon name="alert" [size]="16" />
+        <div>{{ e }}</div>
+      </div>
+    }
+    <p class="small faint">
+      La phrase de passe n'est ni enregistrée ni envoyée ailleurs que dans ssh-keygen, sur ce Mac.
+    </p>
+    <div class="modal-foot">
+      <button type="button" class="btn" (click)="postponeUnlock()">Plus tard</button>
+      <button
+        type="submit"
+        class="btn primary"
+        [disabled]="unlockBusy() || unlockPassphrase() === ''"
+      >
+        <app-icon name="key" [size]="16" /> {{ unlockBusy() ? 'Déverrouillage…' : 'Déverrouiller' }}
+      </button>
+    </div>
+  </form>
+</dialog>

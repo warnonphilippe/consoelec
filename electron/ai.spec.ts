@@ -45,7 +45,7 @@ describe('AiService', () => {
 
   it('refuse d’appeler l’API sans clé', async () => {
     const fetchImpl = vi.fn() as unknown as FetchLike;
-    const service = new AiService(secrets, fetchImpl);
+    const service = new AiService(() => secrets.get(), fetchImpl);
     const result = await service.test('claude-sonnet-5-5');
     expect(result.ok).toBe(false);
     expect(result.message).toContain('clé');
@@ -78,7 +78,7 @@ describe('AiService', () => {
       );
     };
     const events: AiStreamEvent[] = [];
-    await new AiService(secrets, fetchImpl).chat(
+    await new AiService(() => secrets.get(), fetchImpl).chat(
       {
         requestId: 'r1',
         model: 'claude-sonnet-5-5',
@@ -105,7 +105,7 @@ describe('AiService', () => {
     const fetchImpl: FetchLike = async () =>
       new Response('{"error":{"message":"invalid x-api-key"}}', { status: 401 });
     const events: AiStreamEvent[] = [];
-    await new AiService(secrets, fetchImpl).chat(
+    await new AiService(() => secrets.get(), fetchImpl).chat(
       { requestId: 'r2', model: 'm-test', system: '', messages: [] },
       (e) => events.push(e),
     );
@@ -119,7 +119,7 @@ describe('AiService', () => {
     const fetchImpl: FetchLike = async () => {
       throw new TypeError('fetch failed');
     };
-    const result = await new AiService(secrets, fetchImpl).test('claude-sonnet-5-5');
+    const result = await new AiService(() => secrets.get(), fetchImpl).test('claude-sonnet-5-5');
     expect(result).toEqual({ ok: false, message: expect.stringContaining('connexion') });
   });
 
@@ -145,9 +145,10 @@ describe('AiService', () => {
         }),
         { status: 200 },
       );
-    const reading = await new AiService(secrets, fetchImpl).readMeter('claude-sonnet-5-5', [
-      { mediaType: 'image/jpeg', base64: 'AAAA' },
-    ]);
+    const reading = await new AiService(() => secrets.get(), fetchImpl).readMeter(
+      'claude-sonnet-5-5',
+      [{ mediaType: 'image/jpeg', base64: 'AAAA' }],
+    );
     expect(reading).toMatchObject({ importPeak: 12345.6, importOff: 6789, exportPeak: null });
     expect(reading.confidence.importOff).toBe('low');
   });
@@ -167,7 +168,7 @@ describe('AiService', () => {
       });
       return new Response(body, { status: 200 });
     };
-    const service = new AiService(secrets, fetchImpl);
+    const service = new AiService(() => secrets.get(), fetchImpl);
     const events: AiStreamEvent[] = [];
     const running = service.chat(
       { requestId: 'r3', model: 'm-test', system: '', messages: [] },

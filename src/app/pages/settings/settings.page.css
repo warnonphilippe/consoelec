@@ -224,3 +224,11 @@
 .hc-field {
   grid-column: 1 / -1;
 }
+
+.inverter-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.fp {
+  word-break: break-all;
+}

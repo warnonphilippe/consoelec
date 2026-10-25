@@ -1,6 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import type {
   Confidence,
@@ -8,6 +16,7 @@ import type {
   PhotoReading,
 } from '../../../../electron/shared/ipc-contract';
 import { AiService } from '../../core/ai/ai.service';
+import { InverterService } from '../../core/services/inverter.service';
 import { ANOMALY_LABELS } from '../../core/calc/csv';
 import { type Interval } from '../../core/calc/consumption';
 import { toDayNumber, toLocalIso } from '../../core/calc/time';
@@ -47,7 +56,7 @@ type FormKey = RegisterKey | 'pvTotal';
 
 @Component({
   selector: 'app-readings-page',
-  imports: [ReactiveFormsModule, RouterLink, IconComponent, ...FORMAT_PIPES],
+  imports: [ReactiveFormsModule, RouterLink, DatePipe, IconComponent, ...FORMAT_PIPES],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './readings.page.html',
   styleUrl: './readings.page.css',
@@ -58,6 +67,14 @@ export default class ReadingsPage {
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
   private readonly fb = inject(FormBuilder).nonNullable;
+  protected readonly inverter = inject(InverterService);
+  /** Index de production lu sur l'onduleur il y a moins de 2 h (kWh), proposé dans le relevé. */
+  protected readonly inverterTotal = computed(() => {
+    const r = this.inverter.fresh();
+    return r?.totalWh !== null && r?.totalWh !== undefined
+      ? { kwh: Math.round(r.totalWh) / 1000, at: r.at }
+      : null;
+  });
 
   protected readonly registers = REGISTERS;
   protected readonly editingId = signal<string | null>(null);
@@ -78,6 +95,20 @@ export default class ReadingsPage {
   private readonly value = toSignal(this.form.valueChanges, {
     initialValue: this.form.getRawValue(),
   });
+
+  constructor() {
+    // Nouveau relevé : la production totale est pré-remplie avec l'index lu sur l'onduleur.
+    effect(() => {
+      const total = this.inverterTotal();
+      if (
+        total !== null &&
+        this.editingId() === null &&
+        this.form.controls.pvTotal.value === null
+      ) {
+        this.form.controls.pvTotal.setValue(total.kwh);
+      }
+    });
+  }
 
   protected readonly canSave = computed(() => {
     const v = this.value();
@@ -221,7 +252,7 @@ export default class ReadingsPage {
       importOff: null,
       exportPeak: null,
       exportOff: null,
-      pvTotal: null,
+      pvTotal: this.inverterTotal()?.kwh ?? null,
       meterChange: false,
       note: '',
     });

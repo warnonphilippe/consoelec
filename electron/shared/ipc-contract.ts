@@ -17,10 +17,47 @@ export interface LoadResult {
 }
 
 export interface AiStatus {
-  /** Une clé API est enregistrée (elle n'est jamais renvoyée à la page). */
+  /** Une clé API est disponible dans le coffre déverrouillé (elle n'est jamais renvoyée à la page). */
   readonly hasKey: boolean;
-  /** Le système (Trousseau macOS, DPAPI Windows) permet de chiffrer la clé. */
-  readonly encryptionAvailable: boolean;
+  /** État du coffre qui contient la clé. */
+  readonly vault: VaultState;
+}
+
+export type VaultState = 'absent' | 'locked' | 'unlocked';
+export type SecretName = 'claudeApiKey' | 'inverterPsk';
+
+export interface VaultStatus {
+  readonly state: VaultState;
+  /** Clé SSH qui chiffre le coffre, ou `null` s'il n'existe pas encore. */
+  readonly sshKeyPath: string | null;
+  /** Clé SSH proposée à la création. */
+  readonly defaultSshKeyPath: string;
+  /** Secrets présents (connus seulement quand le coffre est ouvert). */
+  readonly secrets: Readonly<Record<SecretName, boolean>>;
+  /** Une ancienne clé API (Trousseau macOS) attend d'être reprise dans le coffre. */
+  readonly legacyApiKey: boolean;
+}
+
+export interface InverterConfig {
+  readonly enabled: boolean;
+  /** Nom ou adresse de l'onduleur sur le réseau local (ex. `SMA3012345678.local` : « SMA » + numéro de série). */
+  readonly host: string;
+  /** Empreinte SHA-256 du certificat épinglée à la première connexion, ou `null`. */
+  readonly certFingerprint: string | null;
+}
+
+export interface InverterReading {
+  /** Horodatage de la lecture (ms). */
+  readonly at: number;
+  /** Puissance AC instantanée (W) ; `null` la nuit ou en cas d'erreur. */
+  readonly powerW: number | null;
+  /** Production du jour (Wh). */
+  readonly dayWh: number | null;
+  /** Production totale cumulée (Wh). */
+  readonly totalWh: number | null;
+  readonly error: string | null;
+  /** Empreinte du certificat présenté par l'onduleur (pour l'épingler la première fois). */
+  readonly certFingerprint: string | null;
 }
 
 export interface AiMessage {
@@ -92,11 +129,23 @@ export interface ConsoElecApi {
     /** Décode une image que Chromium ne lit pas (HEIC d'iPhone…) avec les codecs du système, réduite et en JPEG. */
     toJpeg(data: ArrayBuffer): Promise<MeterPhoto>;
   };
+  readonly vault: {
+    status(): Promise<VaultStatus>;
+    /** Crée le coffre avec la clé SSH donnée (et y reprend l'ancienne clé API s'il y en a une). */
+    create(sshKeyPath: string, passphrase: string): Promise<VaultStatus>;
+    unlock(passphrase: string): Promise<VaultStatus>;
+    lock(): Promise<VaultStatus>;
+    /** Enregistre ou efface un secret ; il n'est jamais renvoyé à la page. */
+    setSecret(name: SecretName, value: string | null): Promise<VaultStatus>;
+  };
+  readonly inverter: {
+    configure(config: InverterConfig): Promise<void>;
+    /** Lit tout de suite les mesures (aussi diffusées par `onReading`). */
+    refresh(): Promise<InverterReading>;
+    onReading(listener: (reading: InverterReading) => void): () => void;
+  };
   readonly ai: {
     status(): Promise<AiStatus>;
-    /** Enregistre la clé API (chiffrée) ; elle ne quitte ensuite jamais le process principal. */
-    setKey(key: string): Promise<void>;
-    clearKey(): Promise<void>;
     /** Petit appel de contrôle pour vérifier la clé et le modèle. */
     test(model: string): Promise<AiTestResult>;
     /** Lance une réponse en flux ; les morceaux arrivent par `onEvent`. */
@@ -116,9 +165,15 @@ export const IPC = {
   reveal: 'data:reveal',
   theme: 'theme:set',
   imageToJpeg: 'image:toJpeg',
+  vaultStatus: 'vault:status',
+  vaultCreate: 'vault:create',
+  vaultUnlock: 'vault:unlock',
+  vaultLock: 'vault:lock',
+  vaultSetSecret: 'vault:setSecret',
+  inverterConfigure: 'inverter:configure',
+  inverterRefresh: 'inverter:refresh',
+  inverterReading: 'inverter:reading',
   aiStatus: 'ai:status',
-  aiSetKey: 'ai:setKey',
-  aiClearKey: 'ai:clearKey',
   aiTest: 'ai:test',
   aiChat: 'ai:chat',
   aiAbort: 'ai:abort',

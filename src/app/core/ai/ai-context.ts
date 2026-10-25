@@ -179,6 +179,12 @@ export function buildDataSnapshot(
           ]),
         )
       : null,
+    productionOnduleurParJour: data.pvDaily.slice(-90).map((d) => ({
+      jour: d.date,
+      productionDuJourKwh: Math.round(d.dayKwh * 10) / 10,
+      indexTotalKwh: Math.round(d.totalKwh),
+      lecture: d.at,
+    })),
     indexEstimesAujourdhui: analysis.currentIndices
       ? registersOf(analysis.currentIndices, r1)
       : null,
@@ -199,6 +205,7 @@ Glossaire :
 - Chauffage et eau chaude au mazout : l'électricité ne sert qu'aux auxiliaires (circulateurs, brûleur) ; ne lui attribue pas la consommation de chauffage.
 - Installation solaire (voir « maison ») : le nombre et la puissance des panneaux donnent la puissance crête ; l'onduleur (kVA) écrête la production quand les panneaux dépassent sa puissance (perte estimée dans « referenceBelge.annuel.clipped »). Un onduleur triphasé n'a pas d'effet sur l'énergie.
 - Radiateur électrique d'appoint (« surplusHeater ») : branché de temps en temps d'octobre à avril sur le surplus solaire ; il consomme de l'électricité autoproduite (l'injection baisse, le soutirage ne change pas) et compte dans la consommation de la maison.
+- « productionOnduleurParJour » : production lue directement sur l'onduleur SMA (dernière lecture de chaque jour ; la valeur d'un jour est partielle si la lecture a eu lieu avant le coucher du soleil). C'est la production solaire réelle, à préférer aux estimations.
 - Les prévisions sont de trois types (statistique belge, statistique ajustée, historique de la maison) ; « fiabiliteObservee » donne l'erreur moyenne de chaque profil sur les mois déjà mesurés. Cite cette fiabilité quand tu parles d'une prévision.
 
 Règles : ne devine pas ; si une donnée manque ou est trop incertaine, dis-le. Signale les relevés suspects (index en baisse, valeurs aberrantes, longues périodes sans relevé). Donne des conseils concrets (décaler des usages vers le solaire ou les heures creuses, dimensionnement d'une batterie ou d'une borne de recharge, etc.) sans promettre d'économies précises ni donner de conseil financier ou juridique garanti.`;

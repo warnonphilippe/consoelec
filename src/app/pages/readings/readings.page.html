@@ -175,6 +175,12 @@
           Portal : « rendement total ») ou sur son écran s'il en a un. Elle permet de calculer
           l'autoconsommation réelle.
         </span>
+        @if (inverterTotal(); as t) {
+          <span class="help tone-success">
+            <app-icon name="sun" [size]="12" /> Lu sur l'onduleur à {{ t.at | date: 'HH:mm' }} :
+            {{ t.kwh | num: 1 }} kWh
+          </span>
+        }
       </div>
 
       <label class="check meter-change">

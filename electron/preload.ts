@@ -4,7 +4,7 @@
  * d'où les noms de canaux recopiés ici plutôt qu'importés.
  */
 import { contextBridge, ipcRenderer } from 'electron';
-import type { AiStreamEvent, ConsoElecApi } from './shared/ipc-contract';
+import type { AiStreamEvent, ConsoElecApi, InverterReading } from './shared/ipc-contract';
 
 const api: ConsoElecApi = {
   platform: process.platform,
@@ -22,10 +22,24 @@ const api: ConsoElecApi = {
   image: {
     toJpeg: (data) => ipcRenderer.invoke('image:toJpeg', data),
   },
+  vault: {
+    status: () => ipcRenderer.invoke('vault:status'),
+    create: (sshKeyPath, passphrase) => ipcRenderer.invoke('vault:create', sshKeyPath, passphrase),
+    unlock: (passphrase) => ipcRenderer.invoke('vault:unlock', passphrase),
+    lock: () => ipcRenderer.invoke('vault:lock'),
+    setSecret: (name, value) => ipcRenderer.invoke('vault:setSecret', name, value),
+  },
+  inverter: {
+    configure: (config) => ipcRenderer.invoke('inverter:configure', config),
+    refresh: () => ipcRenderer.invoke('inverter:refresh'),
+    onReading: (listener) => {
+      const handler = (_event: unknown, payload: InverterReading): void => listener(payload);
+      ipcRenderer.on('inverter:reading', handler);
+      return () => ipcRenderer.removeListener('inverter:reading', handler);
+    },
+  },
   ai: {
     status: () => ipcRenderer.invoke('ai:status'),
-    setKey: (key) => ipcRenderer.invoke('ai:setKey', key),
-    clearKey: () => ipcRenderer.invoke('ai:clearKey'),
     test: (model) => ipcRenderer.invoke('ai:test', model),
     chat: (request) => ipcRenderer.invoke('ai:chat', request),
     abort: (requestId) => ipcRenderer.invoke('ai:abort', requestId),

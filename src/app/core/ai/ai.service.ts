@@ -1,12 +1,12 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
 import type {
-  AiStatus,
   AiStreamEvent,
   MeterPhoto,
   PhotoReading,
 } from '../../../../electron/shared/ipc-contract';
 import { newId } from '../models/normalize';
 import { DataStore } from '../services/data-store.service';
+import { VaultService } from '../services/vault.service';
 import { buildSystemPrompt } from './ai-context';
 
 export interface ChatMessage {
@@ -20,12 +20,13 @@ export interface ChatMessage {
 @Injectable({ providedIn: 'root' })
 export class AiService {
   private readonly store = inject(DataStore);
+  private readonly vault = inject(VaultService);
   private readonly api = typeof window !== 'undefined' ? (window.consoElec?.ai ?? null) : null;
 
   /** Les appels à Claude passent par l'application de bureau ; pas disponibles dans un simple navigateur. */
   readonly available = this.api !== null;
-  readonly status = signal<AiStatus | null>(null);
-  readonly hasKey = computed(() => this.status()?.hasKey === true);
+  /** La clé API est dans le coffre, et le coffre est ouvert. */
+  readonly hasKey = computed(() => this.vault.has('claudeApiKey'));
 
   readonly open = signal(false);
   readonly messages = signal<ChatMessage[]>([]);
@@ -36,24 +37,15 @@ export class AiService {
     if (this.api !== null) {
       const off = this.api.onEvent((event) => this.onEvent(event));
       inject(DestroyRef).onDestroy(off);
-      void this.refreshStatus();
-    }
-  }
-
-  async refreshStatus(): Promise<void> {
-    if (this.api !== null) {
-      this.status.set(await this.api.status());
     }
   }
 
   async setKey(key: string): Promise<void> {
-    await this.require().setKey(key);
-    await this.refreshStatus();
+    await this.vault.setSecret('claudeApiKey', key.trim());
   }
 
   async clearKey(): Promise<void> {
-    await this.require().clearKey();
-    await this.refreshStatus();
+    await this.vault.setSecret('claudeApiKey', null);
   }
 
   test(): Promise<{ ok: boolean; message: string }> {

@@ -157,12 +157,35 @@ export interface Settings {
   theme: ThemeMode;
   /** Modèle Claude utilisé par l'assistant et la lecture de photo. */
   aiModel: string;
+  inverter: InverterSettings;
+}
+
+/** Production lue sur l'onduleur pour un jour donné (dernière lecture de ce jour). */
+export interface PvDay {
+  /** `AAAA-MM-JJ` */
+  date: string;
+  /** Production du jour au moment de la lecture (kWh) ; définitive si la lecture a eu lieu après le coucher du soleil. */
+  dayKwh: number;
+  /** Index de production totale de l'onduleur au moment de la lecture (kWh). */
+  totalKwh: number;
+  /** Heure locale de la lecture, `AAAA-MM-JJTHH:mm`. */
+  at: string;
+}
+
+/** Connexion locale à l'onduleur ; la clé (WPA2-PSK de la plaque) est dans le coffre, jamais ici. */
+export interface InverterSettings {
+  enabled: boolean;
+  host: string;
+  /** Empreinte SHA-256 du certificat de l'onduleur, épinglée à la première connexion. */
+  certFingerprint: string | null;
 }
 
 export interface AppData {
   schemaVersion: 1;
   house: House;
   readings: MeterReading[];
+  /** Historique quotidien de la production lue sur l'onduleur. */
+  pvDaily: PvDay[];
   settings: Settings;
 }
 
@@ -202,6 +225,7 @@ export const DEFAULT_SETTINGS: Settings = {
   specificYieldKwhPerKwp: 900,
   theme: 'system',
   aiModel: DEFAULT_AI_MODEL,
+  inverter: { enabled: false, host: '', certFingerprint: null },
 };
 
 export const DEFAULT_EV: ElectricVehicle = {
@@ -252,6 +276,11 @@ export function emptyData(): AppData {
     schemaVersion: 1,
     house: structuredClone(DEFAULT_HOUSE),
     readings: [],
-    settings: { ...DEFAULT_SETTINGS, offPeakHours: [...DEFAULT_SETTINGS.offPeakHours] },
+    pvDaily: [],
+    settings: {
+      ...DEFAULT_SETTINGS,
+      offPeakHours: [...DEFAULT_SETTINGS.offPeakHours],
+      inverter: { ...DEFAULT_SETTINGS.inverter },
+    },
   };
 }

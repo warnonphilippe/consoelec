@@ -7,7 +7,9 @@ Application de bureau (**Angular 21 + Electron**) pour suivre la consommation et
 - **Installation solaire** : panneaux, onduleur (écrêtage), radiateur d'appoint sur le surplus ; si l'index de production est encodé, autoconsommation, autarcie et consommation réelle de la maison.
 - **Prévisions** selon la saison : statistique belge, statistique recalée sur la maison (avec prudence quand les données sont courtes), historique réel ; fiabilité mesurée par rétro-test sur les mois passés. Scénario **voiture électrique** (avec / sans).
 - **Plusieurs ordinateurs** : export JSON, puis import qui fusionne. Seuls les relevés absents sont ajoutés ; rien n'est modifié ni supprimé. Export et import CSV des relevés (Excel).
-- **Assistant IA** : panneau Claude qui voit toutes les données (clé API chiffrée par le système, jamais exposée à la page).
+- **Onduleur SMA** : lecture locale (WebConnect, connexion SRP) de la puissance et de la production du jour, historique quotidien, relevés pré-remplis, rendement mesuré.
+- **Coffre chiffré par la clé SSH** de l'utilisateur pour la clé API Claude et la clé de l'onduleur, déverrouillé au démarrage.
+- **Assistant IA** : panneau Claude qui voit toutes les données (clé API dans le coffre, jamais exposée à la page).
 - Thèmes **clair / sombre / système**, interface en CSS natif, sans bibliothèque de composants.
 
 Le mode d'emploi complet est dans **[docs/GUIDE-UTILISATEUR.md](docs/GUIDE-UTILISATEUR.md)**. Il est aussi lisible dans l'application, page *Aide*.
@@ -51,7 +53,9 @@ electron/                  Process principal (TypeScript → dist-electron/)
   main.ts                  fenêtre durcie, protocole app://, IPC validé, thème natif
   preload.ts               pont contextBridge → window.consoElec
   storage.ts               fichier JSON (écriture atomique + copie .bak)
-  secrets.ts               clé API chiffrée par safeStorage (fichier séparé des données)
+  vault.ts, vault-core.ts  coffre AES-256-GCM dont la clé dérive d'une signature ssh-keygen (clé SSH de l'utilisateur)
+  secrets.ts               ancien stockage de la clé API (safeStorage), relu une fois pour la migration
+  sma-core.ts, inverter.ts client WebConnect de l'onduleur SMA : SRP 8192 bits, mesures, épinglage du certificat
   ai-core.ts               API Claude : requêtes, flux SSE, outil de lecture de photo, erreurs (pur, testé)
   ai.ts                    appels réseau depuis le process principal uniquement
   image.ts                 conversion d'image en JPEG (HEIC des iPhone via sips sur macOS)
@@ -84,7 +88,7 @@ Toutes les données sont dans un seul fichier JSON :
 - macOS : `~/Library/Application Support/ConsoElec/consoelec.json`
 - Windows : `%APPDATA%\ConsoElec\consoelec.json`
 
-La clé API Claude est dans `secrets.bin`, à côté, chiffrée par le système : elle n'est ni exportée ni synchronisée.
+Les secrets (clé API Claude, clé de l'onduleur) sont dans `secrets.vault`, à côté, chiffrés par la clé SSH de l'utilisateur : ils ne sont ni exportés ni synchronisés.
 
 En développement, `CONSOELEC_USER_DATA=/un/dossier` isole les données. `CONSOELEC_API_URL=http://127.0.0.1:…/v1/messages` redirige les appels Claude vers un serveur de test local (ignoré dans l'application packagée).
 

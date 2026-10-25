@@ -1,4 +1,4 @@
-import type { AppData, House, MeterReading } from './app-data.model';
+import type { AppData, House, MeterReading, PvDay } from './app-data.model';
 
 export interface MergeReport {
   /** Relevés du fichier ajoutés aux données locales. */
@@ -7,6 +7,8 @@ export interface MergeReport {
   readonly duplicateReadings: number;
   /** Relevés présents des deux côtés mais modifiés différemment : la version locale est conservée. */
   readonly conflicts: number;
+  /** Jours de production (onduleur) ajoutés ou complétés par une lecture plus récente. */
+  readonly addedPvDays: number;
   /** La maison du fichier a été reprise (la maison locale n’avait jamais été modifiée). */
   readonly houseAdopted: boolean;
   /** La description de la maison du fichier diffère de la locale (la locale est conservée). */
@@ -57,18 +59,39 @@ export function mergeData(
     added++;
   }
 
+  const pv = mergePvDaily(local.pvDaily, incoming.pvDaily);
   const houseAdopted = localHouseIsDefault && !sameHouse(local.house, incoming.house);
   const houseDiffers = !localHouseIsDefault && !sameHouse(local.house, incoming.house);
   return {
-    data: { ...local, house: houseAdopted ? incoming.house : local.house, readings },
+    data: {
+      ...local,
+      house: houseAdopted ? incoming.house : local.house,
+      readings,
+      pvDaily: pv.list,
+    },
     report: {
       addedReadings: added,
       duplicateReadings: duplicates,
       conflicts,
+      addedPvDays: pv.added,
       houseAdopted,
       houseDiffers,
     },
   };
+}
+
+/** Production par jour : on garde, pour chaque jour, la lecture la plus tardive (la plus complète). */
+function mergePvDaily(local: PvDay[], incoming: PvDay[]): { list: PvDay[]; added: number } {
+  const byDate = new Map(local.map((d) => [d.date, d]));
+  let added = 0;
+  for (const day of incoming) {
+    const existing = byDate.get(day.date);
+    if (!existing || existing.at < day.at) {
+      byDate.set(day.date, day);
+      added++;
+    }
+  }
+  return { list: [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date)), added };
 }
 
 const readingKey = (r: MeterReading): string =>

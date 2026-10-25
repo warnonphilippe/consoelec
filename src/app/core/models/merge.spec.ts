@@ -52,4 +52,29 @@ describe('mergeData', () => {
     expect(kept.data.house.pv.panelCount).toBe(16);
     expect(kept.report.houseDiffers).toBe(true);
   });
+
+  it('fusionne la production de l’onduleur par jour, en gardant la lecture la plus tardive', () => {
+    const local = {
+      ...withReadings([]),
+      pvDaily: [
+        { date: '2026-10-24', dayKwh: 12, totalKwh: 32054, at: '2026-10-24T20:00' },
+        { date: '2026-10-25', dayKwh: 8, totalKwh: 32062, at: '2026-10-25T13:00' },
+      ],
+    };
+    const incoming = {
+      ...withReadings([]),
+      pvDaily: [
+        { date: '2026-10-25', dayKwh: 15.7, totalKwh: 32070, at: '2026-10-25T19:00' },
+        { date: '2026-10-23', dayKwh: 9, totalKwh: 32042, at: '2026-10-23T19:00' },
+        { date: '2026-10-24', dayKwh: 11, totalKwh: 32053, at: '2026-10-24T17:00' },
+      ],
+    };
+    const { data, report } = mergeData(local, incoming);
+    expect(data.pvDaily.map((d) => [d.date, d.dayKwh])).toEqual([
+      ['2026-10-23', 9],
+      ['2026-10-24', 12],
+      ['2026-10-25', 15.7],
+    ]);
+    expect(report.addedPvDays).toBe(2);
+  });
 });

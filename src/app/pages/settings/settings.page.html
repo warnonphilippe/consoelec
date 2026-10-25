@@ -193,6 +193,124 @@
     </div>
   </div>
 
+  <div class="section" id="coffre">
+    <span class="pill"><app-icon name="key" [size]="13" /> Coffre chiffré (clé SSH)</span>
+  </div>
+  <div class="card form">
+    @if (!vault.available) {
+      <div class="callout">
+        <app-icon name="info" />
+        <div>
+          Le coffre, l'assistant IA et la lecture de l'onduleur fonctionnent dans l'application de
+          bureau.
+        </div>
+      </div>
+    } @else {
+      <p class="muted small">
+        La clé API Claude et la clé de l'onduleur sont rangées dans un coffre chiffré (AES-256) par
+        votre
+        <strong>clé SSH</strong> : la phrase de passe de la clé est demandée au démarrage de
+        l'application. Le coffre reste sur ce Mac (<code>secrets.vault</code>) : il n'est
+        <strong>ni exporté ni synchronisé</strong>, et les secrets ne sont jamais renvoyés à la
+        page.
+      </p>
+      @switch (vault.state()) {
+        @case ('absent') {
+          @if (vault.status()?.legacyApiKey) {
+            <div class="callout warning small">
+              <app-icon name="info" [size]="16" />
+              <div>
+                Votre clé API actuelle (Trousseau macOS) sera reprise dans le coffre à sa création.
+              </div>
+            </div>
+          }
+          <div class="form-grid">
+            <div class="field">
+              <label for="sshkey">Clé SSH</label>
+              <input
+                id="sshkey"
+                class="input mono"
+                spellcheck="false"
+                [value]="sshKeyPath()"
+                (input)="sshKeyPath.set($any($event.target).value)"
+              />
+              <span class="help">Clé RSA ou Ed25519 (les clés ECDSA ne conviennent pas).</span>
+            </div>
+            <div class="field">
+              <label for="sshpass">Phrase de passe de la clé</label>
+              <input
+                id="sshpass"
+                class="input"
+                type="password"
+                autocomplete="off"
+                [value]="vaultPass()"
+                (input)="vaultPass.set($any($event.target).value)"
+                (keydown.enter)="createVault()"
+              />
+            </div>
+          </div>
+          <div class="row">
+            <button
+              type="button"
+              class="btn primary"
+              [disabled]="vaultBusy()"
+              (click)="createVault()"
+            >
+              <app-icon name="key" [size]="15" /> Créer le coffre
+            </button>
+          </div>
+        }
+        @case ('locked') {
+          <div class="key-status">
+            <span class="badge warning"><app-icon name="key" [size]="12" /> Verrouillé</span>
+            <span class="small muted"
+              >Clé SSH : <code>{{ vault.status()?.sshKeyPath }}</code></span
+            >
+          </div>
+          <div class="key-row">
+            <input
+              class="input"
+              type="password"
+              autocomplete="off"
+              placeholder="Phrase de passe de la clé SSH"
+              aria-label="Phrase de passe de la clé SSH"
+              [value]="vaultPass()"
+              (input)="vaultPass.set($any($event.target).value)"
+              (keydown.enter)="unlockVault()"
+            />
+            <button
+              type="button"
+              class="btn primary"
+              [disabled]="vaultBusy() || vaultPass() === ''"
+              (click)="unlockVault()"
+            >
+              <app-icon name="key" [size]="15" /> Déverrouiller
+            </button>
+          </div>
+        }
+        @case ('unlocked') {
+          <div class="key-status">
+            <span class="badge success"><app-icon name="check" [size]="12" /> Déverrouillé</span>
+            <span class="small muted"
+              >Clé SSH : <code>{{ vault.status()?.sshKeyPath }}</code></span
+            >
+          </div>
+          <div class="row">
+            <button type="button" class="btn" (click)="lockVault()">
+              <app-icon name="key" [size]="15" /> Verrouiller
+            </button>
+          </div>
+        }
+      }
+      @if (vaultError(); as e) {
+        <div class="callout danger small">
+          <app-icon name="alert" [size]="16" />
+          <div>{{ e }}</div>
+        </div>
+      }
+    }
+  </div>
+
   <div class="section" id="ia">
     <span class="pill violet"><app-icon name="sparkles" [size]="13" /> Assistant IA (Claude)</span>
   </div>
@@ -202,50 +320,56 @@
         <app-icon name="info" />
         <div>
           L'assistant IA et la lecture des photos de compteur fonctionnent dans l'application de
-          bureau : la clé API y est chiffrée par le système et n'est jamais exposée à la page.
+          bureau.
         </div>
       </div>
     } @else {
       <p class="muted small">
         Une clé API Anthropic (console.anthropic.com) permet à l'assistant d'analyser toutes vos
-        données et de lire les index sur la photo du compteur. La clé est chiffrée par votre système
-        (Trousseau macOS / Windows) dans un fichier séparé : elle n'est
-        <strong>ni exportée ni synchronisée</strong> avec vos données. Les appels sont facturés par
-        Anthropic selon votre usage.
+        données et de lire les index sur la photo du compteur. Elle est rangée dans le coffre. Les
+        appels sont facturés par Anthropic selon votre usage.
       </p>
-      <div class="key-status">
-        @if (ai.hasKey()) {
-          <span class="badge success"><app-icon name="check" [size]="12" /> Clé enregistrée</span>
-        } @else {
-          <span class="badge warning"><app-icon name="key" [size]="12" /> Aucune clé</span>
-        }
-        @if (ai.status() && !ai.status()!.encryptionAvailable) {
-          <span class="small tone-danger"
-            >Le chiffrement du système est indisponible : la clé ne peut pas être enregistrée.</span
+      @if (!vault.unlocked()) {
+        <div class="callout small">
+          <app-icon name="key" [size]="16" />
+          <div>
+            {{
+              vault.state() === 'absent'
+                ? 'Créez d’abord le coffre ci-dessus.'
+                : 'Déverrouillez le coffre pour utiliser ou modifier la clé.'
+            }}
+          </div>
+        </div>
+      } @else {
+        <div class="key-status">
+          @if (ai.hasKey()) {
+            <span class="badge success"><app-icon name="check" [size]="12" /> Clé enregistrée</span>
+          } @else {
+            <span class="badge warning"><app-icon name="key" [size]="12" /> Aucune clé</span>
+          }
+        </div>
+        <div class="key-row">
+          <input
+            class="input"
+            type="password"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="sk-ant-…"
+            aria-label="Clé API Anthropic"
+            [value]="keyDraft()"
+            (input)="keyDraft.set($any($event.target).value)"
+            (keydown.enter)="saveKey()"
+          />
+          <button
+            type="button"
+            class="btn primary"
+            [disabled]="keyBusy() || keyDraft().trim() === ''"
+            (click)="saveKey()"
           >
-        }
-      </div>
-      <div class="key-row">
-        <input
-          class="input"
-          type="password"
-          autocomplete="off"
-          spellcheck="false"
-          placeholder="sk-ant-…"
-          aria-label="Clé API Anthropic"
-          [value]="keyDraft()"
-          (input)="keyDraft.set($any($event.target).value)"
-          (keydown.enter)="saveKey()"
-        />
-        <button
-          type="button"
-          class="btn primary"
-          [disabled]="keyBusy() || keyDraft().trim() === ''"
-          (click)="saveKey()"
-        >
-          <app-icon name="key" [size]="15" /> {{ ai.hasKey() ? 'Remplacer' : 'Enregistrer' }}
-        </button>
-      </div>
+            <app-icon name="key" [size]="15" /> {{ ai.hasKey() ? 'Remplacer' : 'Enregistrer' }}
+          </button>
+        </div>
+      }
       <div class="form-grid">
         <div class="field">
           <label for="model">Modèle</label>
@@ -277,6 +401,120 @@
           <app-icon [name]="r.ok ? 'check' : 'alert'" />
           <div>{{ r.message }}</div>
         </div>
+      }
+    }
+  </div>
+
+  <div class="section" id="onduleur">
+    <span class="pill warning"><app-icon name="sun" [size]="13" /> Onduleur (lecture locale)</span>
+  </div>
+  <div class="card form">
+    @if (!inverter.available) {
+      <div class="callout">
+        <app-icon name="info" />
+        <div>La lecture de l'onduleur fonctionne dans l'application de bureau.</div>
+      </div>
+    } @else {
+      <p class="muted small">
+        ConsoElec lit l'onduleur sur votre réseau local (interface SMA WebConnect, connexion
+        sécurisée SRP) toutes les minutes quand l'application est ouverte : puissance instantanée,
+        production du jour et index total. La production du jour est enregistrée dans vos données et
+        l'index total pré-remplit vos relevés.
+      </p>
+      <label class="check">
+        <input
+          type="checkbox"
+          [checked]="inverterSettings().enabled"
+          (change)="setInverterEnabled($event)"
+        />
+        Lire l'onduleur automatiquement
+      </label>
+      <div class="form-grid inverter-grid">
+        <div class="field">
+          <label for="invhost">Adresse de l'onduleur</label>
+          <input
+            id="invhost"
+            placeholder="SMA + numéro de série + .local, ex. SMA3012345678.local"
+            class="input mono"
+            spellcheck="false"
+            [value]="inverterSettings().host"
+            (change)="setInverterHost($event)"
+          />
+          <span class="help"
+            >Nom réseau (SMA + numéro de série, suivi de .local) ou adresse IP.</span
+          >
+        </div>
+        <div class="field">
+          <label for="invpsk">Clé WPA2-PSK de la plaque</label>
+          @if (vault.unlocked()) {
+            <div class="key-row">
+              <input
+                id="invpsk"
+                class="input mono"
+                type="password"
+                autocomplete="off"
+                spellcheck="false"
+                [placeholder]="
+                  vault.has('inverterPsk')
+                    ? 'Clé enregistrée — saisir pour remplacer'
+                    : '16 caractères'
+                "
+                [value]="pskDraft()"
+                (input)="pskDraft.set($any($event.target).value)"
+                (keydown.enter)="savePsk()"
+              />
+              <button
+                type="button"
+                class="btn primary"
+                [disabled]="pskDraft().trim() === ''"
+                (click)="savePsk()"
+              >
+                Enregistrer
+              </button>
+            </div>
+            <span class="help"
+              >Rangée dans le coffre. Votre onduleur utilise cette clé pour la connexion «
+              Utilisateur ».</span
+            >
+          } @else {
+            <span class="small muted">Déverrouillez ou créez le coffre pour saisir la clé.</span>
+          }
+        </div>
+      </div>
+      <div class="row">
+        <button
+          type="button"
+          class="btn"
+          [disabled]="inverter.busy() || !inverter.ready()"
+          (click)="testInverter()"
+        >
+          <app-icon name="refresh" [size]="15" /> Tester la connexion
+        </button>
+        @if (inverterSettings().certFingerprint) {
+          <button type="button" class="btn ghost" (click)="inverter.resetPin()">
+            Oublier le certificat épinglé
+          </button>
+        }
+      </div>
+      @if (inverter.live(); as r) {
+        <div class="callout" [class.success]="!r.error" [class.danger]="r.error">
+          <app-icon [name]="r.error ? 'alert' : 'check'" />
+          <div>
+            @if (r.error) {
+              {{ r.error }}
+            } @else {
+              Connexion réussie :
+              {{ r.powerW === null ? 'pas de production en ce moment' : (r.powerW | num) + ' W' }} ·
+              aujourd'hui {{ (r.dayWh ?? 0) / 1000 | num: 1 }} kWh · total
+              {{ (r.totalWh ?? 0) / 1000 | num }} kWh
+            }
+          </div>
+        </div>
+      }
+      @if (inverterSettings().certFingerprint; as fp) {
+        <p class="small faint">
+          Certificat épinglé : <code class="fp">{{ fp }}</code>
+        </p>
       }
     }
   </div>

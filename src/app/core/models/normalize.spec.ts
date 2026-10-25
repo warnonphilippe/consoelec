@@ -146,4 +146,32 @@ describe('normalizeData', () => {
     ]);
     expect(data.settings.offPeakWeekends).toBe(false);
   });
+
+  it('lit l’historique de production de l’onduleur, une entrée par jour (la plus tardive)', () => {
+    const data = normalizeData({
+      pvDaily: [
+        { date: '2026-10-25', dayKwh: 10, totalKwh: 32060, at: '2026-10-25T12:00' },
+        { date: '2026-10-25', dayKwh: 15.7, totalKwh: 32070.5, at: '2026-10-25T18:00' },
+        { date: '2026-10-24', dayKwh: 'x', totalKwh: 1, at: '2026-10-24T18:00' },
+        { date: 'hier', dayKwh: 1, totalKwh: 1, at: '2026-10-24T18:00' },
+      ],
+    });
+    expect(data.pvDaily).toEqual([
+      { date: '2026-10-25', dayKwh: 15.7, totalKwh: 32070.5, at: '2026-10-25T18:00' },
+    ]);
+  });
+
+  it('valide les réglages de l’onduleur', () => {
+    const data = normalizeData({
+      settings: {
+        inverter: { enabled: true, host: ' 192.168.1.42 ', certFingerprint: 'pas une empreinte' },
+      },
+    });
+    expect(data.settings.inverter).toEqual({
+      enabled: true,
+      host: '192.168.1.42',
+      certFingerprint: null,
+    });
+    expect(normalizeData({ readings: [] }).settings.inverter.host).toBe('');
+  });
 });

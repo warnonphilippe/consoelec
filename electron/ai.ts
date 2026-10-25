@@ -10,7 +10,6 @@ import {
   stepOf,
   toolInputOf,
 } from './ai-core';
-import type { SecretStore } from './secrets';
 import type {
   AiChatRequest,
   AiStreamEvent,
@@ -24,7 +23,8 @@ export type FetchLike = (
   init: { method: string; headers: Record<string, string>; body: string; signal?: AbortSignal },
 ) => Promise<Response>;
 
-const NO_KEY = 'Aucune clé API enregistrée : ajoutez-la dans les réglages.';
+const NO_KEY =
+  'Clé API indisponible : déverrouillez le coffre ou ajoutez la clé dans les réglages.';
 const OFFLINE = 'Impossible de joindre le service Claude : vérifiez la connexion internet.';
 
 /** Appels à l'API Claude, faits uniquement depuis le process principal : la clé n'atteint jamais la page. */
@@ -32,7 +32,8 @@ export class AiService {
   private readonly running = new Map<string, AbortController>();
 
   constructor(
-    private readonly secrets: SecretStore,
+    /** Fournit la clé API (coffre déverrouillé) ou `null`. */
+    private readonly apiKey: () => Promise<string | null>,
     private readonly fetchImpl: FetchLike,
     /** Adresse de l'API ; remplaçable uniquement en développement (serveur de test local). */
     private readonly apiUrl: string = API_URL,
@@ -93,7 +94,7 @@ export class AiService {
   }
 
   private async post(body: Record<string, unknown>, signal?: AbortSignal): Promise<Response> {
-    const key = await this.secrets.get();
+    const key = await this.apiKey();
     if (key === null) {
       throw new Error(NO_KEY);
     }

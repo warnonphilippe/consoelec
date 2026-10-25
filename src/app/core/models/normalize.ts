@@ -11,8 +11,10 @@ import {
   type ElectricVehicle,
   type EvMode,
   type House,
+  type InverterSettings,
   type MeterReading,
   type Presence,
+  type PvDay,
   type Pv,
   type ReadingSource,
   type ReferencePreset,
@@ -35,7 +37,10 @@ const PRESENCES: readonly Presence[] = ['absent', 'partial', 'home'];
  * Lève une erreur si le contenu n'a manifestement rien à voir avec ConsoElec.
  */
 export function normalizeData(input: unknown): AppData {
-  if (!isObject(input) || !('settings' in input || 'readings' in input || 'house' in input)) {
+  if (
+    !isObject(input) ||
+    !('settings' in input || 'readings' in input || 'house' in input || 'pvDaily' in input)
+  ) {
     throw new Error('Ce fichier ne contient pas de données ConsoElec.');
   }
   const base = emptyData();
@@ -45,6 +50,7 @@ export function normalizeData(input: unknown): AppData {
     readings: asArray(input['readings'])
       .map(normalizeReading)
       .filter((r): r is MeterReading => r !== null),
+    pvDaily: normalizePvDaily(input['pvDaily']),
     settings: isObject(input['settings']) ? normalizeSettings(input['settings']) : base.settings,
   };
 }
@@ -166,6 +172,44 @@ function normalizeSettings(raw: Raw): Settings {
       model.length > 0 && model.length < 80
         ? model
         : (AI_MODELS[0]?.id ?? DEFAULT_SETTINGS.aiModel),
+    inverter: normalizeInverter(raw['inverter']),
+  };
+}
+
+function normalizePvDaily(value: unknown): PvDay[] {
+  const byDate = new Map<string, PvDay>();
+  for (const raw of asArray(value)) {
+    if (!isObject(raw)) {
+      continue;
+    }
+    const date = str(raw['date'], '');
+    const dayKwh = num(raw['dayKwh'], Number.NaN);
+    const totalKwh = num(raw['totalKwh'], Number.NaN);
+    const at = str(raw['at'], '');
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+      !(dayKwh >= 0) ||
+      !(totalKwh >= 0) ||
+      !DATE_RE.test(at)
+    ) {
+      continue;
+    }
+    const entry: PvDay = { date, dayKwh, totalKwh, at: at.slice(0, 16) };
+    const existing = byDate.get(date);
+    if (!existing || existing.at < entry.at) {
+      byDate.set(date, entry);
+    }
+  }
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function normalizeInverter(raw: unknown): InverterSettings {
+  const r = isObject(raw) ? raw : {};
+  const fp = r['certFingerprint'];
+  return {
+    enabled: bool(r['enabled'], DEFAULT_SETTINGS.inverter.enabled),
+    host: str(r['host'], DEFAULT_SETTINGS.inverter.host).trim(),
+    certFingerprint: typeof fp === 'string' && /^[0-9A-Fa-f:]{64,95}$/.test(fp) ? fp : null,
   };
 }
 

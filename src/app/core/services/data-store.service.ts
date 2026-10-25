@@ -8,6 +8,7 @@ import {
   type AppData,
   type House,
   type MeterReading,
+  type PvDay,
   type Settings,
 } from '../models/app-data.model';
 import { mergeData, type MergeReport, type MergeResult } from '../models/merge';
@@ -81,6 +82,23 @@ export class DataStore {
   saveReading(reading: Omit<MeterReading, 'id'> & { id?: string }): void {
     const entry: MeterReading = { ...reading, id: reading.id ?? newId() };
     this.update((d) => ({ ...d, readings: upsert(d.readings, entry) }));
+  }
+
+  /** Enregistre la production du jour lue sur l'onduleur (une entrée par jour, mise à jour à chaque lecture). */
+  recordPvDay(day: PvDay): void {
+    const current = this.state().pvDaily.find((d) => d.date === day.date);
+    if (current && current.dayKwh === day.dayKwh && current.totalKwh === day.totalKwh) {
+      return;
+    }
+    if (current && current.at > day.at) {
+      return;
+    }
+    this.update((d) => ({
+      ...d,
+      pvDaily: [...d.pvDaily.filter((x) => x.date !== day.date), day].sort((a, b) =>
+        a.date.localeCompare(b.date),
+      ),
+    }));
   }
 
   deleteReading(id: string): void {
