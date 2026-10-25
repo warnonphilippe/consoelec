@@ -1,0 +1,95 @@
+# Projet Xcode du widget macOS de ConsoElec, généré par XcodeGen : `xcodegen generate` (voir build.sh).
+name: ConsoElecWidget
+options:
+  bundleIdPrefix: io.github.warnonphilippe
+  deploymentTarget:
+    macOS: "14.0"
+  developmentLanguage: fr
+configFiles:
+  Debug: Local.xcconfig
+  Release: Local.xcconfig
+packages:
+  SmaKit:
+    path: SmaKit
+settings:
+  base:
+    MARKETING_VERSION: 1.0.0
+    CURRENT_PROJECT_VERSION: 1
+    SWIFT_VERSION: "5.0"
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_HARDENED_RUNTIME: YES
+targets:
+  ConsoElecWidget:
+    type: application
+    platform: macOS
+    sources: [App, Shared]
+    dependencies:
+      - package: SmaKit
+      - target: ConsoElecWidgetExtension
+        embed: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.warnonphilippe.consoelec.widget
+        PRODUCT_NAME: ConsoElec Widget
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: ConsoElec Widget
+        ConsoElecAppGroup: $(TeamIdentifierPrefix)group.io.github.warnonphilippe.consoelec
+        ConsoElecKeychainGroup: $(AppIdentifierPrefix)io.github.warnonphilippe.consoelec.shared
+        NSLocalNetworkUsageDescription: Lire la production de votre onduleur solaire sur le réseau local.
+        NSBonjourServices: [_http._tcp]
+    entitlements:
+      path: App/App.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+        com.apple.security.application-groups: [$(TeamIdentifierPrefix)group.io.github.warnonphilippe.consoelec]
+        keychain-access-groups: [$(AppIdentifierPrefix)io.github.warnonphilippe.consoelec.shared]
+  ConsoElecWidgetExtension:
+    type: app-extension
+    platform: macOS
+    sources: [Extension, Shared]
+    dependencies:
+      - package: SmaKit
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.warnonphilippe.consoelec.widget.extension
+        PRODUCT_NAME: ConsoElecWidgetExtension
+    info:
+      path: Extension/Info.plist
+      properties:
+        CFBundleDisplayName: ConsoElec
+        ConsoElecAppGroup: $(TeamIdentifierPrefix)group.io.github.warnonphilippe.consoelec
+        ConsoElecKeychainGroup: $(AppIdentifierPrefix)io.github.warnonphilippe.consoelec.shared
+        NSLocalNetworkUsageDescription: Lire la production de votre onduleur solaire sur le réseau local.
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: Extension/Extension.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+        com.apple.security.application-groups: [$(TeamIdentifierPrefix)group.io.github.warnonphilippe.consoelec]
+        keychain-access-groups: [$(AppIdentifierPrefix)io.github.warnonphilippe.consoelec.shared]
+  SmaKitTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources: [Tests]
+    dependencies:
+      - package: SmaKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.warnonphilippe.consoelec.widget.tests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  ConsoElecWidget:
+    build:
+      targets:
+        ConsoElecWidget: all
+    test:
+      targets: [SmaKitTests]

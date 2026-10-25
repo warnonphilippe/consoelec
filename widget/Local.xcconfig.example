@@ -1,0 +1,3 @@
+// Copier en Local.xcconfig (ignoré par git) et indiquer l'identifiant de votre équipe de signature
+// (Xcode → Réglages → Comptes → votre identifiant Apple → « Personal Team »).
+DEVELOPMENT_TEAM = ABCDE12345

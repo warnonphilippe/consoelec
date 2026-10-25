@@ -245,6 +245,17 @@ Ensuite, tant que l'application est ouverte :
 
 Le certificat de l'onduleur est **épinglé** à la première connexion : si un autre appareil répond à la même adresse, la connexion est refusée. Après un remplacement de l'onduleur, utilisez **Oublier le certificat épinglé**.
 
+## Widget macOS
+
+« ConsoElec Widget » affiche la production solaire en direct sur le bureau ou dans le Centre de notifications. Il lit l'onduleur lui-même : ConsoElec n'a pas besoin d'être ouverte.
+
+1. Installez-le avec `./widget/build.sh` (voir le README : Xcode et un identifiant Apple sont nécessaires), ou ouvrez **/Applications/ConsoElec Widget.app** s'il est déjà installé.
+2. Dans la fenêtre de l'app, vérifiez l'adresse de l'onduleur (bouton **Rechercher**), saisissez la **clé WPA2-PSK** de la plaque et cliquez **Enregistrer**. La clé est rangée dans le **Trousseau macOS**, pas dans un fichier.
+3. **Tester la lecture** affiche une lecture et l'aperçu du widget. Au premier accès, macOS demande l'autorisation d'accéder au réseau local : acceptez.
+4. Ajoutez le widget : clic droit sur le bureau → **Modifier les widgets** → cherchez **ConsoElec** → choisissez le petit format (puissance et production du jour) ou le moyen (avec la courbe de la journée et l'index total).
+
+Le widget se met à jour toutes les 5 à 15 minutes : c'est macOS qui fixe le rythme. Si l'onduleur ne répond pas (la nuit, Wi-Fi coupé), il garde la dernière lecture et affiche son heure. Comme ConsoElec, il épingle le certificat de l'onduleur à la première connexion.
+
 ## Partager entre plusieurs ordinateurs
 
 Dans **Réglages → Données** :

@@ -52,3 +52,14 @@ Thumbs.db
 # Outils locaux
 /.claude
 
+
+# Widget macOS (Xcode)
+/widget/build
+/widget/Local.xcconfig
+/widget/ConsoElecWidget.xcodeproj
+/widget/SmaKit/.build
+/widget/SmaKit/.swiftpm
+/widget/App/Info.plist
+/widget/Extension/Info.plist
+/widget/App/App.entitlements
+/widget/Extension/Extension.entitlements

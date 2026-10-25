@@ -46,6 +46,20 @@ Les scripts lancent `npm ci` si les dépendances manquent ou sont périmées, pu
 
 Les paquets ne sont pas signés. Sur macOS, lever la quarantaine avec `xattr -dr com.apple.quarantine /Applications/ConsoElec.app`. Sur Windows, SmartScreen demande « Exécuter quand même ».
 
+## Widget macOS
+
+Le dossier [`widget/`](widget) contient un vrai widget WidgetKit, « ConsoElec Widget », qui lit l'onduleur SMA lui-même (même ConsoElec fermée) et affiche la puissance instantanée, la production du jour, la courbe de la journée et l'index total.
+
+- **Prérequis** : Xcode 26, XcodeGen (`brew install xcodegen`), un identifiant Apple ajouté dans Xcode → Réglages → Comptes (« Personal Team » gratuite suffit).
+- Copier `widget/Local.xcconfig.example` en `widget/Local.xcconfig` et y mettre son identifiant d'équipe (`DEVELOPMENT_TEAM`). Ce fichier n'est pas versionné.
+- `./widget/build.sh` génère le projet Xcode depuis [`widget/project.yml`](widget/project.yml), lance les tests, construit en Release et installe `/Applications/ConsoElec Widget.app`.
+
+Structure :
+- `widget/SmaKit` : paquet Swift, port de `electron/sma-core.ts` (connexion SRP « YAP » 8192 bits, lecture des mesures, épinglage du certificat, stockage partagé). `swift run -c release smakit-check Tests/srp-vectors.json` vérifie les vecteurs et mesure la durée d'une connexion (≈ 300 ms).
+- `widget/App` : petite app de réglage (adresse trouvée par Bonjour, clé WPA2-PSK rangée dans le Trousseau, test, aperçu).
+- `widget/Extension` : extension WidgetKit (petit et moyen formats), rafraîchie toutes les 5 minutes environ (c'est macOS qui décide).
+- `widget/Tests` : tests XCTest, dont les vecteurs SRP produits par `scripts/srp-vectors.mjs` à partir de l'implémentation TypeScript (`npm run build:main` d’abord).
+
 ## Architecture
 
 ```
