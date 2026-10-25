@@ -1,0 +1,505 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1>Réglages</h1>
+      <p class="subtitle">Référence belge, assistant IA, apparence et gestion des données.</p>
+    </div>
+  </header>
+
+  <div class="section">
+    <span class="pill warning"><app-icon name="bolt" [size]="13" /> Consommation de référence</span>
+  </div>
+  <div class="grid grid-2">
+    <div class="card form">
+      <p class="muted">
+        Tant que l'historique de la maison est court, les prévisions s'appuient sur la consommation
+        annuelle d'une maison belge type, réglée ici. La chaudière mazout fait le chauffage et l'eau
+        chaude : la référence est celle d'un ménage <strong>sans chauffage électrique</strong>.
+      </p>
+      <div class="presets">
+        @for (p of presets; track p.key) {
+          <button
+            type="button"
+            class="preset"
+            [class.active]="settings().referencePreset === p.key"
+            (click)="selectPreset(p.key)"
+          >
+            <strong>{{ p.kwh | kwh }}</strong>
+            <span class="small muted">{{ p.label }}</span>
+          </button>
+        }
+        <div class="preset custom" [class.active]="settings().referencePreset === 'custom'">
+          <div class="input-suffix">
+            <input
+              class="input"
+              type="number"
+              min="500"
+              max="20000"
+              step="100"
+              [value]="settings().referenceAnnualKwh"
+              (change)="setNumber('referenceAnnualKwh', $event, 500, 20000)"
+              aria-label="Consommation annuelle personnalisée"
+            />
+            <span class="suffix">kWh/an</span>
+          </div>
+          <span class="small muted">Personnalisé (ex. ancienne facture)</span>
+        </div>
+      </div>
+
+      <div class="form-grid">
+        <div class="field">
+          <label for="winter">Part hivernale</label>
+          <div class="input-suffix">
+            <input
+              id="winter"
+              class="input"
+              type="number"
+              min="0"
+              max="80"
+              step="5"
+              [value]="settings().winterSharePct"
+              (change)="setNumber('winterSharePct', $event, 0, 80)"
+            />
+            <span class="suffix">%</span>
+          </div>
+          <span class="help"
+            >Part de la consommation qui suit l'hiver (éclairage, circulateurs, brûleur,
+            ventilation). Le reste est constant toute l'année.</span
+          >
+        </div>
+        <div class="field">
+          <span class="label">Présence en journée (semaine)</span>
+          <div class="segmented" role="radiogroup" aria-label="Présence en journée">
+            @for (p of presences; track p.value) {
+              <button
+                type="button"
+                role="radio"
+                [class.active]="settings().presence === p.value"
+                [attr.aria-checked]="settings().presence === p.value"
+                [title]="p.hint"
+                (click)="setPresence(p.value)"
+              >
+                {{ p.label }}
+              </button>
+            }
+          </div>
+          <span class="help">
+            Détermine la part de la consommation qui tombe pendant que le soleil produit (donc
+            l'autoconsommation). Les week-ends sont toujours comptés « à la maison ».
+          </span>
+        </div>
+        <div class="field">
+          <label for="ohs">Heures creuses de nuit</label>
+          <div class="hours">
+            <span class="small muted">de</span>
+            <input
+              id="ohs"
+              class="input"
+              type="number"
+              min="0"
+              max="23"
+              step="1"
+              [value]="settings().offPeakStartHour"
+              (change)="setNumber('offPeakStartHour', $event, 0, 23)"
+              aria-label="Début des heures creuses"
+            />
+            <span class="small muted">h à</span>
+            <input
+              class="input"
+              type="number"
+              min="0"
+              max="23"
+              step="1"
+              [value]="settings().offPeakEndHour"
+              (change)="setNumber('offPeakEndHour', $event, 0, 23)"
+              aria-label="Fin des heures creuses"
+            />
+            <span class="small muted">h</span>
+          </div>
+          <label class="check">
+            <input
+              type="checkbox"
+              [checked]="settings().offPeakWeekends"
+              (change)="setWeekends($event)"
+            />
+            Les week-ends sont entièrement en heures creuses
+          </label>
+          <span class="help">
+            Vérifiez les heures de votre gestionnaire de réseau : elles déterminent la part du
+            soutirage et de l'injection comptée en heures creuses.
+          </span>
+        </div>
+        <div class="field">
+          <label for="yield">Rendement des panneaux</label>
+          <div class="input-suffix">
+            <input
+              id="yield"
+              class="input"
+              type="number"
+              min="300"
+              max="1400"
+              step="10"
+              [value]="settings().specificYieldKwhPerKwp"
+              (change)="setNumber('specificYieldKwhPerKwp', $event, 300, 1400)"
+            />
+            <span class="suffix">kWh/kWc/an</span>
+          </div>
+          <span class="help"
+            >Avant écrêtage de l'onduleur. 850 (estimation prudente de Bruxelles Environnement) à 1
+            000 (PVGIS, Wallonie, plein sud) : 900 par défaut, à corriger quand vous aurez une année
+            d'index de production.</span
+          >
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3>Profil mensuel de référence</h3>
+        <span class="hint"
+          >consommation de la maison · {{ analysis().reference.annual.consumption | kwh }} /
+          an</span
+        >
+      </div>
+      <div class="profile">
+        @for (v of consumptionProfile(); track $index) {
+          <div
+            class="profile-col"
+            [title]="
+              monthShort[$index] + ' : ' + (v | kwh) + ' (' + degreeDays[$index] + ' degrés-jours)'
+            "
+          >
+            <span class="profile-value">{{ v | num }}</span>
+            <div class="profile-bar">
+              <span [style.height.%]="(v / consumptionMax()) * 100"></span>
+            </div>
+            <span class="profile-label">{{ monthShort[$index] }}</span>
+          </div>
+        }
+      </div>
+      <div class="card-header profile-head">
+        <h3>Production solaire attendue</h3>
+        <span class="hint">{{ analysis().reference.annual.production | kwh }} / an</span>
+      </div>
+      <div class="profile short">
+        @for (v of productionProfile(); track $index) {
+          <div class="profile-col" [title]="monthShort[$index] + ' : ' + (v | kwh)">
+            <span class="profile-value">{{ v | num }}</span>
+            <div class="profile-bar">
+              <span class="solar" [style.height.%]="(v / productionMax()) * 100"></span>
+            </div>
+            <span class="profile-label">{{ monthShort[$index] }}</span>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="section" id="ia">
+    <span class="pill violet"><app-icon name="sparkles" [size]="13" /> Assistant IA (Claude)</span>
+  </div>
+  <div class="card form">
+    @if (!ai.available) {
+      <div class="callout">
+        <app-icon name="info" />
+        <div>
+          L'assistant IA et la lecture des photos de compteur fonctionnent dans l'application de
+          bureau : la clé API y est chiffrée par le système et n'est jamais exposée à la page.
+        </div>
+      </div>
+    } @else {
+      <p class="muted small">
+        Une clé API Anthropic (console.anthropic.com) permet à l'assistant d'analyser toutes vos
+        données et de lire les index sur la photo du compteur. La clé est chiffrée par votre système
+        (Trousseau macOS / Windows) dans un fichier séparé : elle n'est
+        <strong>ni exportée ni synchronisée</strong> avec vos données. Les appels sont facturés par
+        Anthropic selon votre usage.
+      </p>
+      <div class="key-status">
+        @if (ai.hasKey()) {
+          <span class="badge success"><app-icon name="check" [size]="12" /> Clé enregistrée</span>
+        } @else {
+          <span class="badge warning"><app-icon name="key" [size]="12" /> Aucune clé</span>
+        }
+        @if (ai.status() && !ai.status()!.encryptionAvailable) {
+          <span class="small tone-danger"
+            >Le chiffrement du système est indisponible : la clé ne peut pas être enregistrée.</span
+          >
+        }
+      </div>
+      <div class="key-row">
+        <input
+          class="input"
+          type="password"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="sk-ant-…"
+          aria-label="Clé API Anthropic"
+          [value]="keyDraft()"
+          (input)="keyDraft.set($any($event.target).value)"
+          (keydown.enter)="saveKey()"
+        />
+        <button
+          type="button"
+          class="btn primary"
+          [disabled]="keyBusy() || keyDraft().trim() === ''"
+          (click)="saveKey()"
+        >
+          <app-icon name="key" [size]="15" /> {{ ai.hasKey() ? 'Remplacer' : 'Enregistrer' }}
+        </button>
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label for="model">Modèle</label>
+          <select id="model" class="input" [value]="settings().aiModel" (change)="setModel($event)">
+            @for (m of models; track m.id) {
+              <option [value]="m.id" [selected]="m.id === settings().aiModel">{{ m.label }}</option>
+            }
+          </select>
+          <span class="help">Utilisé pour l'assistant et pour la lecture des photos.</span>
+        </div>
+      </div>
+      <div class="row">
+        <button
+          type="button"
+          class="btn"
+          [disabled]="keyBusy() || !ai.hasKey()"
+          (click)="testKey()"
+        >
+          <app-icon name="refresh" [size]="15" /> Tester la connexion
+        </button>
+        @if (ai.hasKey()) {
+          <button type="button" class="btn danger" (click)="removeKey()">
+            <app-icon name="trash" [size]="15" /> Supprimer la clé
+          </button>
+        }
+      </div>
+      @if (testResult(); as r) {
+        <div class="callout" [class.success]="r.ok" [class.danger]="!r.ok">
+          <app-icon [name]="r.ok ? 'check' : 'alert'" />
+          <div>{{ r.message }}</div>
+        </div>
+      }
+    }
+  </div>
+
+  <div class="section">
+    <span class="pill violet"><app-icon name="sun" [size]="13" /> Apparence</span>
+  </div>
+  <div class="card row">
+    <span>Thème</span>
+    <span class="spacer"></span>
+    <div class="segmented">
+      @for (t of themeModes; track t.mode) {
+        <button
+          type="button"
+          [class.active]="theme.mode() === t.mode"
+          (click)="theme.setMode(t.mode)"
+        >
+          <app-icon [name]="t.icon" [size]="15" /> {{ t.label }}
+        </button>
+      }
+    </div>
+  </div>
+
+  <div class="section">
+    <span class="pill cyan"><app-icon name="file" [size]="13" /> Données</span>
+  </div>
+  <div class="grid grid-2">
+    <div class="card form">
+      <div class="card-header">
+        <h3>Partager entre plusieurs ordinateurs</h3>
+        <span class="hint">{{ counts().readings }} relevés</span>
+      </div>
+      <ol class="share-steps small muted">
+        <li><strong>Exportez</strong> sur l'ordinateur qui contient les nouveaux relevés.</li>
+        <li>Copiez le fichier sur l'autre Mac (iCloud Drive, clé USB, AirDrop…).</li>
+        <li>
+          <strong>Importez</strong>-le là : seuls les relevés absents sont ajoutés, rien n'est
+          modifié ni supprimé.
+        </li>
+      </ol>
+      <div class="row">
+        <button type="button" class="btn primary" (click)="exportJson()">
+          <app-icon name="download" [size]="16" /> Exporter les données (JSON)
+        </button>
+        <button type="button" class="btn" (click)="importJson()">
+          <app-icon name="upload" [size]="16" /> Importer un fichier…
+        </button>
+      </div>
+    </div>
+
+    <div class="card form">
+      <div class="card-header"><h3>Relevés au format CSV (Excel)</h3></div>
+      <p class="small muted">
+        Colonnes : date, soutirage HP, soutirage HC, injection HP, injection HC, production PV
+        (facultative), note. Séparateur « ; » et virgule décimale. L'import fusionne avec vos
+        relevés (rien n'est écrasé).
+      </p>
+      <div class="row">
+        <button type="button" class="btn" (click)="exportCsv('readings')">
+          <app-icon name="download" [size]="16" /> Exporter les relevés
+        </button>
+        <button type="button" class="btn" (click)="importCsv()">
+          <app-icon name="upload" [size]="16" /> Importer des relevés…
+        </button>
+      </div>
+      <div class="row">
+        <span class="small muted">Analyses :</span>
+        <button type="button" class="btn sm" (click)="exportCsv('months')">Conso. mensuelle</button>
+        <button type="button" class="btn sm" (click)="exportCsv('intervals')">Entre relevés</button>
+      </div>
+    </div>
+
+    <div class="card form">
+      <div class="card-header"><h3>Fichier de données</h3></div>
+      @if (store.filePath(); as path) {
+        <div class="file-path">
+          <app-icon name="folder" [size]="16" />
+          <code>{{ path }}</code>
+          <button type="button" class="btn sm" (click)="storage.reveal()">Afficher</button>
+        </div>
+        <p class="small muted">
+          Enregistrement automatique à chaque modification ; la version précédente est conservée en
+          <code>.bak</code>.
+        </p>
+      } @else {
+        <p class="small muted">
+          Version navigateur : les données sont conservées dans le stockage local du navigateur.
+        </p>
+      }
+    </div>
+
+    <div class="card form">
+      <div class="card-header"><h3>Démonstration et réinitialisation</h3></div>
+      <p class="small muted">
+        Les données de démo (deux ans de relevés fictifs, installation de 6 kWc) permettent de
+        découvrir toutes les fonctions. Pensez à exporter vos données avant.
+      </p>
+      <div class="row">
+        <button type="button" class="btn" (click)="loadDemo()">
+          <app-icon name="sparkles" [size]="16" /> Charger la démo
+        </button>
+        <button type="button" class="btn danger" (click)="reset()">
+          <app-icon name="trash" [size]="16" /> Tout effacer
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <span class="pill"><app-icon name="book" [size]="13" /> Sources des données de référence</span>
+  </div>
+  <div class="card sources">
+    <ul>
+      <li>
+        <strong>Consommation annuelle</strong> — ordre de grandeur de ~3 500 kWh/an pour un ménage
+        de 4 personnes sans chauffage électrique (la VREG cite 3 305 kWh en moyenne en Flandre ; les
+        comparateurs retiennent 3 200 à 3 500 kWh pour 3 à 4 personnes). Valeur à ajuster d'après
+        vos factures.
+        <a
+          href="https://callmepower.be/fr/energie/guides/consommation/moyenne-electricite"
+          target="_blank"
+          rel="noopener"
+          >Consommation moyenne d'électricité en Belgique</a
+        >
+      </li>
+      <li>
+        <strong>Production solaire</strong> — 850 à 1 000 kWh/kWc/an pour une installation plein sud
+        à 35° en Belgique (Bruxelles Environnement : 840 kWh/kWc ; PVGIS donne davantage en
+        Wallonie) : 900 par défaut, avant écrêtage de l'onduleur. La répartition par mois (≈ 2 % en
+        décembre, ≈ 13 % en juin) et la courbe horaire sont des ordres de grandeur issus des
+        simulations PVGIS.
+        <a href="https://re.jrc.ec.europa.eu/pvg_tools/fr/" target="_blank" rel="noopener"
+          >PVGIS – Commission européenne</a
+        >
+      </li>
+      <li>
+        <strong>Saisonnalité de la consommation</strong> — la part hivernale suit les degrés-jours
+        15/15 normaux à Uccle (IRM) : {{ degreeDays.join(' · ') }} (total ≈ 1 953).
+        <a
+          href="https://www.meteo.be/fr/services/produits-et-services/degres-jours"
+          target="_blank"
+          rel="noopener"
+          >IRM – degrés-jours</a
+        >
+      </li>
+    </ul>
+    <p class="small faint">
+      Ces valeurs sont des ordres de grandeur : dès qu'une année complète de relevés est disponible,
+      la prévision « Historique de la maison » est privilégiée.
+    </p>
+  </div>
+</div>
+
+<dialog #importDialog class="modal" (cancel)="cancelImport()">
+  @if (pendingImport(); as p) {
+    <div class="modal-head">
+      <app-icon name="upload" class="tone-accent" />
+      <h2>Importer des données</h2>
+    </div>
+    <div class="modal-body form">
+      <p>
+        Ce fichier contient {{ p.incoming.readings.length }} relevé{{
+          p.incoming.readings.length > 1 ? 's' : ''
+        }}.
+      </p>
+      <div class="import-stats">
+        <div class="import-stat added">
+          <span class="value">{{ p.report.addedReadings }}</span>
+          <span class="label">relevé{{ p.report.addedReadings > 1 ? 's' : '' }} à ajouter</span>
+        </div>
+        <div class="import-stat">
+          <span class="value">{{ p.report.duplicateReadings }}</span>
+          <span class="label">déjà présent{{ p.report.duplicateReadings > 1 ? 's' : '' }}</span>
+        </div>
+      </div>
+      @if (p.report.conflicts > 0) {
+        <div class="callout warning small">
+          <app-icon name="alert" [size]="16" />
+          <div>
+            {{ p.report.conflicts }} relevé(s) ont été modifiés différemment sur les deux
+            ordinateurs : la version de cet ordinateur est conservée.
+          </div>
+        </div>
+      }
+      @if (p.report.houseAdopted) {
+        <div class="callout small">
+          <app-icon name="home" [size]="16" />
+          <div>
+            La description de la maison de cet ordinateur n'a jamais été modifiée : celle du fichier
+            sera reprise.
+          </div>
+        </div>
+      }
+      @if (p.report.houseDiffers) {
+        <div class="callout warning small">
+          <app-icon name="home" [size]="16" />
+          <div>
+            La description de la maison du fichier diffère de celle de cet ordinateur : la version
+            locale est conservée.
+          </div>
+        </div>
+      }
+      <p class="small muted">
+        « Ajouter » ne modifie ni ne supprime aucune donnée de cet ordinateur ; les réglages locaux
+        sont conservés.
+      </p>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn ghost danger-text" (click)="applyReplace()">
+        Tout remplacer…
+      </button>
+      <span class="spacer"></span>
+      <button type="button" class="btn" (click)="cancelImport()">Annuler</button>
+      <button
+        type="button"
+        class="btn primary"
+        (click)="applyMerge()"
+        [disabled]="p.report.addedReadings === 0 && !p.report.houseAdopted"
+      >
+        <app-icon name="plus" [size]="16" /> Ajouter les nouvelles données
+      </button>
+    </div>
+  }
+</dialog>

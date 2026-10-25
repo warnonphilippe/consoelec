@@ -1,0 +1,223 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1>Tableau de bord</h1>
+      <p class="subtitle">
+        @if (analysis().hasReadings) {
+          {{ store.house().name }} · {{ kwp() | num: 1 }} kWc · dernier relevé le
+          {{ lastReading()!.day | day: 'long' }}
+        } @else {
+          Bienvenue dans ConsoElec
+        }
+      </p>
+    </div>
+    <a class="btn primary" routerLink="/releves"
+      ><app-icon name="plus" [size]="16" /> Nouveau relevé</a
+    >
+  </header>
+
+  @if (!analysis().hasReadings) {
+    <section class="card hero">
+      <div class="hero-icon"><app-icon name="bolt" [size]="34" /></div>
+      <div class="hero-text">
+        <h2>Suivez votre électricité et votre production solaire</h2>
+        <p class="muted">
+          Relevez de temps en temps les quatre index de votre compteur intelligent (soutirage et
+          injection, heures pleines et creuses), à la main ou depuis une photo. ConsoElec calcule
+          votre consommation par mois et par saison, la compare à une maison belge type et prévoit
+          l'année à venir — avec ou sans voiture électrique.
+        </p>
+        <ol class="steps">
+          <li>
+            <strong>Maison</strong> : puissance des panneaux, chauffage, voiture électrique prévue.
+          </li>
+          <li><strong>Relevés</strong> : les 4 index du compteur (aussi dans le passé).</li>
+          <li>
+            <strong>Assistant IA</strong> : posez vos questions à Claude sur toutes vos données.
+          </li>
+        </ol>
+        <div class="row">
+          <a class="btn primary" routerLink="/releves"
+            ><app-icon name="ruler" [size]="16" /> Encoder un premier relevé</a
+          >
+          <a class="btn" routerLink="/maison"
+            ><app-icon name="home" [size]="16" /> Décrire ma maison</a
+          >
+          <button type="button" class="btn" (click)="loadDemo()">
+            <app-icon name="sparkles" [size]="16" /> Essayer avec des données de démo
+          </button>
+        </div>
+      </div>
+    </section>
+  } @else if (!analysis().hasIntervals) {
+    <div class="callout">
+      <app-icon name="info" />
+      <div>
+        Encodez un second relevé (quelques jours ou semaines plus tard) pour calculer votre
+        consommation. <a routerLink="/releves">Ajouter un relevé</a>
+      </div>
+    </div>
+  }
+
+  @if (analysis().hasIntervals) {
+    <div class="grid kpis">
+      <div class="card kpi">
+        <span class="kpi-label"><app-icon name="bolt" [size]="15" /> Solde net · 12 mois</span>
+        @if (analysis().last365; as y) {
+          <span
+            class="kpi-value"
+            [class.tone-success]="y.derived.net <= 0"
+            [class.tone-warning]="y.derived.net > 0"
+            >{{ y.derived.net | skwh }}</span
+          >
+          <span class="kpi-sub">
+            {{ y.derived.import | kwh }} soutirés · {{ y.derived.export | kwh }} injectés <br />{{
+              y.coveredDays < 350 ? 'sur ' + (y.coveredDays | num) + ' jours couverts, ' : ''
+            }}jusqu'au
+            {{ analysis().windowEnd | day }}
+          </span>
+        } @else {
+          <span class="kpi-value faint">—</span>
+          <span class="kpi-sub">pas encore assez de relevés</span>
+        }
+      </div>
+
+      <div class="card kpi">
+        <span class="kpi-label"
+          ><app-icon name="plug" [size]="15" /> Soutirage réseau · 12 mois</span
+        >
+        @if (analysis().last365; as y) {
+          <span class="kpi-value">{{ y.derived.import | kwh }}</span>
+          <span class="kpi-sub">
+            HP {{ y.values.importPeak | kwh }} · HC {{ y.values.importOff | kwh }}
+            @if (offPeakDelta() !== null) {
+              <br />{{ offPeakDelta() | num }} % en heures creuses
+            }
+          </span>
+        } @else {
+          <span class="kpi-value faint">—</span>
+        }
+      </div>
+
+      <div class="card kpi">
+        <span class="kpi-label"><app-icon name="sun" [size]="15" /> Injection · 12 mois</span>
+        @if (analysis().last365; as y) {
+          <span class="kpi-value">{{ y.derived.export | kwh }}</span>
+          <span class="kpi-sub"
+            >HP {{ y.values.exportPeak | kwh }} · HC {{ y.values.exportOff | kwh }}</span
+          >
+        } @else {
+          <span class="kpi-value faint">—</span>
+        }
+      </div>
+
+      @if (analysis().last365; as y) {
+        @if (y.pv; as pv) {
+          <div class="card kpi">
+            <span class="kpi-label"><app-icon name="home" [size]="15" /> Autoconsommation</span>
+            <span class="kpi-value">{{ pv.derived.selfConsumptionPct | pct }}</span>
+            <span class="kpi-sub">
+              de la production · autarcie {{ pv.derived.autarkyPct | pct }}<br />maison :
+              {{ pv.derived.houseConsumption | kwh }}
+              @if (pv.coveredDays < y.coveredDays - 14) {
+                <br />sur {{ pv.coveredDays | num }} jours avec index de production
+              }
+            </span>
+          </div>
+        } @else {
+          <div class="card kpi">
+            <span class="kpi-label"><app-icon name="home" [size]="15" /> Autoconsommation</span>
+            <span class="kpi-value faint">non mesurée</span>
+            <span class="kpi-sub"
+              >Encodez l'index de production de l'onduleur dans vos relevés pour la calculer.</span
+            >
+          </div>
+        }
+      }
+
+      @if (pace(); as p) {
+        <div class="card kpi">
+          <span class="kpi-label"><app-icon name="flame" [size]="15" /> 30 derniers jours</span>
+          <span class="kpi-value">{{ p.import | kwh }} <small>soutirés</small></span>
+          <span class="kpi-sub">
+            attendu ~{{ p.expectedImport | kwh }} ({{ p.profile }})
+            @if (p.importDiffPct !== null) {
+              <br /><span
+                [class.tone-warning]="p.importDiffPct > 15"
+                [class.tone-success]="p.importDiffPct < -15"
+                >{{ p.importDiffPct > 0 ? '+' : '−' }}{{ p.importDiffAbs | num }} % vs attendu</span
+              >
+            }
+          </span>
+        </div>
+      }
+
+      @if (next12(); as n) {
+        <div class="card kpi">
+          <span class="kpi-label"
+            ><app-icon name="trend" [size]="15" /> Prévision · 12 prochains mois</span
+          >
+          <span class="kpi-value" [class.tone-success]="n.net <= 0">{{ n.net | skwh }}</span>
+          <span class="kpi-sub"
+            >{{ n.import | kwh }} soutirés · {{ n.export | kwh }} injectés<br />selon «
+            {{ n.profile }} »</span
+          >
+        </div>
+      }
+    </div>
+
+    <div class="section">
+      <span class="pill"><app-icon name="chart" [size]="13" /> Bilan mensuel</span>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <h2>Soutirage et injection par mois</h2>
+        <div class="row">
+          <div class="segmented" role="radiogroup" aria-label="Historique">
+            @for (o of historyOptions; track o.label) {
+              <button
+                type="button"
+                role="radio"
+                [attr.aria-checked]="historyMonths() === o.months"
+                [class.active]="historyMonths() === o.months"
+                (click)="historyMonths.set(o.months)"
+              >
+                {{ o.label }}
+              </button>
+            }
+          </div>
+          <div class="segmented" role="radiogroup" aria-label="Prévision">
+            @for (o of forecastOptions; track o.label) {
+              <button
+                type="button"
+                role="radio"
+                [attr.aria-checked]="forecastMonths() === o.months"
+                [class.active]="forecastMonths() === o.months"
+                (click)="forecastMonths.set(o.months)"
+              >
+                {{ o.label }}
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+      @if (hasBars()) {
+        <app-chart [build]="balanceChart()" [height]="340" />
+        <p class="small faint legend-note">
+          Barres pâles : mois incomplet ou prévu. Les mois sont reconstitués entre deux relevés au
+          prorata de la saison.
+        </p>
+      }
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>Solde net cumulé</h2>
+        <span class="hint">sous zéro, la maison injecte plus qu'elle ne soutire</span>
+      </div>
+      @if (hasBars()) {
+        <app-chart [build]="netChart()" [height]="240" />
+      }
+    </div>
+  }
+</div>

@@ -1,0 +1,299 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1>Prévisions</h1>
+      <p class="subtitle">
+        Évolution attendue des quatre index et bilan des 12 prochains mois, d'après la saison, votre
+        historique et la moyenne belge.
+      </p>
+    </div>
+  </header>
+
+  @if (!analysis().hasReadings) {
+    <div class="callout warning">
+      <app-icon name="alert" />
+      <div>
+        Sans relevé, aucune projection n'est possible.
+        <a routerLink="/releves">Encoder un relevé</a>
+      </div>
+    </div>
+  } @else {
+    <div class="card controls">
+      <div class="control">
+        <span class="label">Profil de prévision</span>
+        <div class="segmented" role="radiogroup" aria-label="Profil">
+          @for (p of profiles(); track p.key) {
+            <button
+              type="button"
+              role="radio"
+              [attr.aria-checked]="selected()?.profile?.key === p.key"
+              [class.active]="selected()?.profile?.key === p.key"
+              [disabled]="!p.available"
+              [title]="p.note"
+              (click)="profileKey.set(p.key)"
+            >
+              {{ p.label }}
+            </button>
+          }
+        </div>
+        <span class="small muted">{{ selected()?.profile?.note }}</span>
+      </div>
+
+      <div class="control">
+        <span class="label">Voiture électrique</span>
+        @if (hasEvScenario()) {
+          <div class="segmented" role="radiogroup" aria-label="Voiture électrique">
+            <button
+              type="button"
+              role="radio"
+              [attr.aria-checked]="!withEv()"
+              [class.active]="!withEv()"
+              (click)="withEv.set(false)"
+            >
+              Sans voiture
+            </button>
+            <button
+              type="button"
+              role="radio"
+              [attr.aria-checked]="withEv()"
+              [class.active]="withEv()"
+              (click)="withEv.set(true)"
+            >
+              <app-icon name="car" [size]="14" /> Avec voiture
+            </button>
+          </div>
+          <span class="small muted">
+            {{ evKwh() | kwh }} / an rechargés à la maison ({{ ev().kmPerYear | num }} km,
+            {{ ev().kWhPer100km | num: 1 }} kWh/100 km), recharge
+            {{
+              ev().chargeWindow === 'night'
+                ? 'de nuit'
+                : ev().chargeWindow === 'day'
+                  ? 'de jour'
+                  : 'mixte'
+            }}
+            @if (ev().startDate) {
+              à partir du {{ ev().startDate | day }}
+            }
+          </span>
+        } @else if (ev().mode === 'owned') {
+          <span class="small muted"
+            >Voiture déjà en service : ses {{ evKwh() | kwh }} / an sont inclus dans les prévisions.
+            <a routerLink="/maison">Modifier</a></span
+          >
+        } @else {
+          <span class="small muted"
+            >Aucune voiture prévue.
+            <a routerLink="/maison">Simuler l'arrivée d'une voiture électrique</a></span
+          >
+        }
+      </div>
+    </div>
+
+    @if (summary(); as s) {
+      <div class="grid kpis">
+        <div class="card kpi">
+          <span class="kpi-label"
+            ><app-icon name="plug" [size]="15" /> Soutirage prévu · 12 mois</span
+          >
+          <span class="kpi-value">{{ s.import | kwh }}</span>
+          <span class="kpi-sub">
+            @if (s.lastImport !== null) {
+              12 derniers mois : {{ s.lastImport | kwh }}
+            } @else {
+              selon « {{ s.profile }} »
+            }
+            @if (s.offPeakPct !== null) {
+              <br />{{ s.offPeakPct | num }} % en heures creuses
+            }
+          </span>
+        </div>
+        <div class="card kpi">
+          <span class="kpi-label"
+            ><app-icon name="sun" [size]="15" /> Injection prévue · 12 mois</span
+          >
+          <span class="kpi-value">{{ s.export | kwh }}</span>
+          <span class="kpi-sub">
+            @if (s.lastExport !== null) {
+              12 derniers mois : {{ s.lastExport | kwh }}
+            } @else {
+              selon « {{ s.profile }} »
+            }
+          </span>
+        </div>
+        <div class="card kpi">
+          <span class="kpi-label"><app-icon name="bolt" [size]="15" /> Solde net prévu</span>
+          <span class="kpi-value" [class.tone-success]="s.net <= 0">{{ s.net | skwh }}</span>
+          <span class="kpi-sub">
+            @if (s.lastNet !== null) {
+              12 derniers mois : {{ s.lastNet | skwh }}
+            } @else {
+              soutirage − injection
+            }
+          </span>
+        </div>
+        @if (evImpact(); as e) {
+          <div class="card kpi">
+            <span class="kpi-label"><app-icon name="car" [size]="15" /> Effet de la voiture</span>
+            <span class="kpi-value">{{ e.importDelta | skwh }}</span>
+            <span class="kpi-sub"
+              >de soutirage par an (dont {{ e.offDelta | skwh }} en heures creuses)
+              @if (e.exportDelta < -1) {
+                <br />{{ e.exportDelta | skwh }} d'injection
+              }
+            </span>
+          </div>
+        }
+      </div>
+
+      <div class="section">
+        <span class="pill"><app-icon name="chart" [size]="13" /> Mois par mois</span>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h2>Bilan mensuel prévu</h2>
+          <span class="hint">selon « {{ s.profile }} »</span>
+        </div>
+        @if (monthChart(); as chart) {
+          <app-chart [build]="chart" [height]="320" />
+        }
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>Index projetés</h2>
+          <span class="hint">traits pleins : relevés · pointillés : prévision</span>
+        </div>
+        <app-chart [build]="indexChartBuilder()" [height]="320" />
+      </div>
+    }
+
+    <div class="card flush">
+      <div class="card-header">
+        <h2>Fiabilité observée</h2>
+        <span class="hint"
+          >prévision refaite pour chaque mois passé, avec les seuls relevés d'alors</span
+        >
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Profil</th>
+              <th class="num">Erreur moyenne</th>
+              <th class="num">Mois testés</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of reliability(); track r.profile.key) {
+              <tr [class.faint]="r.errorPct === null">
+                <td>
+                  {{ r.profile.label }}
+                  @if (r.profile.key === bestKey()) {
+                    <span class="badge success">retenu</span>
+                  }
+                </td>
+                <td class="num">
+                  @if (r.errorPct !== null) {
+                    {{ r.errorPct | num }} %
+                  } @else {
+                    —
+                  }
+                </td>
+                <td class="num">{{ r.samples }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="small muted note">
+        Erreur = écart total entre le mois prévu et le mois mesuré, rapporté au total mesuré, en
+        moyenne sur le soutirage et l'injection. Le profil le plus fiable est retenu dès que trois
+        mois au moins ont pu être testés ; l'erreur d'un mois isolé reste plus grande que celle du
+        total annuel.
+      </p>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card flush">
+        <div class="card-header">
+          <h2>Comparaison des profils</h2>
+          <span class="hint">12 prochains mois</span>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Profil</th>
+                <th class="num">Soutirage</th>
+                <th class="num">Injection</th>
+                <th class="num">Solde net</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (c of comparison(); track c.profile.key) {
+                <tr [class.faint]="!c.profile.available">
+                  <td>
+                    {{ c.profile.label }}
+                    @if (!c.profile.available) {
+                      <span class="badge">indisponible</span>
+                    }
+                  </td>
+                  <td class="num">{{ c.import | num }}</td>
+                  <td class="num">{{ c.export | num }}</td>
+                  <td class="num">{{ c.net | skwh }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @for (p of profiles(); track p.key) {
+          @if (p.ratios; as r) {
+            <p class="small muted note">
+              Coefficients de recalage de la référence : soutirage HP × {{ r.importPeak | num: 1 }},
+              HC × {{ r.importOff | num: 1 }}, injection HP × {{ r.exportPeak | num: 1 }}, HC ×
+              {{ r.exportOff | num: 1 }}.
+            </p>
+          }
+        }
+      </div>
+
+      <div class="card flush">
+        <div class="card-header">
+          <h2>Index projetés aux changements d'année</h2>
+          <span class="hint">au 31 décembre</span>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Fin</th>
+                @for (r of registers; track r.key) {
+                  <th class="num">{{ r.short }}</th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (y of yearEnds(); track y.year) {
+                <tr>
+                  <td>
+                    <strong>{{ y.year }}</strong>
+                  </td>
+                  @for (r of registers; track r.key) {
+                    <td class="num">
+                      @if (y.values) {
+                        {{ y.values[r.key] | num }}
+                      } @else {
+                        <span class="faint">—</span>
+                      }
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  }
+</div>

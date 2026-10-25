@@ -1,0 +1,466 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1>Maison</h1>
+      <p class="subtitle">
+        Décrivez une fois votre installation : elle sert à construire la référence belge et les
+        prévisions.
+      </p>
+    </div>
+  </header>
+
+  <div class="grid grid-2">
+    <section class="card form">
+      <div class="card-header">
+        <span class="pill"><app-icon name="home" [size]="13" /> Le foyer</span>
+      </div>
+      <div class="field">
+        <label for="name">Nom</label>
+        <input id="name" class="input" [value]="house().name" (change)="text('name', $event)" />
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label for="persons">Personnes</label>
+          <input
+            id="persons"
+            class="input"
+            type="number"
+            min="1"
+            max="20"
+            step="1"
+            [value]="house().persons"
+            (change)="number('persons', $event, 1, 20)"
+          />
+        </div>
+        <div class="field">
+          <label for="area">Surface habitable</label>
+          <div class="input-suffix">
+            <input
+              id="area"
+              class="input"
+              type="number"
+              min="0"
+              max="2000"
+              step="5"
+              [value]="house().areaM2"
+              (change)="number('areaM2', $event, 0, 2000)"
+            />
+            <span class="suffix">m²</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="label">Chauffage et eau chaude</span>
+        <label class="check"
+          ><input
+            type="checkbox"
+            [checked]="house().heating.oilBoiler"
+            (change)="heating({ oilBoiler: $any($event.target).checked })"
+          />
+          Chaudière au mazout (eau chaude + chauffage)</label
+        >
+        <label class="check"
+          ><input
+            type="checkbox"
+            [checked]="house().heating.woodStove"
+            (change)="heating({ woodStove: $any($event.target).checked })"
+          />
+          Poêle / chauffage au bois en appoint</label
+        >
+        <textarea
+          class="textarea"
+          rows="2"
+          [value]="house().heating.note"
+          (change)="heatingNote($event)"
+          aria-label="Remarques sur le chauffage"
+        ></textarea>
+        <span class="help">
+          Le chauffage et l'eau chaude ne consomment pas d'électricité (hors circulateurs et
+          brûleur) : la référence belge est celle d'un ménage sans chauffage électrique. Les
+          consommations de mazout se suivent dans ConsoMazout.
+        </span>
+      </div>
+    </section>
+
+    <section class="card form">
+      <div class="card-header">
+        <span class="pill warning"
+          ><app-icon name="sun" [size]="13" /> Panneaux solaires et onduleur</span
+        >
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label for="panels">Nombre de panneaux</label>
+          <input
+            id="panels"
+            class="input"
+            type="number"
+            min="0"
+            max="200"
+            step="1"
+            [value]="house().pv.panelCount"
+            (change)="pvNumber('panelCount', $event, 0, 200)"
+          />
+        </div>
+        <div class="field">
+          <label for="wp">Puissance d'un panneau</label>
+          <div class="input-suffix">
+            <input
+              id="wp"
+              class="input"
+              type="number"
+              min="50"
+              max="800"
+              step="5"
+              [value]="house().pv.panelWp"
+              (change)="pvNumber('panelWp', $event, 50, 800)"
+            />
+            <span class="suffix">Wc</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="kva">Puissance de l'onduleur</label>
+          <div class="input-suffix">
+            <input
+              id="kva"
+              class="input"
+              type="number"
+              min="0.5"
+              max="100"
+              step="0.1"
+              [value]="house().pv.inverterKva"
+              (change)="pvNumber('inverterKva', $event, 0.5, 100)"
+            />
+            <span class="suffix">kVA</span>
+          </div>
+        </div>
+        <div class="field">
+          <span class="label">Onduleur</span>
+          <div class="segmented" role="radiogroup" aria-label="Phases de l'onduleur">
+            <button
+              type="button"
+              role="radio"
+              [class.active]="house().pv.inverterPhases === 1"
+              [attr.aria-checked]="house().pv.inverterPhases === 1"
+              (click)="inverterPhases(1)"
+            >
+              Monophasé
+            </button>
+            <button
+              type="button"
+              role="radio"
+              [class.active]="house().pv.inverterPhases === 3"
+              [attr.aria-checked]="house().pv.inverterPhases === 3"
+              (click)="inverterPhases(3)"
+            >
+              Triphasé
+            </button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="inv">Modèle d'onduleur</label>
+          <input
+            id="inv"
+            class="input"
+            [value]="house().pv.inverterModel"
+            (change)="pvText('inverterModel', $event)"
+          />
+        </div>
+        <div class="field">
+          <label for="tilt">Inclinaison</label>
+          <div class="input-suffix">
+            <input
+              id="tilt"
+              class="input"
+              type="number"
+              min="0"
+              max="90"
+              step="1"
+              [value]="house().pv.tiltDeg"
+              (change)="pvNumber('tiltDeg', $event, 0, 90)"
+            />
+            <span class="suffix">°</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="orient">Orientation</label>
+          <input
+            id="orient"
+            class="input"
+            [value]="house().pv.orientation"
+            (change)="pvText('orientation', $event)"
+            placeholder="Sud, Sud-Ouest, Est/Ouest…"
+          />
+        </div>
+        <div class="field">
+          <label for="install">Mise en service</label>
+          <input
+            id="install"
+            class="input"
+            type="date"
+            [value]="house().pv.installDate"
+            (change)="pvText('installDate', $event)"
+          />
+        </div>
+      </div>
+      <div class="preview-box">
+        <div>
+          <span class="faint small">Puissance crête</span><strong>{{ kwp() | num: 1 }} kWc</strong>
+        </div>
+        <div>
+          <span class="faint small">Production injectée par l'onduleur</span
+          ><strong>{{ reference().annual.production | kwh }}</strong>
+        </div>
+        <div>
+          <span class="faint small">Écrêtage (panneaux &gt; onduleur)</span
+          ><strong
+            >{{ reference().annual.clipped | kwh }}
+            <span class="faint small">({{ clippedPct() | num: 1 }} %)</span></strong
+          >
+        </div>
+      </div>
+      <div class="preview-box">
+        <div>
+          <span class="faint small">Autoconsommée (estimé)</span
+          ><strong>{{ reference().annual.selfConsumed | kwh }}</strong>
+        </div>
+        <div>
+          <span class="faint small">Injectée (estimé)</span
+          ><strong>{{ reference().annual.export | kwh }}</strong>
+        </div>
+      </div>
+      <span class="help">
+        Rapport panneaux / onduleur : {{ dcAcRatio() | num: 2 }}. Au-delà de
+        {{ house().pv.inverterKva | num: 1 }} kVA l'onduleur écrête la production, surtout les jours
+        très ensoleillés d'été. Rendement utilisé avant écrêtage :
+        {{ settings().specificYieldKwhPerKwp | num }} kWh/kWc/an (modifiable dans les réglages).
+      </span>
+    </section>
+  </div>
+
+  <section class="card form heater">
+    <div class="card-header">
+      <span class="pill danger"
+        ><app-icon name="flame" [size]="13" /> Radiateur électrique d'appoint</span
+      >
+    </div>
+    <label class="check">
+      <input
+        type="checkbox"
+        [checked]="house().surplusHeater.enabled"
+        (change)="heaterEnabled($event)"
+      />
+      Je branche parfois un radiateur électrique pour consommer l'excédent de production solaire
+    </label>
+    @if (house().surplusHeater.enabled) {
+      <div class="form-grid ev-grid">
+        <div class="field">
+          <label for="hkw">Puissance du radiateur</label>
+          <div class="input-suffix">
+            <input
+              id="hkw"
+              class="input"
+              type="number"
+              min="0.2"
+              max="20"
+              step="0.1"
+              [value]="house().surplusHeater.powerKw"
+              (change)="heaterNumber('powerKw', $event, 0, 20)"
+            />
+            <span class="suffix">kW</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="hfrom">Du mois de</label>
+          <select id="hfrom" class="input" (change)="heaterMonth('startMonth', $event)">
+            @for (m of months; track $index) {
+              <option
+                [value]="$index + 1"
+                [selected]="house().surplusHeater.startMonth === $index + 1"
+              >
+                {{ m }}
+              </option>
+            }
+          </select>
+        </div>
+        <div class="field">
+          <label for="hto">Au mois de</label>
+          <select id="hto" class="input" (change)="heaterMonth('endMonth', $event)">
+            @for (m of months; track $index) {
+              <option
+                [value]="$index + 1"
+                [selected]="house().surplusHeater.endMonth === $index + 1"
+              >
+                {{ m }}
+              </option>
+            }
+          </select>
+        </div>
+        <div class="field">
+          <label for="husage">Jours où il est branché</label>
+          <div class="input-suffix">
+            <input
+              id="husage"
+              class="input"
+              type="number"
+              min="0"
+              max="100"
+              step="5"
+              [value]="house().surplusHeater.usagePct"
+              (change)="heaterNumber('usagePct', $event, 0, 100)"
+            />
+            <span class="suffix">%</span>
+          </div>
+        </div>
+      </div>
+      <div class="preview-box">
+        <div>
+          <span class="faint small">Surplus absorbé par an (estimé)</span
+          ><strong>{{ reference().annual.heater | kwh }}</strong>
+        </div>
+      </div>
+      <span class="help">
+        Le radiateur ne fonctionne que lorsque le surplus solaire dépasse sa puissance : il consomme
+        alors de l'électricité autoproduite (l'injection baisse, le soutirage ne change pas). Il
+        compte dans la consommation de la maison et économise le mazout ou le bois.
+      </span>
+    }
+  </section>
+
+  <section class="card form ev">
+    <div class="card-header">
+      <span class="pill cyan"><app-icon name="car" [size]="13" /> Voiture électrique</span>
+    </div>
+    <div class="ev-modes" role="radiogroup" aria-label="Voiture électrique">
+      @for (m of evModes; track m.mode) {
+        <button
+          type="button"
+          role="radio"
+          class="ev-mode"
+          [class.active]="house().ev.mode === m.mode"
+          [attr.aria-checked]="house().ev.mode === m.mode"
+          (click)="evMode(m.mode)"
+        >
+          <strong>{{ m.label }}</strong>
+          <span class="small muted">{{ m.hint }}</span>
+        </button>
+      }
+    </div>
+
+    @if (house().ev.mode !== 'none') {
+      <div class="form-grid ev-grid">
+        <div class="field">
+          <label for="km">Distance annuelle</label>
+          <div class="input-suffix">
+            <input
+              id="km"
+              class="input"
+              type="number"
+              min="0"
+              max="100000"
+              step="500"
+              [value]="house().ev.kmPerYear"
+              (change)="evNumber('kmPerYear', $event, 0, 100000)"
+            />
+            <span class="suffix">km/an</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="cons">Consommation du véhicule</label>
+          <div class="input-suffix">
+            <input
+              id="cons"
+              class="input"
+              type="number"
+              min="5"
+              max="50"
+              step="0.5"
+              [value]="house().ev.kWhPer100km"
+              (change)="evNumber('kWhPer100km', $event, 5, 50)"
+            />
+            <span class="suffix">kWh/100 km</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="home">Recharge à la maison</label>
+          <div class="input-suffix">
+            <input
+              id="home"
+              class="input"
+              type="number"
+              min="0"
+              max="100"
+              step="5"
+              [value]="house().ev.homeChargingPct"
+              (change)="evNumber('homeChargingPct', $event, 0, 100)"
+            />
+            <span class="suffix">%</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="charger">Puissance de la borne</label>
+          <div class="input-suffix">
+            <input
+              id="charger"
+              class="input"
+              type="number"
+              min="1.4"
+              max="22"
+              step="0.1"
+              [value]="house().ev.chargerKw"
+              (change)="evNumber('chargerKw', $event, 1.4, 22)"
+            />
+            <span class="suffix">kW</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="start">{{
+            house().ev.mode === 'owned' ? 'En service depuis le' : 'Arrivée prévue le'
+          }}</label>
+          <input
+            id="start"
+            class="input"
+            type="date"
+            [value]="house().ev.startDate"
+            (change)="evDate($event)"
+          />
+          <span class="help">Facultatif. Sans date, une voiture prévue démarre aujourd'hui.</span>
+        </div>
+      </div>
+      <div class="field">
+        <span class="label">Quand rechargez-vous ?</span>
+        <div class="segmented" role="radiogroup" aria-label="Moment de la recharge">
+          @for (w of windows; track w.value) {
+            <button
+              type="button"
+              role="radio"
+              [class.active]="house().ev.chargeWindow === w.value"
+              [attr.aria-checked]="house().ev.chargeWindow === w.value"
+              [title]="w.hint"
+              (click)="evWindow(w.value)"
+            >
+              {{ w.label }}
+            </button>
+          }
+        </div>
+      </div>
+      <div class="preview-box">
+        <div>
+          <span class="faint small">Recharge à domicile</span
+          ><strong>{{ evKwh() | kwh }} / an</strong>
+        </div>
+        <div>
+          <span class="faint small">par mois en moyenne</span
+          ><strong>{{ evKwh() / 12 | kwh }}</strong>
+        </div>
+      </div>
+      @if (house().ev.mode === 'owned') {
+        <span class="help"
+          >Une voiture déjà en service est supposée présente dans vos relevés depuis la date
+          indiquée : l'historique de la maison l'intègre peu à peu.</span
+        >
+      }
+    }
+  </section>
+</div>

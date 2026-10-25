@@ -1,0 +1,139 @@
+<div class="shell" [class.with-panel]="ai.open()">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo">
+        <app-icon name="bolt" [size]="20" />
+      </div>
+      <div>
+        <div class="brand-name">ConsoElec</div>
+        <div class="brand-sub">Électricité et solaire</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      @for (item of nav; track item.path) {
+        <a
+          class="nav-item"
+          [routerLink]="item.path"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: item.exact ?? false }"
+        >
+          <app-icon [name]="item.icon" />
+          <span>{{ item.label }}</span>
+        </a>
+      }
+    </nav>
+
+    @if (balance(); as b) {
+      <a
+        class="mini-balance"
+        routerLink="/"
+        [class.surplus]="b.surplus"
+        title="Solde net sur 12 mois glissants (soutirage − injection)"
+      >
+        <app-icon name="bolt" [size]="18" />
+        <div>
+          <div class="mini-balance-value">{{ b.label }}</div>
+          <div class="mini-balance-sub">{{ b.detail }}</div>
+        </div>
+      </a>
+    }
+
+    <button
+      type="button"
+      class="btn assistant-btn"
+      [class.active]="ai.open()"
+      (click)="ai.open.set(!ai.open())"
+    >
+      <app-icon name="sparkles" [size]="16" /> Assistant IA
+    </button>
+
+    <div class="spacer"></div>
+
+    <nav class="nav">
+      @for (item of secondaryNav; track item.path) {
+        <a class="nav-item" [routerLink]="item.path" routerLinkActive="active">
+          <app-icon [name]="item.icon" />
+          <span>{{ item.label }}</span>
+        </a>
+      }
+    </nav>
+
+    <div class="theme-switch segmented" role="radiogroup" aria-label="Thème">
+      @for (t of themeModes; track t.mode) {
+        <button
+          type="button"
+          role="radio"
+          [attr.aria-checked]="theme.mode() === t.mode"
+          [class.active]="theme.mode() === t.mode"
+          [title]="'Thème ' + t.label.toLowerCase()"
+          (click)="theme.setMode(t.mode)"
+        >
+          <app-icon [name]="t.icon" [size]="15" />
+        </button>
+      }
+    </div>
+
+    <div class="save-state" [class.error]="store.saveError()">
+      @if (store.saveError()) {
+        <app-icon name="alert" [size]="13" /> Échec de l'enregistrement
+      } @else if (store.saving()) {
+        <span class="dot pulse"></span> Enregistrement…
+      } @else {
+        <span class="dot"></span> Données enregistrées
+      }
+    </div>
+  </aside>
+
+  <main class="content">
+    @if (store.loaded()) {
+      <router-outlet />
+    }
+  </main>
+
+  @if (ai.open()) {
+    <app-assistant-panel class="assistant" />
+  }
+</div>
+
+<div class="toasts" aria-live="polite">
+  @for (t of toasts.toasts(); track t.id) {
+    <div class="toast" [class]="'toast ' + t.kind">
+      <app-icon
+        [name]="t.kind === 'success' ? 'check' : t.kind === 'info' ? 'info' : 'alert'"
+        [size]="16"
+      />
+      <span>{{ t.text }}</span>
+      <button type="button" class="icon-btn" (click)="toasts.dismiss(t.id)" aria-label="Fermer">
+        <app-icon name="x" [size]="14" />
+      </button>
+    </div>
+  }
+</div>
+
+<dialog #confirmDialog class="modal" (cancel)="confirm.answer(false)">
+  @if (confirm.pending(); as c) {
+    <div class="modal-head">
+      <app-icon
+        [name]="c.danger ? 'alert' : 'info'"
+        [class]="c.danger ? 'tone-danger' : 'tone-accent'"
+      />
+      <h2>{{ c.title }}</h2>
+    </div>
+    <div class="modal-body">
+      <p>{{ c.message }}</p>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn" (click)="confirm.answer(false)">Annuler</button>
+      <button
+        type="button"
+        class="btn"
+        [class.danger]="c.danger"
+        [class.primary]="!c.danger"
+        (click)="confirm.answer(true)"
+      >
+        {{ c.confirmLabel ?? 'Confirmer' }}
+      </button>
+    </div>
+  }
+</dialog>

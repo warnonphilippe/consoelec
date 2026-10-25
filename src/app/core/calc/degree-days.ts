@@ -1,0 +1,53 @@
+import { smoothMonthlyProfile } from './smooth';
+
+/**
+ * Degrés-jours 15/15 normaux à Uccle (IRM), de janvier à décembre.
+ * Source : IRM, « Statistiques climatiques des communes belges – Uccle (INS 21016) ».
+ */
+export const UCCLE_DEGREE_DAYS = [
+  365.1, 321.6, 256.5, 162.8, 69.9, 22.7, 3.3, 4.0, 33.0, 122.2, 245.2, 346.8,
+] as const;
+
+export const UCCLE_DEGREE_DAYS_YEAR = UCCLE_DEGREE_DAYS.reduce((sum, value) => sum + value, 0);
+
+/** Degrés-jours normaux jour par jour, lissés (le total de chaque mois reste celui de l'IRM). */
+const dailyDegreeDays = smoothMonthlyProfile(UCCLE_DEGREE_DAYS);
+
+/**
+ * Poids saisonnier d'un jour : part de la consommation annuelle attendue ce jour-là
+ * (la somme sur une année vaut ~1). Sert à répartir la consommation mesurée entre deux relevés.
+ * Les degrés-jours varient progressivement d'un jour à l'autre : pas de cassure au 1er du mois.
+ */
+export function seasonalDayWeight(day: number, baseShare: number): number {
+  const share = Math.min(Math.max(baseShare, 0), 1);
+  return share / 365.25 + ((1 - share) * dailyDegreeDays(day)) / UCCLE_DEGREE_DAYS_YEAR;
+}
+
+/** Somme des poids saisonniers sur [from, to] (numéros de jour fractionnaires). */
+export function seasonalWeightBetween(from: number, to: number, baseShare: number): number {
+  let total = 0;
+  forEachDaySlice(from, to, (day, fraction) => {
+    total += fraction * seasonalDayWeight(day, baseShare);
+  });
+  return total;
+}
+
+/** Découpe [from, to] en tranches journalières : `fraction` est la portion du jour couverte (0-1). */
+export function forEachDaySlice(
+  from: number,
+  to: number,
+  callback: (day: number, fraction: number) => void,
+): void {
+  if (!(to > from)) {
+    return;
+  }
+  let day = Math.floor(from);
+  while (day < to) {
+    const start = Math.max(from, day);
+    const end = Math.min(to, day + 1);
+    if (end > start) {
+      callback(day, end - start);
+    }
+    day++;
+  }
+}

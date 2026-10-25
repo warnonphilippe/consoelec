@@ -1,0 +1,44 @@
+.kpis {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.kpi .kpi-value small {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.hero {
+  display: flex;
+  gap: 22px;
+  padding: 26px;
+  align-items: flex-start;
+}
+
+.hero-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 68px;
+  height: 68px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #fbbf24, #d97706);
+  color: #fff;
+}
+
+.hero-text h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+
+.steps {
+  margin: 12px 0 18px;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.legend-note {
+  margin: 8px 0 0;
+}

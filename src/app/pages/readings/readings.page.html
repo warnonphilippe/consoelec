@@ -1,0 +1,363 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1>Relevés</h1>
+      <p class="subtitle">
+        Encodez les quatre index du compteur intelligent à une date donnée, ou lisez-les sur une
+        photo. Les relevés peuvent être datés dans le passé.
+      </p>
+    </div>
+  </header>
+
+  <div class="entry-layout">
+    <form class="card form entry" [formGroup]="form" (ngSubmit)="save()">
+      <div class="card-header">
+        <span class="pill"
+          ><app-icon name="ruler" [size]="13" />
+          {{ editingId() ? 'Modifier le relevé' : 'Nouveau relevé' }}</span
+        >
+      </div>
+
+      <div class="field">
+        <label for="date">Date et heure du relevé</label>
+        <input id="date" class="input" type="datetime-local" formControlName="date" />
+        @if (photoResult()?.displayedDate; as shown) {
+          <button type="button" class="link-btn small" (click)="useDisplayedDate()">
+            Date affichée sur le compteur : {{ shown | day: 'time' }} — l'utiliser
+          </button>
+        }
+      </div>
+
+      <!-- Photo -->
+      <div
+        class="photo-zone"
+        [class.dragging]="dragging()"
+        (dragover)="onDragOver($event)"
+        (dragleave)="dragging.set(false)"
+        (drop)="onDrop($event)"
+      >
+        @if (photos().length === 0) {
+          <app-icon name="camera" [size]="22" />
+          <div class="photo-text">
+            <strong>Lire le compteur depuis une photo</strong>
+            <span class="small muted">
+              Glissez 1 à 4 photos ici (l'écran du compteur défile entre les registres), ou
+              <label class="link-btn pick"
+                >choisissez-les<input
+                  type="file"
+                  accept="image/*,.heic,.heif"
+                  multiple
+                  hidden
+                  (change)="onFilePick($event)" /></label
+              >.
+            </span>
+          </div>
+        } @else {
+          <div class="thumbs">
+            @for (p of photos(); track $index) {
+              <figure class="thumb">
+                <img [src]="p.url" [alt]="'Photo du compteur ' + ($index + 1)" />
+                <button
+                  type="button"
+                  class="icon-btn"
+                  (click)="removePhoto($index)"
+                  aria-label="Retirer la photo"
+                >
+                  <app-icon name="x" [size]="13" />
+                </button>
+              </figure>
+            }
+            @if (photos().length < 4) {
+              <label class="thumb add" title="Ajouter une photo">
+                <app-icon name="plus" [size]="18" />
+                <input
+                  type="file"
+                  accept="image/*,.heic,.heif"
+                  multiple
+                  hidden
+                  (change)="onFilePick($event)"
+                />
+              </label>
+            }
+          </div>
+          @if (canReadPhoto()) {
+            <button type="button" class="btn sm" [disabled]="photoBusy()" (click)="readPhotos()">
+              <app-icon name="sparkles" [size]="14" />
+              {{ photoResult() ? 'Relire' : 'Lire les valeurs' }}
+            </button>
+          }
+        }
+        @if (photoBusy()) {
+          <div class="small muted">Claude lit la photo…</div>
+        }
+      </div>
+      @if (!canReadPhoto() && photos().length === 0) {
+        <p class="small faint photo-hint">
+          @if (!ai.available) {
+            La lecture automatique des photos nécessite l'application de bureau et une clé API
+            Claude.
+          } @else {
+            Pour que Claude lise la photo,
+            <a routerLink="/reglages" fragment="ia">ajoutez votre clé API</a>.
+          }
+        </p>
+      }
+      @if (photoError(); as err) {
+        <div class="callout danger">
+          <app-icon name="alert" />
+          <div>{{ err }}</div>
+        </div>
+      }
+      @if (photoResult(); as r) {
+        <div class="callout" [class.warning]="hasProblem()">
+          <app-icon name="sparkles" />
+          <div>
+            Valeurs lues par Claude — <strong>vérifiez-les avant d'enregistrer</strong>.
+            @if (r.notes) {
+              <span class="muted"> {{ r.notes }}</span>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Index -->
+      <div class="registers">
+        @for (r of registers; track r.key) {
+          <div
+            class="field"
+            [class.low]="confidenceOf(r.key) === 'low'"
+            [class.medium]="confidenceOf(r.key) === 'medium'"
+          >
+            <label [for]="r.key"
+              ><span class="code">{{ r.code }}</span> {{ r.label }}</label
+            >
+            <div class="input-suffix">
+              <input
+                [id]="r.key"
+                class="input big-input"
+                type="number"
+                min="0"
+                step="0.001"
+                [formControlName]="r.key"
+                placeholder="index"
+              />
+              <span class="suffix">kWh</span>
+            </div>
+            @if (confidenceOf(r.key); as c) {
+              @if (c !== 'high') {
+                <span class="help tone-warning"
+                  >Lecture {{ c === 'low' ? 'incertaine' : 'à vérifier' }}</span
+                >
+              }
+            }
+          </div>
+        }
+      </div>
+
+      <div class="field" [class.low]="confidenceOf('pvTotal') === 'low'">
+        <label for="pvTotal"
+          >Production solaire totale <span class="faint">(facultatif)</span></label
+        >
+        <div class="input-suffix">
+          <input
+            id="pvTotal"
+            class="input"
+            type="number"
+            min="0"
+            step="0.1"
+            formControlName="pvTotal"
+            placeholder="rendement total de l'onduleur"
+          />
+          <span class="suffix">kWh</span>
+        </div>
+        <span class="help">
+          Production totale cumulée : à lire dans l'application de l'onduleur (SMA Energy / Sunny
+          Portal : « rendement total ») ou sur son écran s'il en a un. Elle permet de calculer
+          l'autoconsommation réelle.
+        </span>
+      </div>
+
+      <label class="check meter-change">
+        <input type="checkbox" formControlName="meterChange" />
+        <span
+          >Nouveau compteur
+          <span class="faint"
+            >(ses index repartent de zéro : le relevé précédent est ignoré dans les calculs)</span
+          ></span
+        >
+      </label>
+
+      @if (estimates() && !editingId()) {
+        <button type="button" class="link-btn small" (click)="useEstimate()">
+          Pré-remplir avec les index estimés pour aujourd'hui
+        </button>
+      }
+
+      @if (preview(); as rows) {
+        <div class="preview" [class.warn]="hasProblem()">
+          @for (p of rows; track p.key) {
+            <div class="preview-row" [class.problem]="p.problem">
+              <span class="faint">{{ p.label }}</span>
+              <span class="num">
+                @if (p.sincePrevious !== null) {
+                  @if (p.sincePrevious >= 0) {
+                    +{{ p.sincePrevious | num: 1 }} kWh
+                    @if (p.perDay !== null) {
+                      <span class="faint small">({{ p.perDay | num: 1 }}/j)</span>
+                    }
+                  } @else {
+                    <span class="tone-danger">{{ p.sincePrevious | num: 1 }} kWh</span>
+                  }
+                } @else {
+                  <span class="faint">premier relevé</span>
+                }
+              </span>
+            </div>
+          }
+          @if (hasProblem()) {
+            <span class="small tone-warning"
+              ><app-icon name="alert" [size]="13" /> Un index est plus bas que celui d'un relevé
+              voisin : erreur de saisie ou compteur remplacé ?</span
+            >
+          }
+        </div>
+      }
+
+      <div class="field">
+        <label for="note">Note</label>
+        <input id="note" class="input" formControlName="note" placeholder="facultatif" />
+      </div>
+
+      <div class="form-actions">
+        @if (editingId() || photos().length > 0) {
+          <button type="button" class="btn ghost" (click)="resetForm()">Annuler</button>
+        }
+        <button type="submit" class="btn primary" [disabled]="!canSave()">
+          <app-icon name="check" [size]="16" />
+          {{ editingId() ? 'Enregistrer' : 'Ajouter le relevé' }}
+        </button>
+      </div>
+    </form>
+
+    <div class="card flush list">
+      <div class="card-header">
+        <h2>Historique</h2>
+        <span class="badge">{{ rows().length }}</span>
+        @if (anomalies() > 0) {
+          <span class="badge warning"
+            ><app-icon name="alert" [size]="12" /> {{ anomalies() }} incohérence{{
+              anomalies() > 1 ? 's' : ''
+            }}</span
+          >
+        }
+      </div>
+      @if (rows().length === 0) {
+        <div class="empty">
+          <app-icon name="bolt" [size]="28" />
+          <p>
+            Aucun relevé pour l'instant.<br />Relevez les quatre index du compteur et encodez-les à
+            gauche, ou importez un fichier depuis les Réglages.
+          </p>
+        </div>
+      } @else {
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                @for (r of registers; track r.key) {
+                  <th class="num" [title]="r.label">{{ r.short }}</th>
+                }
+                <th class="num">Production PV</th>
+                <th></th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of rows(); track row.reading.id) {
+                <tr [class.editing]="editingId() === row.reading.id">
+                  <td class="date">
+                    {{ row.reading.date | day: 'time' }}
+                    @if (row.reading.source === 'photo') {
+                      <app-icon name="camera" [size]="12" class="faint" />
+                    }
+                    @if (row.reading.note) {
+                      <div class="note small">{{ row.reading.note }}</div>
+                    }
+                  </td>
+                  <td class="num">
+                    {{ row.reading.importPeak | num }}
+                    @if (row.interval?.delta?.importPeak; as d) {
+                      <div class="delta">+{{ d | num }}</div>
+                    }
+                  </td>
+                  <td class="num">
+                    {{ row.reading.importOff | num }}
+                    @if (row.interval?.delta?.importOff; as d) {
+                      <div class="delta">+{{ d | num }}</div>
+                    }
+                  </td>
+                  <td class="num">
+                    {{ row.reading.exportPeak | num }}
+                    @if (row.interval?.delta?.exportPeak; as d) {
+                      <div class="delta">+{{ d | num }}</div>
+                    }
+                  </td>
+                  <td class="num">
+                    {{ row.reading.exportOff | num }}
+                    @if (row.interval?.delta?.exportOff; as d) {
+                      <div class="delta">+{{ d | num }}</div>
+                    }
+                  </td>
+                  <td class="num">
+                    @if (row.reading.pvTotal !== null) {
+                      {{ row.reading.pvTotal | num }}
+                    } @else {
+                      <span class="faint">—</span>
+                    }
+                  </td>
+                  <td>
+                    @if (row.interval; as i) {
+                      @if (i.anomalies.length > 0) {
+                        <span class="badge" [class.warning]="isAnomaly(i)" [title]="anomalyText(i)">
+                          <app-icon name="alert" [size]="12" />
+                          {{
+                            i.anomalies.includes('meter-change')
+                              ? 'nouveau compteur'
+                              : i.anomalies.includes('decrease')
+                                ? 'index en baisse'
+                                : i.anomalies.includes('long')
+                                  ? 'long intervalle'
+                                  : 'à vérifier'
+                          }}
+                        </span>
+                      }
+                    }
+                  </td>
+                  <td class="actions">
+                    <button
+                      type="button"
+                      class="icon-btn"
+                      (click)="edit(row.reading)"
+                      title="Modifier"
+                    >
+                      <app-icon name="edit" [size]="15" />
+                    </button>
+                    <button
+                      type="button"
+                      class="icon-btn danger"
+                      (click)="remove(row.reading)"
+                      title="Supprimer"
+                    >
+                      <app-icon name="trash" [size]="15" />
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  </div>
+</div>

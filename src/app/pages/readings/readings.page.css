@@ -1,0 +1,144 @@
+.registers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.code {
+  display: inline-block;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.field.low .input {
+  border-color: var(--danger);
+}
+
+.field.medium .input {
+  border-color: var(--warning);
+}
+
+.photo-zone {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1.5px dashed var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+.photo-zone.dragging {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.photo-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 200px;
+  color: var(--text);
+}
+
+.pick {
+  cursor: pointer;
+}
+
+.photo-hint {
+  margin: -6px 0 0;
+}
+
+.thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.thumb {
+  position: relative;
+  width: 84px;
+  height: 64px;
+  margin: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumb .icon-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: rgba(15, 23, 42, 0.7);
+  color: #fff;
+}
+
+.thumb.add {
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  border-style: dashed;
+}
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.preview.warn {
+  border-color: color-mix(in srgb, var(--warning) 50%, transparent);
+}
+
+.preview-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.preview-row.problem {
+  color: var(--danger-text);
+}
+
+.list .table-wrap {
+  max-height: calc(100vh - 200px);
+}
+
+.note {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.delta {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+}

@@ -1,0 +1,241 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1>Statistiques</h1>
+      <p class="subtitle">
+        Consommation et production reconstituées à partir des relevés, réparties jour par jour selon
+        la saison.
+      </p>
+    </div>
+    <div class="row">
+      <button type="button" class="btn" (click)="exportMonthly()" [disabled]="years().length === 0">
+        <app-icon name="download" [size]="16" /> CSV mensuel
+      </button>
+      <button
+        type="button"
+        class="btn"
+        (click)="exportIntervals()"
+        [disabled]="!analysis().hasIntervals"
+      >
+        <app-icon name="download" [size]="16" /> CSV entre relevés
+      </button>
+    </div>
+  </header>
+
+  @if (years().length === 0) {
+    <div class="callout">
+      <app-icon name="info" />
+      <div>
+        Il faut au moins deux relevés pour calculer une consommation.
+        <a routerLink="/releves">Encoder des relevés</a> — en attendant, voici la référence belge
+        utilisée pour les prévisions.
+      </div>
+    </div>
+  }
+
+  <div class="section">
+    <span class="pill"><app-icon name="calendar" [size]="13" /> Par saison</span>
+  </div>
+  <div class="grid seasons">
+    @for (s of seasons(); track s.key) {
+      <div class="card kpi season" [class]="'card kpi season ' + s.key">
+        <span class="kpi-label"
+          ><app-icon [name]="seasonIcon[s.key]" [size]="15" /> {{ s.label }}</span
+        >
+        <div class="season-row">
+          <span class="faint small">Soutirage</span>
+          <span class="season-value">
+            @if (s.import.averageTotal !== null) {
+              {{ s.import.averageTotal | kwh }}
+            } @else {
+              <span class="faint">—</span>
+            }
+          </span>
+        </div>
+        <span class="kpi-sub">
+          @if (s.import.averageTotal !== null) {
+            {{ ratio(s.import.averageTotal, s.import.referenceTotal) | num }} % de la référence ({{
+              s.import.referenceTotal | kwh
+            }})
+          } @else {
+            référence : {{ s.import.referenceTotal | kwh }}
+          }
+        </span>
+        <div class="season-row">
+          <span class="faint small">Injection</span>
+          <span class="season-value">
+            @if (s.export.averageTotal !== null) {
+              {{ s.export.averageTotal | kwh }}
+            } @else {
+              <span class="faint">—</span>
+            }
+          </span>
+        </div>
+        <span class="kpi-sub">
+          @if (s.export.averageTotal !== null) {
+            {{ ratio(s.export.averageTotal, s.export.referenceTotal) | num }} % de la référence ({{
+              s.export.referenceTotal | kwh
+            }})
+          } @else {
+            référence : {{ s.export.referenceTotal | kwh }}
+          }
+        </span>
+        <span class="kpi-sub faint small"
+          >{{ monthShort[s.months[0]!] }} · {{ monthShort[s.months[1]!] }} ·
+          {{ monthShort[s.months[2]!] }}</span
+        >
+      </div>
+    }
+  </div>
+
+  <div class="section">
+    <span class="pill success"><app-icon name="chart" [size]="13" /> Par mois</span>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <h2>Comparaison des années</h2>
+      <div class="segmented" role="radiogroup" aria-label="Indicateur">
+        @for (m of metrics(); track m.key) {
+          <button
+            type="button"
+            role="radio"
+            [attr.aria-checked]="metric() === m.key"
+            [class.active]="metric() === m.key"
+            (click)="metric.set(m.key)"
+          >
+            {{ m.label }}
+          </button>
+        }
+      </div>
+    </div>
+    <app-chart [build]="chart()" [height]="300" />
+    @if (!hasPv() && analysis().hasIntervals) {
+      <p class="small faint">
+        Production solaire totale et consommation de la maison : encodez l'index de l'onduleur dans
+        les relevés pour les afficher.
+      </p>
+    }
+  </div>
+
+  <div class="card flush">
+    <div class="card-header">
+      <h2>Tableau mensuel</h2>
+      <span class="hint"
+        >kWh · <span class="partial-sample">valeur pâle</span> = mois incomplet (exclu des
+        moyennes)</span
+      >
+    </div>
+    <div class="table-wrap">
+      <table class="table month-table">
+        <thead>
+          <tr>
+            <th>Année</th>
+            @for (m of monthShort; track m) {
+              <th class="num">{{ m }}</th>
+            }
+            <th class="num">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows(); track row.year) {
+            <tr>
+              <td>
+                <strong>{{ row.year }}</strong>
+              </td>
+              @for (cell of row.cells; track $index) {
+                <td class="num" [class.partial]="cell && !cell.complete">
+                  @if (cell && cell.value !== null) {
+                    {{ cell.value | num }}
+                  } @else {
+                    <span class="faint">—</span>
+                  }
+                </td>
+              }
+              <td class="num" [class.partial]="!row.complete">
+                <strong>{{ row.total | num }}</strong>
+              </td>
+            </tr>
+          }
+          <tr class="avg-row">
+            <td>Moyenne</td>
+            @for (v of averages(); track $index) {
+              <td class="num">
+                @if (v !== null) {
+                  {{ v | num }}
+                } @else {
+                  <span class="faint">—</span>
+                }
+              </td>
+            }
+            <td class="num">
+              @if (averageTotal() !== null) {
+                {{ averageTotal() | num }}
+              } @else {
+                <span class="faint">—</span>
+              }
+            </td>
+          </tr>
+          <tr class="ref-row">
+            <td>Référence belge</td>
+            @for (v of referenceRow(); track $index) {
+              <td class="num">{{ v | num }}</td>
+            }
+            <td class="num">{{ referenceTotal() | num }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  @if (yearDetails().length > 0) {
+    <div class="card flush">
+      <div class="card-header">
+        <h2>Détail par sous-compteur</h2>
+        <span class="hint">kWh par année</span>
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Année</th>
+              @for (r of registers; track r.key) {
+                <th class="num">{{ r.short }}</th>
+              }
+              <th class="num">Soutirage</th>
+              <th class="num">Injection</th>
+              <th class="num">Solde net</th>
+              <th class="num">HC / soutirage</th>
+              @if (hasPv()) {
+                <th class="num">Autoconso.</th>
+                <th class="num">Autarcie</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (y of yearDetails(); track y.year) {
+              <tr>
+                <td>
+                  <strong>{{ y.year }}</strong>
+                  @if (!y.complete) {
+                    <span class="badge" title="Année incomplète">partielle</span>
+                  }
+                </td>
+                @for (r of registers; track r.key) {
+                  <td class="num">{{ y.totals[r.key] | num }}</td>
+                }
+                <td class="num">{{ y.derived.import | num }}</td>
+                <td class="num">{{ y.derived.export | num }}</td>
+                <td class="num">{{ y.derived.net | skwh }}</td>
+                <td class="num">{{ y.derived.offPeakPct | pct }}</td>
+                @if (hasPv()) {
+                  <td class="num">{{ y.derived.selfConsumptionPct | pct }}</td>
+                  <td class="num">{{ y.derived.autarkyPct | pct }}</td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>

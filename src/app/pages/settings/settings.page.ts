@@ -1,0 +1,331 @@
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  computed,
+  effect,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
+import { AiService } from '../../core/ai/ai.service';
+import { parseReadingsCsv } from '../../core/calc/csv-import';
+import { intervalsCsv, monthlyCsv, readingsCsv } from '../../core/calc/csv';
+import { UCCLE_DEGREE_DAYS } from '../../core/calc/degree-days';
+import { MONTH_SHORT } from '../../core/calc/time';
+import {
+  AI_MODELS,
+  REFERENCE_PRESETS,
+  type AppData,
+  type Presence,
+  type ReferencePreset,
+  type Settings,
+  type ThemeMode,
+} from '../../core/models/app-data.model';
+import type { MergeReport } from '../../core/models/merge';
+import { ConfirmService } from '../../core/services/confirm.service';
+import { DataStore } from '../../core/services/data-store.service';
+import { StorageService } from '../../core/services/storage.service';
+import { ThemeService } from '../../core/services/theme.service';
+import { ToastService } from '../../core/services/toast.service';
+import { FORMAT_PIPES } from '../../shared/format';
+import { IconComponent, type IconName } from '../../shared/icon.component';
+
+type NumericSetting =
+  | 'referenceAnnualKwh'
+  | 'winterSharePct'
+  | 'offPeakStartHour'
+  | 'offPeakEndHour'
+  | 'specificYieldKwhPerKwp';
+
+@Component({
+  selector: 'app-settings-page',
+  imports: [IconComponent, ...FORMAT_PIPES],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  templateUrl: './settings.page.html',
+  styleUrl: './settings.page.css',
+})
+export default class SettingsPage {
+  protected readonly store = inject(DataStore);
+  protected readonly storage = inject(StorageService);
+  protected readonly theme = inject(ThemeService);
+  protected readonly ai = inject(AiService);
+  private readonly toast = inject(ToastService);
+  private readonly confirm = inject(ConfirmService);
+
+  protected readonly settings = this.store.settings;
+  protected readonly monthShort = MONTH_SHORT;
+  protected readonly degreeDays = UCCLE_DEGREE_DAYS;
+  protected readonly models = AI_MODELS;
+  protected readonly presences: { value: Presence; label: string; hint: string }[] = [
+    { value: 'absent', label: 'Absents', hint: 'Personne à la maison en journée (école, travail)' },
+    { value: 'partial', label: 'Partiellement', hint: 'Quelqu’un de temps en temps' },
+    { value: 'home', label: 'À la maison', hint: 'Télétravail ou présence en journée' },
+  ];
+
+  protected readonly presets = (
+    Object.keys(REFERENCE_PRESETS) as Exclude<ReferencePreset, 'custom'>[]
+  ).map((key) => ({
+    key,
+    ...REFERENCE_PRESETS[key],
+  }));
+
+  protected readonly themeModes: { mode: ThemeMode; icon: IconName; label: string }[] = [
+    { mode: 'light', icon: 'sun', label: 'Clair' },
+    { mode: 'dark', icon: 'moon', label: 'Sombre' },
+    { mode: 'system', icon: 'monitor', label: 'Système' },
+  ];
+
+  protected readonly analysis = this.store.analysis;
+  protected readonly consumptionProfile = computed(() => this.analysis().reference.consumption);
+  protected readonly consumptionMax = computed(() => Math.max(...this.consumptionProfile()));
+  protected readonly productionProfile = computed(() => this.analysis().reference.production);
+  protected readonly productionMax = computed(() => Math.max(...this.productionProfile(), 1));
+
+  protected readonly pendingImport = signal<{ incoming: AppData; report: MergeReport } | null>(
+    null,
+  );
+  private readonly importDialog = viewChild<ElementRef<HTMLDialogElement>>('importDialog');
+
+  protected readonly counts = computed(() => ({ readings: this.store.data().readings.length }));
+
+  // --- Clé API ---
+  protected readonly keyDraft = signal('');
+  protected readonly keyBusy = signal(false);
+  protected readonly testResult = signal<{ ok: boolean; message: string } | null>(null);
+
+  constructor() {
+    effect(() => {
+      const dialog = this.importDialog()?.nativeElement;
+      if (!dialog) {
+        return;
+      }
+      if (this.pendingImport() && !dialog.open) {
+        dialog.showModal();
+      } else if (!this.pendingImport() && dialog.open) {
+        dialog.close();
+      }
+    });
+  }
+
+  protected selectPreset(key: Exclude<ReferencePreset, 'custom'>): void {
+    this.store.updateSettings({
+      referencePreset: key,
+      referenceAnnualKwh: REFERENCE_PRESETS[key].kwh,
+    });
+  }
+
+  protected setNumber(field: NumericSetting, event: Event, min: number, max: number): void {
+    const value = (event.target as HTMLInputElement).valueAsNumber;
+    if (!Number.isFinite(value)) {
+      return;
+    }
+    const clamped = Math.min(max, Math.max(min, value));
+    const patch: Partial<Settings> =
+      field === 'referenceAnnualKwh'
+        ? { referenceAnnualKwh: clamped, referencePreset: 'custom' }
+        : { [field]: clamped };
+    this.store.updateSettings(patch);
+  }
+
+  protected setPresence(presence: Presence): void {
+    this.store.updateSettings({ presence });
+  }
+
+  protected setWeekends(event: Event): void {
+    this.store.updateSettings({ offPeakWeekends: (event.target as HTMLInputElement).checked });
+  }
+
+  protected setModel(event: Event): void {
+    this.store.updateSettings({ aiModel: (event.target as HTMLSelectElement).value });
+    this.testResult.set(null);
+  }
+
+  // --- Clé API ---
+  protected async saveKey(): Promise<void> {
+    const key = this.keyDraft().trim();
+    if (key === '') {
+      return;
+    }
+    this.keyBusy.set(true);
+    try {
+      await this.ai.setKey(key);
+      this.keyDraft.set('');
+      this.testResult.set(null);
+      this.toast.show('Clé API enregistrée (chiffrée sur cet ordinateur).');
+    } catch (error) {
+      this.toast.show(error instanceof Error ? error.message : String(error), 'error');
+    } finally {
+      this.keyBusy.set(false);
+    }
+  }
+
+  protected async removeKey(): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: 'Supprimer la clé API ?',
+      message:
+        'L’assistant IA et la lecture des photos seront désactivés jusqu’à ce que vous enregistriez une nouvelle clé.',
+      confirmLabel: 'Supprimer',
+      danger: true,
+    });
+    if (ok) {
+      await this.ai.clearKey();
+      this.testResult.set(null);
+      this.toast.show('Clé API supprimée.', 'info');
+    }
+  }
+
+  protected async testKey(): Promise<void> {
+    this.keyBusy.set(true);
+    this.testResult.set(null);
+    try {
+      this.testResult.set(await this.ai.test());
+    } catch (error) {
+      this.testResult.set({
+        ok: false,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      this.keyBusy.set(false);
+    }
+  }
+
+  // --- Export / import ---
+  protected async exportJson(): Promise<void> {
+    const name = `consoelec-${new Date().toISOString().slice(0, 10)}.json`;
+    const path = await this.storage.exportFile(this.store.exportJson(), name, 'json');
+    if (path) {
+      this.toast.show(
+        path === 'download' ? 'Sauvegarde téléchargée.' : `Sauvegarde enregistrée : ${path}`,
+      );
+    }
+  }
+
+  protected async exportCsv(kind: 'readings' | 'months' | 'intervals'): Promise<void> {
+    const analysis = this.store.analysis();
+    const data = this.store.data();
+    const content =
+      kind === 'readings'
+        ? readingsCsv(data.readings)
+        : kind === 'months'
+          ? monthlyCsv(analysis.years)
+          : intervalsCsv(analysis.consumption);
+    const names = {
+      readings: 'releves',
+      months: 'consommation-mensuelle',
+      intervals: 'entre-releves',
+    };
+    const path = await this.storage.exportFile(content, `consoelec-${names[kind]}.csv`, 'csv');
+    if (path) {
+      this.toast.show(path === 'download' ? 'Fichier CSV téléchargé.' : `CSV enregistré : ${path}`);
+    }
+  }
+
+  /** Choix d'un fichier exporté, puis aperçu de ce qu'il apporte avant de l'appliquer. */
+  protected async importJson(): Promise<void> {
+    const content = await this.storage.importFile('json');
+    if (content === null) {
+      return;
+    }
+    try {
+      const incoming = this.store.parseImport(content);
+      this.pendingImport.set({ incoming, report: this.store.previewMerge(incoming).report });
+    } catch (error) {
+      this.toast.show(
+        `Import impossible : ${error instanceof Error ? error.message : error}`,
+        'error',
+      );
+    }
+  }
+
+  /** Import d'un CSV de relevés (export de ConsoElec ou tableau Excel) : fusion avec aperçu. */
+  protected async importCsv(): Promise<void> {
+    const content = await this.storage.importFile('csv');
+    if (content === null) {
+      return;
+    }
+    const { readings, errors } = parseReadingsCsv(content);
+    if (errors.length > 0) {
+      const first = errors
+        .slice(0, 3)
+        .map((e) => `ligne ${e.line} : ${e.message}`)
+        .join(' · ');
+      this.toast.show(
+        `${errors.length} ligne(s) ignorée(s) — ${first}`,
+        readings.length > 0 ? 'warning' : 'error',
+      );
+    }
+    if (readings.length === 0) {
+      return;
+    }
+    const incoming: AppData = { ...this.store.data(), readings };
+    this.pendingImport.set({ incoming, report: this.store.previewMerge(incoming).report });
+  }
+
+  protected cancelImport(): void {
+    this.pendingImport.set(null);
+  }
+
+  protected applyMerge(): void {
+    const pending = this.pendingImport();
+    if (!pending) {
+      return;
+    }
+    const report = this.store.mergeImport(pending.incoming);
+    this.pendingImport.set(null);
+    this.toast.show(
+      report.addedReadings > 0
+        ? `${report.addedReadings} relevé(s) ajouté(s) ; vos données existantes sont inchangées.`
+        : 'Rien de nouveau dans ce fichier : vos données sont déjà à jour.',
+      report.addedReadings > 0 ? 'success' : 'info',
+    );
+  }
+
+  protected async applyReplace(): Promise<void> {
+    const pending = this.pendingImport();
+    if (!pending) {
+      return;
+    }
+    this.pendingImport.set(null);
+    const ok = await this.confirm.ask({
+      title: 'Remplacer toutes les données ?',
+      message:
+        'La maison, les relevés et les réglages de cet ordinateur seront remplacés par le contenu du fichier. ' +
+        'Les relevés absents du fichier seront perdus.',
+      confirmLabel: 'Tout remplacer',
+      danger: true,
+    });
+    if (ok) {
+      this.store.replaceWithImport(pending.incoming);
+      this.toast.show('Données remplacées par le contenu du fichier.');
+    }
+  }
+
+  protected async loadDemo(): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: 'Charger les données de démonstration ?',
+      message:
+        'Vos données actuelles seront remplacées par deux ans de relevés fictifs. Exportez-les d’abord si nécessaire.',
+      confirmLabel: 'Charger la démo',
+      danger: this.counts().readings > 0,
+    });
+    if (ok) {
+      this.store.loadDemo();
+      this.toast.show('Données de démonstration chargées.', 'info');
+    }
+  }
+
+  protected async reset(): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: 'Tout effacer ?',
+      message:
+        'La maison, tous les relevés et les réglages seront supprimés. Cette action est définitive (sauf sauvegarde exportée).',
+      confirmLabel: 'Tout effacer',
+      danger: true,
+    });
+    if (ok) {
+      this.store.reset();
+      this.toast.show('Toutes les données ont été effacées.', 'info');
+    }
+  }
+}
