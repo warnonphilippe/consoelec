@@ -15,6 +15,8 @@ import { UCCLE_DEGREE_DAYS } from '../../core/calc/degree-days';
 import { MONTH_SHORT } from '../../core/calc/time';
 import {
   AI_MODELS,
+  LEGACY_OFF_PEAK,
+  WALLONIA_2026_OFF_PEAK,
   REFERENCE_PRESETS,
   type AppData,
   type Presence,
@@ -31,12 +33,7 @@ import { ToastService } from '../../core/services/toast.service';
 import { FORMAT_PIPES } from '../../shared/format';
 import { IconComponent, type IconName } from '../../shared/icon.component';
 
-type NumericSetting =
-  | 'referenceAnnualKwh'
-  | 'winterSharePct'
-  | 'offPeakStartHour'
-  | 'offPeakEndHour'
-  | 'specificYieldKwhPerKwp';
+type NumericSetting = 'referenceAnnualKwh' | 'winterSharePct' | 'specificYieldKwhPerKwp';
 
 @Component({
   selector: 'app-settings-page',
@@ -130,6 +127,22 @@ export default class SettingsPage {
 
   protected setPresence(presence: Presence): void {
     this.store.updateSettings({ presence });
+  }
+
+  protected readonly hours = Array.from({ length: 24 }, (_, h) => h);
+
+  protected toggleHour(hour: number): void {
+    const current = this.settings().offPeakHours;
+    const next = current.includes(hour) ? current.filter((h) => h !== hour) : [...current, hour];
+    this.store.updateSettings({ offPeakHours: next.sort((a, b) => a - b) });
+  }
+
+  protected applyOffPeak(preset: 'wallonia2026' | 'legacy'): void {
+    this.store.updateSettings(
+      preset === 'wallonia2026'
+        ? { offPeakHours: [...WALLONIA_2026_OFF_PEAK], offPeakWeekends: false }
+        : { offPeakHours: [...LEGACY_OFF_PEAK], offPeakWeekends: true },
+    );
   }
 
   protected setWeekends(event: Event): void {

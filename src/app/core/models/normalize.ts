@@ -154,8 +154,7 @@ function normalizeSettings(raw: Raw): Settings {
     presence: PRESENCES.includes(presence as Presence)
       ? (presence as Presence)
       : DEFAULT_SETTINGS.presence,
-    offPeakStartHour: hour(raw['offPeakStartHour'], DEFAULT_SETTINGS.offPeakStartHour),
-    offPeakEndHour: hour(raw['offPeakEndHour'], DEFAULT_SETTINGS.offPeakEndHour),
+    offPeakHours: offPeakHours(raw),
     offPeakWeekends: bool(raw['offPeakWeekends'], DEFAULT_SETTINGS.offPeakWeekends),
     specificYieldKwhPerKwp: Math.max(
       0,
@@ -198,8 +197,23 @@ function bool(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
 }
 
-function hour(value: unknown, fallback: number): number {
-  return Math.round(clamp(num(value, fallback), 0, 23));
+/** Heures creuses : liste d'heures, ou ancienne plage de nuit « début-fin » convertie en liste. */
+function offPeakHours(raw: Raw): number[] {
+  const list = raw['offPeakHours'];
+  if (Array.isArray(list)) {
+    const hours = list.filter((h): h is number => Number.isInteger(h) && h >= 0 && h <= 23);
+    return [...new Set(hours)].sort((a, b) => a - b);
+  }
+  const start = num(raw['offPeakStartHour'], Number.NaN);
+  const end = num(raw['offPeakEndHour'], Number.NaN);
+  if (Number.isFinite(start) && Number.isFinite(end)) {
+    const s = Math.round(clamp(start, 0, 23));
+    const e = Math.round(clamp(end, 0, 23));
+    return Array.from({ length: 24 }, (_, h) => h).filter((h) =>
+      s > e ? h >= s || h < e : h >= s && h < e,
+    );
+  }
+  return [...DEFAULT_SETTINGS.offPeakHours];
 }
 
 function num(value: unknown, fallback: number): number {

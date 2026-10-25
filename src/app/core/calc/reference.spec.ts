@@ -1,6 +1,8 @@
 import {
   DEFAULT_HOUSE,
   DEFAULT_SETTINGS,
+  LEGACY_OFF_PEAK,
+  WALLONIA_2026_OFF_PEAK,
   pvKwp,
   type House,
   type Settings,
@@ -54,8 +56,9 @@ describe('installation de la maison : 16 panneaux de 400 Wc, onduleur triphasé 
     expect(selfPct(ref)).toBeLessThan(40);
     expect(autarkyPct(ref)).toBeGreaterThan(28);
     expect(autarkyPct(ref)).toBeLessThan(50);
-    expect(hcShare(ref)).toBeGreaterThan(35);
-    expect(hcShare(ref)).toBeLessThan(55);
+    // Bihoraire wallon 2026 : nuit et midi en heures creuses, pointe du soir en heures pleines.
+    expect(hcShare(ref)).toBeGreaterThan(25);
+    expect(hcShare(ref)).toBeLessThan(50);
   });
 
   it('l’été injecte plus qu’il ne soutire, l’hiver l’inverse', () => {
@@ -175,23 +178,43 @@ describe('présence, heures creuses et réglages', () => {
     expect(at('partial')).toBeLessThan(at('home'));
   });
 
-  it('les week-ends en heures creuses augmentent la part d’injection en heures creuses', () => {
-    const on = build(() => undefined, { offPeakWeekends: true }).ref;
-    const off = build(() => undefined, { offPeakWeekends: false }).ref;
-    const share = (r: typeof on): number =>
-      sum(r.registers.exportOff) / (sum(r.registers.exportOff) + sum(r.registers.exportPeak));
-    expect(share(on)).toBeGreaterThan(0.15);
-    expect(share(off)).toBeLessThan(0.02);
+  const exportOffShare = (r: ReturnType<typeof referenceProfile>): number =>
+    sum(r.registers.exportOff) / (sum(r.registers.exportOff) + sum(r.registers.exportPeak));
+
+  it('ancien bihoraire : les week-ends en heures creuses portent environ 28 % de l’injection', () => {
+    const legacy = { offPeakHours: [...LEGACY_OFF_PEAK], offPeakWeekends: true };
+    const on = build(() => undefined, legacy).ref;
+    const off = build(() => undefined, { ...legacy, offPeakWeekends: false }).ref;
+    expect(exportOffShare(on)).toBeGreaterThan(0.2);
+    expect(exportOffShare(on)).toBeLessThan(0.35);
+    expect(exportOffShare(off)).toBeLessThan(0.03);
     expect(on.annual.import).toBeCloseTo(off.annual.import, 3);
   });
 
+  it('bihoraire wallon 2026 (22 h-7 h et 11 h-17 h) : la majorité de l’injection tombe en heures creuses', () => {
+    // Une installation solaire wallonne injecte alors surtout en heures creuses (2.8.2 bien au-dessus de 2.8.1).
+    const wallonia = build(() => undefined, {
+      offPeakHours: [...WALLONIA_2026_OFF_PEAK],
+      offPeakWeekends: false,
+    }).ref;
+    expect(exportOffShare(wallonia)).toBeGreaterThan(0.55);
+    expect(exportOffShare(wallonia)).toBeLessThan(0.85);
+    // Le soutirage de midi passe aussi en heures creuses, mais la pointe du soir reste en heures pleines.
+    expect(hcShare(wallonia)).toBeGreaterThan(25);
+    expect(hcShare(wallonia)).toBeLessThan(45);
+  });
+
   it('une nuit plus longue met plus de soutirage en heures creuses', () => {
-    const base = hcShare(build(() => undefined, { offPeakWeekends: false }).ref);
-    const longer = hcShare(
-      build(() => undefined, { offPeakWeekends: false, offPeakStartHour: 20, offPeakEndHour: 8 })
-        .ref,
-    );
+    const night = (hours: number[]) =>
+      hcShare(build(() => undefined, { offPeakHours: hours, offPeakWeekends: false }).ref);
+    const base = night([22, 23, 0, 1, 2, 3, 4, 5, 6]);
+    const longer = night([20, 21, 22, 23, 0, 1, 2, 3, 4, 5, 6, 7]);
     expect(longer).toBeGreaterThan(base + 5);
+  });
+
+  it('sans heures creuses, tout est compté en heures pleines', () => {
+    const none = build(() => undefined, { offPeakHours: [], offPeakWeekends: false }).ref;
+    expect(sum(none.registers.importOff) + sum(none.registers.exportOff)).toBe(0);
   });
 
   it('la consommation annuelle est respectée', () => {

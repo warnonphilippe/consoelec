@@ -140,8 +140,7 @@ export function buildDataSnapshot(
       partHivernalePct: settings.winterSharePct,
       presenceEnJournee: settings.presence,
       heuresCreuses: {
-        debutNuit: settings.offPeakStartHour,
-        finNuit: settings.offPeakEndHour,
+        heures: settings.offPeakHours,
         weekendsEnHeuresCreuses: settings.offPeakWeekends,
       },
       rendementKwhParKwc: settings.specificYieldKwhPerKwp,
@@ -192,6 +191,7 @@ Tu as accès à toutes les données de l'application (instantané JSON ci-dessou
 
 Glossaire :
 - Le compteur intelligent donne quatre index cumulés en kWh : soutirage heures pleines (HP, 1.8.1), soutirage heures creuses (HC, 1.8.2), injection HP (2.8.1), injection HC (2.8.2). « Consommation » côté compteur = soutirage depuis le réseau ; « production » côté compteur = injection sur le réseau. Ce n'est NI la production solaire totale NI la consommation réelle de la maison.
+- Heures creuses (« reglages.heuresCreuses.heures » : liste des heures au tarif T2) : en Wallonie depuis 2026, 22 h-7 h et 11 h-17 h tous les jours, week-ends compris dans cette règle ; une grande partie de l'injection solaire tombe donc en heures creuses (2.8.2). Les index cumulés avant 2026 suivent l'ancien bihoraire (nuit + week-ends).
 - Solde net = soutirage − injection (négatif = la maison a injecté plus qu'elle n'a soutiré).
 - Si la production photovoltaïque totale est encodée (productionTotaleEncodee = true) : autoconsommation = production − injection ; consommation de la maison = soutirage + autoconsommation ; taux d'autoconsommation = autoconsommation / production ; autarcie = autoconsommation / consommation de la maison. Sinon, ces indicateurs ne sont pas mesurés : dis-le et propose d'encoder cet index.
 - Les mois « complets » sont entièrement couverts par des relevés ; les mois incomplets sont partiels. Les répartitions mensuelles sont reconstituées entre deux relevés au prorata de la saison, donc approximatives si les relevés sont espacés.

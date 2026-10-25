@@ -64,6 +64,8 @@ Votre compteur communicant affiche, en faisant défiler son écran, **quatre ind
 | 2.8.1 | Énergie injectée sur le réseau en **heures pleines** | Injection HP |
 | 2.8.2 | Énergie injectée sur le réseau en **heures creuses** | Injection HC |
 
+En Wallonie, depuis le 1er janvier 2026, les heures creuses vont de 22 h à 7 h et de 11 h à 17 h : une installation solaire injecte donc surtout en heures creuses (2.8.2 nettement plus élevé que 2.8.1).
+
 Sur un compteur Iskra IE.5 (comme celui d'AIEG), l'écran défile aussi sur les totaux **1.8.0** et **2.8.0** (sans tarif) ; ils ne sont pas encodés, mais ils servent à vérifier : 1.8.0 = 1.8.1 + 1.8.2. L'icône soleil désigne les heures pleines (tarif T1), l'icône lune les heures creuses (T2). Les index s'affichent avec 6 chiffres et 2 décimales (ex. `000705.94` = 705,94 kWh).
 
 Deux précisions importantes :
@@ -236,7 +238,11 @@ Les relevés s'exportent aussi en **CSV** (séparateur « ; », virgule décimal
 - **Consommation de référence** : 2 800 / 3 500 / 4 500 kWh par an, ou valeur libre (ex. d'après votre dernière facture). Hors radiateur d'appoint et voiture, qui s'ajoutent.
 - **Part hivernale** : part de la consommation qui suit l'hiver (éclairage, circulateurs, brûleur…). Le reste est constant toute l'année.
 - **Présence en journée** : absents, partiellement ou à la maison. Elle décide de la part de la consommation qui coïncide avec le soleil, donc de l'autoconsommation (les week-ends sont toujours comptés « à la maison »).
-- **Heures creuses** : heure de début et de fin de nuit, et week-ends entièrement en heures creuses ou non. Vérifiez-les auprès de votre gestionnaire de réseau : elles déterminent la part du soutirage et de l'injection comptée en heures creuses (avec les week-ends, environ 28 % de l'injection tombe en heures creuses).
+- **Heures creuses** : cliquez sur les heures qui sont au tarif « nuit » (T2, icône lune du compteur), ou choisissez un préréglage :
+  - **Wallonie depuis 2026** (par défaut) : 22 h-7 h **et 11 h-17 h**, tous les jours, week-ends compris dans cette règle. La production solaire de midi tombe alors en heures creuses : le modèle prévoit environ 77 % de l'injection et 30 % du soutirage en heures creuses ;
+  - **ancien bihoraire** : 22 h-7 h, plus les week-ends entiers (environ 28 % de l'injection et 46 % du soutirage en heures creuses).
+
+  Vérifiez la grille auprès de votre gestionnaire de réseau. Les index cumulés avant 2026 ont été comptés avec l'ancienne grille : les parts HP/HC du compteur se rapprochent de la nouvelle au fil des relevés.
 - **Rendement des panneaux** : 900 kWh par kWc et par an par défaut, avant écrêtage de l'onduleur.
 
 ### Comment le modèle de référence est calculé

@@ -60,10 +60,10 @@ describe('normalizeData', () => {
 
   it('borne les pourcentages et la voiture électrique', () => {
     const data = normalizeData({
-      settings: { offPeakStartHour: 400 },
+      settings: { offPeakHours: [22, 22, 5, 30, -1, 2.5] },
       house: { ev: { mode: 'owned', homeChargingPct: -5 } },
     });
-    expect(data.settings.offPeakStartHour).toBe(23);
+    expect(data.settings.offPeakHours).toEqual([5, 22]);
     expect(data.house.ev.mode).toBe('owned');
     expect(data.house.ev.homeChargingPct).toBe(0);
   });
@@ -129,5 +129,21 @@ describe('normalizeData', () => {
       ],
     });
     expect(data.readings.map((r) => r.meterChange)).toEqual([true, false]);
+  });
+
+  it('convertit l’ancienne plage de nuit en liste d’heures', () => {
+    const data = normalizeData({
+      settings: { offPeakStartHour: 22, offPeakEndHour: 6, offPeakWeekends: true },
+    });
+    expect(data.settings.offPeakHours).toEqual([0, 1, 2, 3, 4, 5, 22, 23]);
+    expect(data.settings.offPeakWeekends).toBe(true);
+  });
+
+  it('adopte par défaut le bihoraire wallon de 2026', () => {
+    const data = normalizeData({ readings: [] });
+    expect(data.settings.offPeakHours).toEqual([
+      0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 15, 16, 22, 23,
+    ]);
+    expect(data.settings.offPeakWeekends).toBe(false);
   });
 });

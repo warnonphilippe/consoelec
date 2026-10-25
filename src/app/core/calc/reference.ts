@@ -74,14 +74,7 @@ export function loadShape(presence: Presence, weekend: boolean): number[] {
 }
 
 export function isOffPeakHour(hour: number, weekend: boolean, settings: Settings): boolean {
-  if (weekend && settings.offPeakWeekends) {
-    return true;
-  }
-  const { offPeakStartHour: start, offPeakEndHour: end } = settings;
-  if (start === end) {
-    return false;
-  }
-  return start > end ? hour >= start || hour < end : hour >= start && hour < end;
+  return (weekend && settings.offPeakWeekends) || settings.offPeakHours.includes(hour);
 }
 
 /** Le radiateur d'appoint est-il utilisable ce mois-là (0-11) ? */

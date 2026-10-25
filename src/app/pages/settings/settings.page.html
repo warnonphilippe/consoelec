@@ -88,33 +88,29 @@
             l'autoconsommation). Les week-ends sont toujours comptés « à la maison ».
           </span>
         </div>
-        <div class="field">
-          <label for="ohs">Heures creuses de nuit</label>
-          <div class="hours">
-            <span class="small muted">de</span>
-            <input
-              id="ohs"
-              class="input"
-              type="number"
-              min="0"
-              max="23"
-              step="1"
-              [value]="settings().offPeakStartHour"
-              (change)="setNumber('offPeakStartHour', $event, 0, 23)"
-              aria-label="Début des heures creuses"
-            />
-            <span class="small muted">h à</span>
-            <input
-              class="input"
-              type="number"
-              min="0"
-              max="23"
-              step="1"
-              [value]="settings().offPeakEndHour"
-              (change)="setNumber('offPeakEndHour', $event, 0, 23)"
-              aria-label="Fin des heures creuses"
-            />
-            <span class="small muted">h</span>
+        <div class="field hc-field">
+          <span class="label">Heures creuses (tarif nuit, T2)</span>
+          <div class="hour-grid" role="group" aria-label="Heures creuses">
+            @for (h of hours; track h) {
+              <button
+                type="button"
+                class="hour"
+                [class.off]="settings().offPeakHours.includes(h)"
+                [attr.aria-pressed]="settings().offPeakHours.includes(h)"
+                [title]="h + ' h – ' + (h + 1) + ' h'"
+                (click)="toggleHour(h)"
+              >
+                {{ h }}
+              </button>
+            }
+          </div>
+          <div class="row presets-hc">
+            <button type="button" class="btn sm" (click)="applyOffPeak('wallonia2026')">
+              Wallonie depuis 2026 (22 h-7 h et 11 h-17 h)
+            </button>
+            <button type="button" class="btn sm" (click)="applyOffPeak('legacy')">
+              Ancien bihoraire (22 h-7 h + week-ends)
+            </button>
           </div>
           <label class="check">
             <input
@@ -125,8 +121,10 @@
             Les week-ends sont entièrement en heures creuses
           </label>
           <span class="help">
-            Vérifiez les heures de votre gestionnaire de réseau : elles déterminent la part du
-            soutirage et de l'injection comptée en heures creuses.
+            Cliquez sur une heure pour la basculer (en couleur : heure creuse). Depuis le 1er
+            janvier 2026, le bihoraire wallon compte en heures creuses 22 h-7 h et 11 h-17 h, tous
+            les jours : une grande partie de l'injection solaire tombe alors en heures creuses
+            (2.8.2).
           </span>
         </div>
         <div class="field">

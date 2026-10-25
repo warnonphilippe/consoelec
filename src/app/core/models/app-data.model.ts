@@ -145,10 +145,12 @@ export interface Settings {
   /** Part de la consommation qui suit l'hiver (éclairage, auxiliaires du chauffage), 0-100 %. */
   winterSharePct: number;
   presence: Presence;
-  /** Heures creuses de nuit : de `offPeakStartHour` à `offPeakEndHour` (heure pleine de début de la nuit, 0-23). */
-  offPeakStartHour: number;
-  offPeakEndHour: number;
-  /** Les week-ends sont entièrement en heures creuses. */
+  /**
+   * Heures creuses : liste des heures (0-23) comptées au tarif « nuit » (T2), tous les jours.
+   * 13 signifie de 13 h à 14 h. En Wallonie depuis 2026 : 22 h-7 h et 11 h-17 h.
+   */
+  offPeakHours: number[];
+  /** Les week-ends sont entièrement en heures creuses (ancien bihoraire). */
   offPeakWeekends: boolean;
   /** Production annuelle par kWc installé, avant écrêtage de l'onduleur (kWh/kWc). */
   specificYieldKwhPerKwp: number;
@@ -182,14 +184,21 @@ export const AI_MODELS: readonly { id: string; label: string }[] = [
 
 export const DEFAULT_AI_MODEL = 'claude-sonnet-5-5';
 
+/** Heures creuses du bihoraire wallon depuis le 1er janvier 2026 : 22 h-7 h et 11 h-17 h, tous les jours. */
+export const WALLONIA_2026_OFF_PEAK: readonly number[] = [
+  0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 15, 16, 22, 23,
+];
+
+/** Ancien bihoraire : 22 h-7 h en semaine, week-ends entiers. */
+export const LEGACY_OFF_PEAK: readonly number[] = [0, 1, 2, 3, 4, 5, 6, 22, 23];
+
 export const DEFAULT_SETTINGS: Settings = {
   referencePreset: 'average',
   referenceAnnualKwh: 3500,
   winterSharePct: 30,
   presence: 'partial',
-  offPeakStartHour: 22,
-  offPeakEndHour: 6,
-  offPeakWeekends: true,
+  offPeakHours: [...WALLONIA_2026_OFF_PEAK],
+  offPeakWeekends: false,
   specificYieldKwhPerKwp: 900,
   theme: 'system',
   aiModel: DEFAULT_AI_MODEL,
@@ -210,7 +219,7 @@ export const DEFAULT_PV: Pv = {
   panelWp: 400,
   inverterKva: 5,
   inverterPhases: 3,
-  inverterModel: 'SMA Sunny Tripower',
+  inverterModel: 'SMA Sunny Tripower STP5.0-3AV-40',
   orientation: 'Sud',
   tiltDeg: 35,
   installDate: '',
@@ -243,6 +252,6 @@ export function emptyData(): AppData {
     schemaVersion: 1,
     house: structuredClone(DEFAULT_HOUSE),
     readings: [],
-    settings: { ...DEFAULT_SETTINGS },
+    settings: { ...DEFAULT_SETTINGS, offPeakHours: [...DEFAULT_SETTINGS.offPeakHours] },
   };
 }
