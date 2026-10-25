@@ -440,6 +440,15 @@
             [value]="inverterSettings().host"
             (change)="setInverterHost($event)"
           />
+          <button
+            type="button"
+            class="btn sm discover"
+            [disabled]="inverter.discovering()"
+            (click)="discoverInverter()"
+          >
+            <app-icon name="refresh" [size]="14" />
+            {{ inverter.discovering() ? 'Recherche…' : 'Rechercher sur le réseau' }}
+          </button>
           <span class="help"
             >Nom réseau (SMA + numéro de série, suivi de .local) ou adresse IP.</span
           >

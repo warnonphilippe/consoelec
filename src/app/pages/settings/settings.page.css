@@ -232,3 +232,7 @@
 .fp {
   word-break: break-all;
 }
+
+.discover {
+  align-self: flex-start;
+}

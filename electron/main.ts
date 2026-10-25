@@ -16,6 +16,7 @@ import type { IpcMainInvokeEvent } from 'electron';
 import { APP_HOST, APP_SCHEME, assetFileUrl, buildContentSecurityPolicy } from './app-protocol';
 import { AiService, type FetchLike } from './ai';
 import { convertToJpeg } from './image';
+import { discoverSmaInverters } from './discovery';
 import { InverterClient } from './inverter';
 import { SecretStore } from './secrets';
 import { DEFAULT_SSH_KEY, Vault } from './vault';
@@ -306,6 +307,7 @@ function registerIpc(
     inverter.configure(assertInverterConfig(config));
     pollInverter();
   });
+  handle(IPC.inverterDiscover, () => discoverSmaInverters());
   handle(IPC.inverterRefresh, async () => {
     const reading = await inverter.read();
     mainWindow?.webContents.send(IPC.inverterReading, reading);

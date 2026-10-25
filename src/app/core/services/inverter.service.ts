@@ -21,6 +21,7 @@ export class InverterService {
   readonly available = this.api !== null;
   readonly live = signal<InverterReading | null>(null);
   readonly busy = signal(false);
+  readonly discovering = signal(false);
   readonly settings = computed(() => this.store.settings().inverter);
   /** Prêt à interroger l'onduleur : activé, clé dans le coffre ouvert. */
   readonly ready = computed(() => this.settings().enabled && this.vault.has('inverterPsk'));
@@ -36,6 +37,10 @@ export class InverterService {
     }
     const off = this.api.onReading((reading) => this.onReading(reading));
     inject(DestroyRef).onDestroy(off);
+    // Adresse pas encore connue : on cherche l'onduleur sur le réseau dès le démarrage.
+    if (this.store.loaded() && this.settings().host === '') {
+      void this.discover();
+    }
     effect(() => {
       const s = this.settings();
       // Relancé aussi quand le coffre s'ouvre ou que la clé change.
@@ -59,6 +64,29 @@ export class InverterService {
       return reading;
     } finally {
       this.busy.set(false);
+    }
+  }
+
+  /**
+   * Cherche les onduleurs SMA sur le réseau local et pré-remplit l'adresse si elle est vide (ou si `replace`).
+   * Renvoie les noms trouvés.
+   */
+  async discover(replace = false): Promise<string[]> {
+    if (this.api === null) {
+      return [];
+    }
+    this.discovering.set(true);
+    try {
+      const hosts = await this.api.discover();
+      const current = this.settings();
+      if (hosts.length > 0 && (replace || current.host === '') && current.host !== hosts[0]) {
+        this.store.updateSettings({
+          inverter: { ...current, host: hosts[0]!, certFingerprint: null },
+        });
+      }
+      return hosts;
+    } finally {
+      this.discovering.set(false);
     }
   }
 

@@ -143,6 +143,8 @@ export interface ConsoElecApi {
     /** Lit tout de suite les mesures (aussi diffusées par `onReading`). */
     refresh(): Promise<InverterReading>;
     onReading(listener: (reading: InverterReading) => void): () => void;
+    /** Cherche les onduleurs SMA sur le réseau local ; renvoie leurs noms réseau. */
+    discover(): Promise<string[]>;
   };
   readonly ai: {
     status(): Promise<AiStatus>;
@@ -173,6 +175,7 @@ export const IPC = {
   inverterConfigure: 'inverter:configure',
   inverterRefresh: 'inverter:refresh',
   inverterReading: 'inverter:reading',
+  inverterDiscover: 'inverter:discover',
   aiStatus: 'ai:status',
   aiTest: 'ai:test',
   aiChat: 'ai:chat',

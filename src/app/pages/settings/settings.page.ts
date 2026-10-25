@@ -226,6 +226,16 @@ export default class SettingsPage {
     }
   }
 
+  protected async discoverInverter(): Promise<void> {
+    const hosts = await this.inverter.discover(true);
+    this.toast.show(
+      hosts.length === 0
+        ? 'Aucun onduleur SMA trouvé sur le réseau : vérifiez qu’il est connecté au même réseau que ce Mac.'
+        : `Onduleur trouvé : ${hosts.join(', ')}`,
+      hosts.length === 0 ? 'warning' : 'success',
+    );
+  }
+
   protected async testInverter(): Promise<void> {
     await this.inverter.refresh();
   }
