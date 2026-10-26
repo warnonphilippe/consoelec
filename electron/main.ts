@@ -165,6 +165,13 @@ function assertSecretName(value: unknown): SecretName {
   return value as SecretName;
 }
 
+function assertIsoDate(value: unknown): string {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new Error('Date invalide');
+  }
+  return value;
+}
+
 function assertInverterConfig(value: unknown): InverterConfig {
   const c = value as Partial<InverterConfig> | null;
   if (
@@ -309,6 +316,7 @@ function registerIpc(
   });
   handle(IPC.inverterDiscover, () => discoverSmaInverters());
   handle(IPC.inverterHistory, () => inverter.history());
+  handle(IPC.inverterDayCurve, (date) => inverter.dayCurve(assertIsoDate(date)));
   handle(IPC.inverterRefresh, async () => {
     const reading = await inverter.read();
     mainWindow?.webContents.send(IPC.inverterReading, reading);

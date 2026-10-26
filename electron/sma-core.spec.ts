@@ -306,6 +306,22 @@ describe('client local de l’onduleur (serveur HTTPS simulé)', () => {
     s.close();
   });
 
+  it('lit la courbe d’une journée choisie, vide si le journal ne la contient pas', async () => {
+    const s = await start();
+    const client = new InverterClient(() => PSK, 'usr', s.port);
+    client.configure({ enabled: true, host: s.host, certFingerprint: fingerprint });
+    const date = new Date(LOG_TODAY * 1000 + 3_600_000);
+    const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const day = await client.dayCurve(iso);
+    expect(day.error).toBeNull();
+    expect(day.points.length).toBeGreaterThan(100);
+    expect(day.points.every((p) => Math.abs(p.powerW - 1250) <= 15)).toBe(true);
+    const old = await client.dayCurve('2026-09-01');
+    expect(old).toEqual({ date: '2026-09-01', points: [], error: null });
+    await client.close();
+    s.close();
+  });
+
   it('signale une clé refusée et l’absence de clé', async () => {
     const s = await start();
     const wrong = new InverterClient(() => 'MAUVAISE', 'usr', s.port);

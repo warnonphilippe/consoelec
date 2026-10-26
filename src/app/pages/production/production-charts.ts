@@ -1,11 +1,13 @@
 import type { ChartConfiguration } from 'chart.js';
+import { fr } from 'date-fns/locale';
 import type { ProductionDay, ProductionMonth, ProductionStatus } from '../../core/calc/production';
+import type { PowerPoint } from '../../core/services/inverter.service';
 import { MONTH_SHORT, dayNumberToDate } from '../../core/calc/time';
 import type { ChartBuilder } from '../../shared/chart/chart.component';
 import { alpha, chartLegend, type ChartColors } from '../../shared/chart/chart-colors';
 import { fmt } from '../../shared/format';
 
-const STATUS_LABEL: Record<ProductionStatus, string> = {
+export const STATUS_LABEL: Record<ProductionStatus, string> = {
   measured: 'lue sur l’onduleur',
   estimated: 'estimée entre deux index',
   partial: 'journée incomplète',
@@ -23,8 +25,16 @@ interface Bar {
   readonly detail: string;
 }
 
-/** `marks` : l'attendu est un trait horizontal par barre plutôt qu'une courbe (périodes sans continuité, les années). */
-function barChart(bars: readonly Bar[], expectedLabel: string, marks = false): ChartBuilder {
+/**
+ * `marks` : l'attendu est un trait horizontal par barre plutôt qu'une courbe (périodes sans continuité, les années).
+ * `onSelect` : appelé avec l'indice de la barre cliquée.
+ */
+function barChart(
+  bars: readonly Bar[],
+  expectedLabel: string,
+  marks = false,
+  onSelect?: (index: number) => void,
+): ChartBuilder {
   return (c: ChartColors): ChartConfiguration => ({
     type: 'bar',
     data: {
@@ -61,6 +71,18 @@ function barChart(bars: readonly Bar[], expectedLabel: string, marks = false): C
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
+      onClick: (_event, elements) => {
+        const index = elements[0]?.index;
+        if (onSelect && index !== undefined) {
+          onSelect(index);
+        }
+      },
+      onHover: (event, elements) => {
+        const target = event.native?.target as HTMLElement | undefined;
+        if (onSelect && target) {
+          target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+        }
+      },
       scales: {
         x: { grid: { display: false }, ticks: { color: c.muted, maxRotation: 0, autoSkipPadding: 8 } },
         y: {
@@ -87,8 +109,8 @@ function barChart(bars: readonly Bar[], expectedLabel: string, marks = false): C
   });
 }
 
-/** Production des derniers jours, une barre par jour, avec la production attendue. */
-export function dailyChart(days: readonly ProductionDay[]): ChartBuilder {
+/** Production des derniers jours, une barre par jour, avec la production attendue ; un clic choisit le jour. */
+export function dailyChart(days: readonly ProductionDay[], onSelect?: (day: number) => void): ChartBuilder {
   return barChart(
     days.map((d) => ({
       label: DAY_FORMAT.format(dayNumberToDate(d.day)),
@@ -98,6 +120,8 @@ export function dailyChart(days: readonly ProductionDay[]): ChartBuilder {
       detail: STATUS_LABEL[d.status],
     })),
     'Attendu (référence)',
+    false,
+    onSelect ? (index) => onSelect(days[index]!.day) : undefined,
   );
 }
 
@@ -156,4 +180,62 @@ export function yearlyChart(years: readonly YearTotal[]): ChartBuilder {
     'Attendu (référence)',
     true,
   );
+}
+
+/**
+ * Courbe de puissance d'une journée : de 6 h à 22 h au moins, étendue si des points sortent de cette plage.
+ * `dayStart` est minuit de la journée (ms).
+ */
+export function dayCurveChart(points: readonly PowerPoint[], dayStart: number): ChartBuilder {
+  return (c: ChartColors): ChartConfiguration => {
+    const day = new Date(dayStart);
+    const at = (h: number) => new Date(day.getFullYear(), day.getMonth(), day.getDate(), h).getTime();
+    return {
+      type: 'line',
+      data: {
+        datasets: [
+          {
+            label: 'Puissance',
+            data: points.map((p) => ({ x: p.at, y: p.powerW })),
+            borderColor: c.pv,
+            backgroundColor: alpha(c.pv, 0.18),
+            fill: 'origin',
+            pointRadius: 0,
+            pointHoverRadius: 4,
+            borderWidth: 2,
+            tension: 0.25,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        parsing: false,
+        interaction: { mode: 'nearest', axis: 'x', intersect: false },
+        scales: {
+          x: {
+            type: 'time',
+            min: Math.min(at(6), points[0]?.at ?? Infinity),
+            max: Math.max(at(22), points.at(-1)?.at ?? -Infinity),
+            adapters: { date: { locale: fr } },
+            time: { unit: 'hour', tooltipFormat: 'HH:mm', displayFormats: { hour: 'HH:mm' } },
+            grid: { color: c.grid },
+            ticks: { color: c.muted, maxTicksLimit: 9 },
+          },
+          y: {
+            beginAtZero: true,
+            grid: { color: c.grid },
+            ticks: { color: c.muted, callback: (v) => fmt.number(Number(v)) },
+            title: { display: true, text: 'W', color: c.muted },
+          },
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: { label: (item) => `${fmt.number((item.raw as { y: number }).y)} W` },
+          },
+        },
+      },
+    };
+  };
 }

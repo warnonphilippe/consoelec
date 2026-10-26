@@ -1,5 +1,9 @@
 import { DestroyRef, Injectable, computed, effect, inject, signal } from '@angular/core';
-import type { InverterHistory, InverterReading } from '../../../../electron/shared/ipc-contract';
+import type {
+  InverterDayCurve,
+  InverterHistory,
+  InverterReading,
+} from '../../../../electron/shared/ipc-contract';
 import { toLocalIso } from '../calc/time';
 import { DataStore } from './data-store.service';
 import { VaultService } from './vault.service';
@@ -35,6 +39,9 @@ export class InverterService {
   /** Courbe de puissance d'aujourd'hui : journal des 5 minutes de l'onduleur, complété par les lectures en direct. */
   readonly todayCurve = signal<PowerPoint[]>([]);
   readonly historyBusy = signal(false);
+  /** Courbes des journées passées déjà lues (elles ne changent plus). */
+  private readonly curves = new Map<string, readonly PowerPoint[]>();
+
   /** Résultat de la dernière lecture des journaux : nombre de journées ajoutées ou message d'erreur. */
   readonly historyStatus = signal<{ at: number; added: number; error: string | null } | null>(null);
   readonly settings = computed(() => this.store.settings().inverter);
@@ -130,6 +137,28 @@ export class InverterService {
     } finally {
       this.historyBusy.set(false);
     }
+  }
+
+  /**
+   * Courbe de puissance d'une journée passée (`AAAA-MM-JJ`), lue dans le journal des 5 minutes de l'onduleur puis
+   * gardée en mémoire. Pour aujourd'hui, utiliser `todayCurve`.
+   */
+  async dayCurve(date: string): Promise<InverterDayCurve> {
+    const cached = this.curves.get(date);
+    if (cached) {
+      return { date, points: cached, error: null };
+    }
+    if (this.api === null) {
+      return { date, points: [], error: "La lecture de l'onduleur demande l'application de bureau." };
+    }
+    if (!this.ready()) {
+      return { date, points: [], error: "Onduleur non configuré ou coffre verrouillé." };
+    }
+    const curve = await this.api.dayCurve(date);
+    if (curve.error === null && curve.points.length > 0 && date < localDay(Date.now())) {
+      this.curves.set(date, curve.points);
+    }
+    return curve;
   }
 
   /** Oublie l'empreinte du certificat (après un remplacement de l'onduleur ou de son certificat). */

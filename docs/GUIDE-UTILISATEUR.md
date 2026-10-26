@@ -151,7 +151,8 @@ Le tableau de bord résume :
 
 La page **Production** rassemble tout ce qui concerne les panneaux :
 
-- la carte **Production en direct** (comme sur le tableau de bord) avec la **courbe de puissance de la journée** ;
+- la carte **Production en direct** (comme sur le tableau de bord) ;
+- le **détail d'une journée** : courbe de puissance, production, production attendue et puissance maximale. Changez de jour avec les flèches (ou les touches ← → du clavier), choisissez une date dans le calendrier, revenez à **Aujourd'hui**, ou cliquez sur une barre du graphique « 30 jours ». La courbe d'une journée passée est lue dans le journal des 5 minutes de l'onduleur, qui ne remonte que sur une période limitée : pour les journées plus anciennes, seuls les totaux sont affichés ;
 - la production des **7** et **30 derniers jours** et de l'**année en cours**, comparée à la production attendue par le modèle de référence (même saison, même puissance, écrêtage de l'onduleur compris) ;
 - la **meilleure journée** et le **rendement mesuré** (kWh/kWc/an) ;
 - l'**historique** : une barre par jour (30 jours), par mois (12 mois ou tous les mois) ou par année, avec la production attendue en pointillés.

@@ -568,11 +568,13 @@ textarea {
   pointer-events: none;
 }
 
-input[type='datetime-local'].input::-webkit-calendar-picker-indicator {
+input[type='datetime-local'].input::-webkit-calendar-picker-indicator,
+input[type='date'].input::-webkit-calendar-picker-indicator {
   cursor: pointer;
   opacity: 0.7;
 }
-:root[data-theme='dark'] input[type='datetime-local'].input::-webkit-calendar-picker-indicator {
+:root[data-theme='dark'] input[type='datetime-local'].input::-webkit-calendar-picker-indicator,
+:root[data-theme='dark'] input[type='date'].input::-webkit-calendar-picker-indicator {
   filter: invert(1);
 }
 

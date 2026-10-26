@@ -49,11 +49,4 @@
   } @else {
     <p class="small muted">Lecture en cours…</p>
   }
-  @if (showCurve() && inverter.ready()) {
-    @if (hasCurve()) {
-      <app-chart [build]="curve()" [height]="200" />
-    } @else {
-      <p class="small faint">La courbe de la journée apparaîtra après quelques lectures.</p>
-    }
-  }
 </section>

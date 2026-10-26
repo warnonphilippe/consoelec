@@ -53,6 +53,14 @@ export interface InverterHistory {
   readonly error: string | null;
 }
 
+/** Courbe de puissance d'une journée (journal des 5 minutes de l'onduleur). */
+export interface InverterDayCurve {
+  /** `AAAA-MM-JJ`. */
+  readonly date: string;
+  readonly points: readonly { at: number; powerW: number }[];
+  readonly error: string | null;
+}
+
 export interface InverterReading {
   /** Horodatage de la lecture (ms). */
   readonly at: number;
@@ -154,6 +162,8 @@ export interface ConsoElecApi {
     discover(): Promise<string[]>;
     /** Lit les journaux de production de l'onduleur (jours passés et courbe du jour). */
     history(): Promise<InverterHistory>;
+    /** Lit la courbe de puissance d'une journée (`AAAA-MM-JJ`) dans le journal des 5 minutes. */
+    dayCurve(date: string): Promise<InverterDayCurve>;
   };
   readonly ai: {
     status(): Promise<AiStatus>;
@@ -186,6 +196,7 @@ export const IPC = {
   inverterReading: 'inverter:reading',
   inverterDiscover: 'inverter:discover',
   inverterHistory: 'inverter:history',
+  inverterDayCurve: 'inverter:day-curve',
   aiStatus: 'ai:status',
   aiTest: 'ai:test',
   aiChat: 'ai:chat',

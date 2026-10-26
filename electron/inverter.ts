@@ -15,7 +15,12 @@ import {
   type LoggerDay,
   type LoggerPoint,
 } from './sma-core';
-import type { InverterConfig, InverterHistory, InverterReading } from './shared/ipc-contract';
+import type {
+  InverterConfig,
+  InverterDayCurve,
+  InverterHistory,
+  InverterReading,
+} from './shared/ipc-contract';
 
 interface Response {
   readonly status: number;
@@ -77,6 +82,13 @@ export class InverterClient {
   /** Lit les journaux de production (jours passés, courbe du jour) ; ne lève jamais. */
   history(now: Date = new Date()): Promise<InverterHistory> {
     const run = this.queue.then(() => this.historyNow(now));
+    this.queue = run.catch(() => undefined);
+    return run;
+  }
+
+  /** Courbe de puissance d'une journée (`AAAA-MM-JJ`, heure locale) ; ne lève jamais. */
+  dayCurve(date: string): Promise<InverterDayCurve> {
+    const run = this.queue.then(() => this.dayCurveNow(date));
     this.queue = run.catch(() => undefined);
     return run;
   }
@@ -150,6 +162,30 @@ export class InverterClient {
         today: powerFromLogger(five),
         error: null,
       };
+    } catch (error) {
+      this.sid = null;
+      return fail(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  private async dayCurveNow(date: string): Promise<InverterDayCurve> {
+    const fail = (error: string): InverterDayCurve => ({ date, points: [], error });
+    const [y, m, d] = date.split('-').map(Number) as [number, number, number];
+    const start = new Date(y, m - 1, d).getTime() / 1000;
+    const end = new Date(y, m - 1, d + 1).getTime() / 1000;
+    if (!Number.isFinite(start)) {
+      return fail('Date invalide.');
+    }
+    if (!this.config.host) {
+      return fail("Adresse de l'onduleur non renseignée.");
+    }
+    const secret = this.secret();
+    if (secret === null) {
+      return fail("Clé de l'onduleur absente ou coffre verrouillé.");
+    }
+    try {
+      const points = await this.logger(secret, LOGGER_KEYS.fiveMinutes, start - 300, end);
+      return { date, points: powerFromLogger(points).filter((p) => localDate(p.at - 1) === date), error: null };
     } catch (error) {
       this.sid = null;
       return fail(error instanceof Error ? error.message : String(error));

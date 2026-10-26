@@ -33,7 +33,7 @@
   }
 
   @if (inverter.settings().enabled) {
-    <app-live-production [showCurve]="true" />
+    <app-live-production />
   } @else {
     <div class="callout">
       <app-icon name="info" />
@@ -43,6 +43,98 @@
       </div>
     </div>
   }
+
+  <section
+    #detail
+    class="card day-detail"
+    tabindex="0"
+    aria-label="Détail du jour"
+    (keydown.arrowleft)="onArrow($event, -1)"
+    (keydown.arrowright)="onArrow($event, 1)"
+  >
+    <div class="card-header day-head">
+      <div>
+        <h2>{{ dayTitle() }}</h2>
+        <span class="hint">courbe de puissance · flèches ← → du clavier pour changer de jour</span>
+      </div>
+      <div class="day-nav">
+        <button
+          type="button"
+          class="icon-btn"
+          title="Jour précédent"
+          aria-label="Jour précédent"
+          [disabled]="day() <= firstDay()"
+          (click)="step(-1)"
+        >
+          <app-icon name="chevron-left" [size]="16" />
+        </button>
+        <input
+          type="date"
+          class="input day-input"
+          aria-label="Choisir la date"
+          [value]="dayIso()"
+          [min]="firstIso()"
+          [max]="todayIso()"
+          (change)="pickDate($any($event.target).value)"
+        />
+        <button
+          type="button"
+          class="icon-btn"
+          title="Jour suivant"
+          aria-label="Jour suivant"
+          [disabled]="isToday()"
+          (click)="step(1)"
+        >
+          <app-icon name="chevron-right" [size]="16" />
+        </button>
+        <button type="button" class="btn sm" [disabled]="isToday()" (click)="showDay(today())">
+          Aujourd'hui
+        </button>
+      </div>
+    </div>
+
+    <div class="day-stats">
+      <div>
+        <span class="day-value">{{ dayInfo().kwh === null ? '—' : (dayInfo().kwh | num: 1) }}</span>
+        <span class="small faint"
+          >kWh {{ isToday() ? 'produits jusqu’ici' : 'produits' }}
+          @if (dayInfo().status; as s) {
+            · {{ s }}
+          }
+        </span>
+      </div>
+      <div>
+        <span class="day-value">{{ dayInfo().expected | num: 1 }}</span>
+        <span class="small faint">kWh attendus (référence)</span>
+      </div>
+      <div>
+        <span class="day-value">{{ peak() === null ? '—' : (peak()!.powerW | num) }}</span>
+        <span class="small faint"
+          >W au maximum
+          @if (peak(); as p) {
+            · à {{ p.at | date: 'HH:mm' }}
+          }
+        </span>
+      </div>
+    </div>
+
+    @if (dayPoints().length >= 2) {
+      <app-chart [build]="dayChart()" [height]="240" />
+    } @else {
+      <p class="small faint day-empty">
+        @if (!isToday() && curveLoading()) {
+          Lecture de la courbe dans le journal de l'onduleur…
+        } @else if (curveError(); as e) {
+          Courbe indisponible : {{ e }}
+        } @else if (isToday()) {
+          La courbe de la journée apparaîtra après quelques lectures de l'onduleur.
+        } @else {
+          Le journal de l'onduleur ne contient pas de courbe pour ce jour (il ne garde les relevés aux 5 minutes
+          que sur une période limitée).
+        }
+      </p>
+    }
+  </section>
 
   @if (days().length > 0) {
     <div class="grid kpis">
