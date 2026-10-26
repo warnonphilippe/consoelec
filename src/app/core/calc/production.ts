@@ -1,7 +1,7 @@
 import type { MeterReading, PvDay } from '../models/app-data.model';
 import type { ReferenceProfile } from './reference';
 import { smoothMonthlyProfile, type DailyProfile } from './smooth';
-import { sunShape } from './solar';
+import { DAYLIGHT_HOURS, sunShape } from './solar';
 import { daysInMonth, toDayNumber, yearMonthOf } from './time';
 
 /**
@@ -211,17 +211,30 @@ export function productionMonths(
   });
 }
 
+/**
+ * Production maximale vraisemblable d'une journée : l'onduleur à pleine puissance du lever au coucher du soleil.
+ * Au-delà, la valeur vient d'un journal irrégulier (mise en service, horloge déréglée) plutôt que du soleil.
+ */
+export function maxPlausibleDayKwh(day: number, inverterKw: number): number {
+  return inverterKw * DAYLIGHT_HOURS[yearMonthOf(day).month]!;
+}
+
 export interface ProductionSummary {
   /** Les 7 et 30 derniers jours complets (hors aujourd'hui), avec l'attendu correspondant. */
   readonly last7: { kwh: number; expected: number; days: number } | null;
   readonly last30: { kwh: number; expected: number; days: number } | null;
+  /** Meilleure journée complète, hors valeurs invraisemblables. */
   readonly best: ProductionDay | null;
   /** Production totale sur l'historique (kWh). */
   readonly total: number;
   readonly since: number | null;
 }
 
-export function productionSummary(days: readonly ProductionDay[], now: number): ProductionSummary {
+export function productionSummary(
+  days: readonly ProductionDay[],
+  now: number,
+  inverterKw = Infinity,
+): ProductionSummary {
   const today = Math.floor(now);
   const window = (n: number) => {
     const inWindow = days.filter(
@@ -235,7 +248,11 @@ export function productionSummary(days: readonly ProductionDay[], now: number): 
           days: inWindow.length,
         };
   };
-  const full = days.filter((d) => d.status === 'measured' || d.status === 'estimated');
+  const full = days.filter(
+    (d) =>
+      (d.status === 'measured' || d.status === 'estimated') &&
+      d.kwh <= maxPlausibleDayKwh(d.day, inverterKw),
+  );
   const best = full.reduce<ProductionDay | null>((b, d) => (b === null || d.kwh > b.kwh ? d : b), null);
   return {
     last7: window(7),

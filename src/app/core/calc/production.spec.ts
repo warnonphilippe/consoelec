@@ -138,4 +138,16 @@ describe('productionMonths et productionSummary', () => {
     expect(summary.best?.kwh).toBeCloseTo(4, 6);
     expect(summary.total).toBeCloseTo(94, 6);
   });
+
+  it('écarte de la meilleure journée une valeur impossible pour l’onduleur', () => {
+    const days = productionDays(
+      [pv('2022-03-27', 34, 1034), pv('2022-03-28', 36, 1070), pv('2022-03-29', 69, 1139), pv('2022-03-30', 17, 1156)],
+      [],
+      flat,
+      toDayNumber('2022-04-02T12:00'),
+    );
+    // 5 kW × 11,6 h de jour en mars = 58 kWh au plus.
+    expect(productionSummary(days, toDayNumber('2022-04-02T12:00'), 5).best?.kwh).toBeCloseTo(36, 6);
+    expect(productionSummary(days, toDayNumber('2022-04-02T12:00')).best?.kwh).toBeCloseTo(69, 6);
+  });
 });

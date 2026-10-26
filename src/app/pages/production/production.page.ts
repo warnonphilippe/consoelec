@@ -45,7 +45,9 @@ export default class ProductionPage {
     return productionDays(d.pvDaily, d.readings, this.expected(), this.store.now());
   });
   protected readonly months = computed(() => productionMonths(this.days(), this.expected()));
-  protected readonly summary = computed(() => productionSummary(this.days(), this.store.now()));
+  protected readonly summary = computed(() =>
+    productionSummary(this.days(), this.store.now(), this.store.house().pv.inverterKva),
+  );
   protected readonly yield = computed(() =>
     measuredYield(this.store.data().pvDaily, this.store.analysis().reference, this.kwp()),
   );
