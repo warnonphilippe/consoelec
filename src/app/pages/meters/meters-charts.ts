@@ -21,6 +21,25 @@ interface XY {
   y: number;
 }
 
+/**
+ * Bornes de l'axe du temps : au plus tôt le début de la période choisie, sinon un peu avant le premier relevé
+ * affiché, pour qu'il ne soit pas collé au bord ; à droite, la fin de la prévision ou aujourd'hui.
+ */
+export function indexAxisRange(
+  levelDays: readonly number[],
+  fromDay: number | null,
+  forecastDays: number,
+  now: number,
+): { min: number; max: number } {
+  const max = now + Math.max(0, forecastDays);
+  const first = levelDays[0];
+  if (first === undefined) {
+    return { min: fromDay ?? now - 30, max };
+  }
+  const margin = Math.max(2, Math.round((max - first) * 0.04));
+  return { min: Math.max(fromDay ?? -Infinity, first - margin), max };
+}
+
 /** Index cumulés des registres choisis : relevés réels (points) puis projection (pointillés). */
 export function indexChart(
   analysis: FullAnalysis,
@@ -33,6 +52,12 @@ export function indexChart(
   return (c: ChartColors): ChartConfiguration => {
     const levels = analysis.consumption.levels.filter((l) => fromDay === null || l.day >= fromDay);
     const datasets: ChartConfiguration['data']['datasets'] = [];
+    const range = indexAxisRange(
+      levels.map((l) => l.day),
+      fromDay,
+      forecast !== null ? forecastDays : 0,
+      now,
+    );
     for (const key of keys) {
       const color = c[COLOR[key]] as string;
       const info = REGISTERS.find((r) => r.key === key)!;
@@ -76,7 +101,13 @@ export function indexChart(
         scales: {
           x: {
             type: 'time',
+            min: ms(range.min),
+            max: ms(range.max),
             adapters: { date: { locale: fr } },
+            time: {
+              tooltipFormat: 'd MMMM yyyy',
+              displayFormats: { day: 'd MMM', week: 'd MMM', month: 'MMM yyyy', quarter: 'MMM yyyy' },
+            },
             grid: { color: c.grid },
             ticks: { color: c.muted },
           },
@@ -90,7 +121,7 @@ export function indexChart(
           legend: chartLegend(c),
           tooltip: {
             callbacks: {
-              label: (item: TooltipItem<'line'>) =>
+              label: (item) =>
                 `${item.dataset.label}: ${fmt.kwh((item.raw as XY).y, 1)}`,
             },
           },
