@@ -1,4 +1,4 @@
-import type { ChartConfiguration, TooltipItem } from 'chart.js';
+import type { ChartConfiguration } from 'chart.js';
 import type { MonthBucket } from '../../core/calc/consumption';
 import type { ReferenceProfile } from '../../core/calc/reference';
 import type { YearRow } from '../../core/calc/stats';
@@ -55,7 +55,7 @@ export function yearsChart(metric: MetricKey, years: YearRow[], reference: Refer
           legend: chartLegend(c),
           tooltip: {
             callbacks: {
-              label: (item: TooltipItem<'bar'>) =>
+              label: (item) =>
                 `${item.dataset.label}: ${fmt.kwh(Number(item.raw))}`,
             },
           },

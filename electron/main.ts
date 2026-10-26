@@ -308,6 +308,7 @@ function registerIpc(
     pollInverter();
   });
   handle(IPC.inverterDiscover, () => discoverSmaInverters());
+  handle(IPC.inverterHistory, () => inverter.history());
   handle(IPC.inverterRefresh, async () => {
     const reading = await inverter.read();
     mainWindow?.webContents.send(IPC.inverterReading, reading);

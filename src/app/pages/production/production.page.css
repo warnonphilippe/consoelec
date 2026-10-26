@@ -1,0 +1,29 @@
+.kpis {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.kpi .kpi-value small {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.legend-note {
+  margin: 8px 0 0;
+}
+
+.empty {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  color: var(--warning-text);
+}
+
+.empty h2 {
+  margin: 0 0 6px;
+  color: var(--text);
+}
+
+.empty p {
+  margin: 0;
+}

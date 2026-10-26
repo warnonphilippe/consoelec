@@ -101,6 +101,31 @@ export class DataStore {
     }));
   }
 
+  /**
+   * Ajoute les journées lues dans le journal de l'onduleur : une journée absente est ajoutée, une journée lue en cours
+   * de route par l'application est remplacée par la valeur complète du journal.
+   */
+  importPvDays(days: readonly { date: string; dayKwh: number; totalKwh: number }[]): number {
+    const current = new Map(this.state().pvDaily.map((d) => [d.date, d]));
+    let changed = 0;
+    for (const day of days) {
+      const entry: PvDay = { ...day, at: `${day.date}T23:59` };
+      const existing = current.get(day.date);
+      if (existing && (existing.at >= entry.at || (existing.dayKwh === entry.dayKwh && existing.totalKwh === entry.totalKwh))) {
+        continue;
+      }
+      current.set(day.date, entry);
+      changed++;
+    }
+    if (changed > 0) {
+      this.update((d) => ({
+        ...d,
+        pvDaily: [...current.values()].sort((a, b) => a.date.localeCompare(b.date)),
+      }));
+    }
+    return changed;
+  }
+
   deleteReading(id: string): void {
     this.update((d) => ({ ...d, readings: d.readings.filter((r) => r.id !== id) }));
   }

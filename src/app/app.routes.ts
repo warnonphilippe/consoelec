@@ -12,6 +12,11 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/meters/meters.page'),
   },
   {
+    path: 'production',
+    title: 'Production',
+    loadComponent: () => import('./pages/production/production.page'),
+  },
+  {
     path: 'releves',
     title: 'Relevés',
     loadComponent: () => import('./pages/readings/readings.page'),

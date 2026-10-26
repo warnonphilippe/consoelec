@@ -1,0 +1,148 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1>Production</h1>
+      <p class="subtitle">
+        {{ kwp() | num: 1 }} kWc · {{ store.house().pv.inverterModel || 'onduleur' }}
+        @if (summary().since !== null) {
+          · historique depuis le {{ summary().since | day: 'long' }}
+        }
+      </p>
+    </div>
+    @if (inverter.ready()) {
+      <button
+        type="button"
+        class="btn"
+        [disabled]="inverter.historyBusy()"
+        (click)="inverter.loadHistory(true)"
+        title="Relit le journal de production de l'onduleur (jours passés et courbe du jour)"
+      >
+        <app-icon name="download" [size]="16" />
+        {{ inverter.historyBusy() ? 'Lecture du journal…' : 'Relire le journal de l’onduleur' }}
+      </button>
+    }
+  </header>
+
+  @if (inverter.historyStatus(); as h) {
+    @if (h.error) {
+      <div class="callout warning">
+        <app-icon name="alert" />
+        <div>Journal de l'onduleur illisible : {{ h.error }}</div>
+      </div>
+    }
+  }
+
+  @if (inverter.settings().enabled) {
+    <app-live-production [showCurve]="true" />
+  } @else {
+    <div class="callout">
+      <app-icon name="info" />
+      <div>
+        Activez la lecture de l'onduleur pour suivre la production en direct et importer son historique.
+        <a routerLink="/reglages" fragment="onduleur">Réglages → Onduleur</a>
+      </div>
+    </div>
+  }
+
+  @if (days().length > 0) {
+    <div class="grid kpis">
+      @if (summary().last7; as w) {
+        <div class="card kpi">
+          <span class="kpi-label"><app-icon name="sun" [size]="15" /> 7 derniers jours</span>
+          <span class="kpi-value">{{ w.kwh | kwh }}</span>
+          <span class="kpi-sub">
+            {{ w.kwh / w.days | num: 1 }} kWh par jour
+            @let d = diffPct(w.kwh, w.expected);
+            @if (d !== null) {
+              <br /><span [class.tone-success]="d > 0" [class.tone-warning]="d < -25"
+                >{{ d > 0 ? '+' : '' }}{{ d }} % vs attendu</span
+              >
+            }
+          </span>
+        </div>
+      }
+      @if (summary().last30; as w) {
+        <div class="card kpi">
+          <span class="kpi-label"><app-icon name="calendar" [size]="15" /> 30 derniers jours</span>
+          <span class="kpi-value">{{ w.kwh | kwh }}</span>
+          <span class="kpi-sub">
+            attendu ~{{ w.expected | kwh }}
+            @if (w.days < 30) {
+              <br />sur {{ w.days }} jour{{ w.days > 1 ? 's' : '' }} connus
+            }
+          </span>
+        </div>
+      }
+      @if (thisYear(); as y) {
+        <div class="card kpi">
+          <span class="kpi-label"><app-icon name="chart" [size]="15" /> Année {{ y.year }}</span>
+          <span class="kpi-value">{{ y.kwh | kwh }}</span>
+          <span class="kpi-sub">
+            attendu ~{{ y.expected | kwh }} sur la même période<br />
+            ~{{ y.fullYear | kwh }} sur une année complète
+          </span>
+        </div>
+      }
+      @if (summary().best; as b) {
+        <div class="card kpi">
+          <span class="kpi-label"><app-icon name="trend" [size]="15" /> Meilleure journée</span>
+          <span class="kpi-value">{{ b.kwh | kwh: 1 }}</span>
+          <span class="kpi-sub">le {{ b.day | day: 'long' }}</span>
+        </div>
+      }
+      <div class="card kpi">
+        <span class="kpi-label"><app-icon name="bolt" [size]="15" /> Rendement mesuré</span>
+        @if (yield(); as y) {
+          <span class="kpi-value">{{ y.kwhPerKwp | num }} <small>kWh/kWc/an</small></span>
+          <span class="kpi-sub"
+            >réglage : {{ store.settings().specificYieldKwhPerKwp | num }} kWh/kWc · sur
+            {{ y.days | num }} jours</span
+          >
+        } @else {
+          <span class="kpi-value faint">—</span>
+          <span class="kpi-sub">après deux semaines de lectures de l'onduleur</span>
+        }
+      </div>
+    </div>
+
+    <div class="section">
+      <span class="pill"><app-icon name="chart" [size]="13" /> Historique</span>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <h2>Production solaire</h2>
+        <div class="segmented" role="radiogroup" aria-label="Période">
+          @for (v of views; track v.id) {
+            <button
+              type="button"
+              role="radio"
+              [attr.aria-checked]="view() === v.id"
+              [class.active]="view() === v.id"
+              (click)="view.set(v.id)"
+            >
+              {{ v.label }}
+            </button>
+          }
+        </div>
+      </div>
+      <app-chart [build]="chart()" [height]="320" />
+      <p class="small faint legend-note">
+        Barres pâles : journée estimée à partir des index qui l'encadrent, journée en cours ou période incomplète.
+        L'attendu vient du modèle de référence ({{ store.settings().specificYieldKwhPerKwp | num }} kWh/kWc,
+        écrêtage de l'onduleur compris).
+      </p>
+    </div>
+  } @else {
+    <section class="card empty">
+      <app-icon name="sun" [size]="28" />
+      <div>
+        <h2>Pas encore d'historique</h2>
+        <p class="muted">
+          L'historique se construit à partir de l'index de production de l'onduleur : lectures automatiques de
+          ConsoElec et journal de l'onduleur (importé à la première connexion), ou index « production solaire totale »
+          noté dans vos relevés.
+        </p>
+      </div>
+    </section>
+  }
+</div>

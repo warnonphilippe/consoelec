@@ -1,19 +1,18 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { InverterService } from '../../core/services/inverter.service';
-import { VaultService } from '../../core/services/vault.service';
 import { REGISTER_KEYS, pvKwp } from '../../core/models/app-data.model';
 import { DataStore } from '../../core/services/data-store.service';
 import { ToastService } from '../../core/services/toast.service';
 import { ChartComponent } from '../../shared/chart/chart.component';
 import { FORMAT_PIPES } from '../../shared/format';
 import { IconComponent } from '../../shared/icon.component';
+import { LiveProductionComponent } from '../../shared/live-production/live-production.component';
 import { cumulativeNetChart, monthBars, monthlyBalanceChart } from './dashboard-charts';
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [RouterLink, DatePipe, IconComponent, ChartComponent, ...FORMAT_PIPES],
+  imports: [RouterLink, IconComponent, ChartComponent, LiveProductionComponent, ...FORMAT_PIPES],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './dashboard.page.html',
   styleUrl: './dashboard.page.css',
@@ -21,7 +20,6 @@ import { cumulativeNetChart, monthBars, monthlyBalanceChart } from './dashboard-
 export default class DashboardPage {
   protected readonly store = inject(DataStore);
   protected readonly inverter = inject(InverterService);
-  protected readonly vault = inject(VaultService);
   private readonly toast = inject(ToastService);
 
   protected readonly analysis = this.store.analysis;

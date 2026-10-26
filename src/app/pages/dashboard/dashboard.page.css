@@ -42,38 +42,3 @@
 .legend-note {
   margin: 8px 0 0;
 }
-
-.live {
-  margin-bottom: 16px;
-}
-
-.live-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.live-values {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 36px;
-  margin: 8px 0 4px;
-}
-
-.live-values div {
-  display: flex;
-  flex-direction: column;
-}
-
-.live-value {
-  font-size: 28px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--warning-text);
-}
-
-.live-unit {
-  font-size: 13px;
-  color: var(--text-muted);
-  margin-top: -4px;
-}

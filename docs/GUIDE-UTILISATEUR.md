@@ -147,6 +147,23 @@ Le tableau de bord résume :
 - le **bilan mensuel** : soutirage vers le haut, injection vers le bas, empilés par tarif. Les barres pâles sont des mois incomplets ou prévus ;
 - le **solde net cumulé**.
 
+## Production
+
+La page **Production** rassemble tout ce qui concerne les panneaux :
+
+- la carte **Production en direct** (comme sur le tableau de bord) avec la **courbe de puissance de la journée** ;
+- la production des **7** et **30 derniers jours** et de l'**année en cours**, comparée à la production attendue par le modèle de référence (même saison, même puissance, écrêtage de l'onduleur compris) ;
+- la **meilleure journée** et le **rendement mesuré** (kWh/kWc/an) ;
+- l'**historique** : une barre par jour (30 jours), par mois (12 mois ou tous les mois) ou par année, avec la production attendue en pointillés.
+
+L'historique se construit à partir de l'index de production de l'onduleur :
+
+- à la première connexion de chaque session, ConsoElec lit le **journal de l'onduleur** : la production de chaque journée depuis sa mise en service (souvent plusieurs années) et la courbe du jour par tranches de 5 minutes. Le bouton **Relire le journal de l'onduleur** relance cette lecture ;
+- les lectures automatiques de ConsoElec (une par minute, application ouverte) complètent la journée en cours ;
+- l'index « production solaire totale » noté dans les relevés sert aussi de repère.
+
+Une journée sans lecture est **estimée** : l'énergie produite entre deux index connus est répartie selon la production attendue (saison et heure du jour). Les barres pâles signalent ces journées estimées, la journée en cours et les périodes incomplètes.
+
 ## Compteurs
 
 ![Page Compteurs](img/compteurs.png)
@@ -238,7 +255,8 @@ ConsoElec peut lire directement un onduleur **SMA** (comme le Sunny Tripower STP
 3. **Tester la connexion** affiche la puissance, la production du jour et l'index total.
 
 Ensuite, tant que l'application est ouverte :
-- le tableau de bord affiche la **production en direct**, rafraîchie chaque minute ;
+- le tableau de bord et la page **Production** affichent la **production en direct**, rafraîchie chaque minute ;
+- le **journal de l'onduleur** complète l'historique de production (voir [Production](#production)) ;
 - la **production du jour** est enregistrée dans vos données (une ligne par jour, exportée et fusionnée avec le reste) ;
 - le champ « production solaire totale » d'un nouveau relevé est **pré-rempli** avec l'index de l'onduleur ;
 - la page Maison affiche le **rendement mesuré** (kWh/kWc/an) à côté du réglage, après deux semaines de lectures.

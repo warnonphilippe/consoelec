@@ -46,6 +46,13 @@ export interface InverterConfig {
   readonly certFingerprint: string | null;
 }
 
+/** Journaux de l'onduleur : production par jour depuis sa mise en service et courbe du jour (5 minutes). */
+export interface InverterHistory {
+  readonly days: readonly { date: string; dayKwh: number; totalKwh: number }[];
+  readonly today: readonly { at: number; powerW: number }[];
+  readonly error: string | null;
+}
+
 export interface InverterReading {
   /** Horodatage de la lecture (ms). */
   readonly at: number;
@@ -145,6 +152,8 @@ export interface ConsoElecApi {
     onReading(listener: (reading: InverterReading) => void): () => void;
     /** Cherche les onduleurs SMA sur le réseau local ; renvoie leurs noms réseau. */
     discover(): Promise<string[]>;
+    /** Lit les journaux de production de l'onduleur (jours passés et courbe du jour). */
+    history(): Promise<InverterHistory>;
   };
   readonly ai: {
     status(): Promise<AiStatus>;
@@ -176,6 +185,7 @@ export const IPC = {
   inverterRefresh: 'inverter:refresh',
   inverterReading: 'inverter:reading',
   inverterDiscover: 'inverter:discover',
+  inverterHistory: 'inverter:history',
   aiStatus: 'ai:status',
   aiTest: 'ai:test',
   aiChat: 'ai:chat',

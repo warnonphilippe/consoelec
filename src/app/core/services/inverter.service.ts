@@ -1,11 +1,21 @@
 import { DestroyRef, Injectable, computed, effect, inject, signal } from '@angular/core';
-import type { InverterReading } from '../../../../electron/shared/ipc-contract';
+import type { InverterHistory, InverterReading } from '../../../../electron/shared/ipc-contract';
 import { toLocalIso } from '../calc/time';
 import { DataStore } from './data-store.service';
 import { VaultService } from './vault.service';
 
 /** Une lecture plus ancienne n'est plus « en direct » (le relevé ne la propose plus). */
 const LIVE_MAX_AGE_MS = 2 * 60 * 60 * 1000;
+/** Les journaux de l'onduleur ne sont pas relus plus souvent. */
+const HISTORY_MIN_INTERVAL_MS = 15 * 60 * 1000;
+
+export interface PowerPoint {
+  /** Horodatage (ms). */
+  readonly at: number;
+  readonly powerW: number;
+}
+
+const localDay = (ms: number): string => toLocalIso(new Date(ms)).slice(0, 10);
 
 /**
  * Lecture locale de l'onduleur : transmet la configuration au process principal (qui interroge l'onduleur toutes les
@@ -22,6 +32,11 @@ export class InverterService {
   readonly live = signal<InverterReading | null>(null);
   readonly busy = signal(false);
   readonly discovering = signal(false);
+  /** Courbe de puissance d'aujourd'hui : journal des 5 minutes de l'onduleur, complété par les lectures en direct. */
+  readonly todayCurve = signal<PowerPoint[]>([]);
+  readonly historyBusy = signal(false);
+  /** Résultat de la dernière lecture des journaux : nombre de journées ajoutées ou message d'erreur. */
+  readonly historyStatus = signal<{ at: number; added: number; error: string | null } | null>(null);
   readonly settings = computed(() => this.store.settings().inverter);
   /** Prêt à interroger l'onduleur : activé, clé dans le coffre ouvert. */
   readonly ready = computed(() => this.settings().enabled && this.vault.has('inverterPsk'));
@@ -90,13 +105,61 @@ export class InverterService {
     }
   }
 
+  /**
+   * Lit les journaux de l'onduleur : production de chaque journée passée (ajoutée aux données) et courbe du jour.
+   * Sans effet si une lecture a eu lieu il y a moins de 15 minutes, sauf `force`.
+   */
+  async loadHistory(force = false): Promise<void> {
+    const last = this.historyStatus();
+    if (this.api === null || !this.ready() || this.historyBusy()) {
+      return;
+    }
+    if (!force && last !== null && Date.now() - last.at < HISTORY_MIN_INTERVAL_MS) {
+      return;
+    }
+    this.historyBusy.set(true);
+    try {
+      const history: InverterHistory = await this.api.history();
+      if (history.error !== null) {
+        this.historyStatus.set({ at: Date.now(), added: 0, error: history.error });
+        return;
+      }
+      const added = this.store.importPvDays(history.days);
+      this.mergeCurve(history.today);
+      this.historyStatus.set({ at: Date.now(), added, error: null });
+    } finally {
+      this.historyBusy.set(false);
+    }
+  }
+
   /** Oublie l'empreinte du certificat (après un remplacement de l'onduleur ou de son certificat). */
   resetPin(): void {
     this.store.updateSettings({ inverter: { ...this.settings(), certFingerprint: null } });
   }
 
+  /** Remplace la courbe par celle du journal et y rajoute les lectures en direct plus récentes. */
+  private mergeCurve(logged: readonly PowerPoint[]): void {
+    const today = localDay(Date.now());
+    const points = logged.filter((p) => localDay(p.at) === today);
+    const lastLogged = points.at(-1)?.at ?? 0;
+    const live = this.todayCurve().filter((p) => p.at > lastLogged && localDay(p.at) === today);
+    this.todayCurve.set([...points, ...live]);
+  }
+
   private onReading(reading: InverterReading): void {
+    const firstSuccess = this.live()?.error !== null && reading.error === null;
     this.live.set(reading);
+    if (reading.error === null) {
+      const day = localDay(reading.at);
+      this.todayCurve.update((curve) => [
+        ...curve.filter((p) => localDay(p.at) === day && p.at < reading.at),
+        { at: reading.at, powerW: reading.powerW ?? 0 },
+      ]);
+      // Première lecture réussie : on complète l'historique et la courbe du jour avec les journaux de l'onduleur.
+      if (firstSuccess) {
+        void this.loadHistory();
+      }
+    }
     const s = this.settings();
     if (reading.error === null && reading.certFingerprint && !s.certFingerprint) {
       this.store.updateSettings({ inverter: { ...s, certFingerprint: reading.certFingerprint } });

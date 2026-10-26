@@ -9,10 +9,13 @@ import { InverterClient } from './inverter';
 import {
   SRP_G,
   SRP_N,
+  dailyFromLogger,
   inverterError,
   modPow,
   pad,
+  parseLogger,
   parseMeasurements,
+  powerFromLogger,
   srpFinish,
   srpStart,
   strip,
@@ -21,6 +24,8 @@ import {
 } from './sma-core';
 
 const PSK = 'ABCDEFGH12345678';
+/** « Aujourd'hui » du journal simulé (minuit UTC). */
+const LOG_TODAY = Date.UTC(2026, 9, 20) / 1000;
 const hash = (alg: string, ...parts: Buffer[]): Buffer => {
   const h = crypto.createHash(alg);
   parts.forEach((p) => h.update(p));
@@ -105,6 +110,51 @@ describe('SRP de l’onduleur', () => {
   });
 });
 
+describe('journaux de production', () => {
+  const utcDate = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+  const midnight = Date.UTC(2026, 9, 20) / 1000;
+
+  it('lit les points d’un journal, triés et sans valeurs manquantes', () => {
+    const json = { result: { '017A-xxxxx00D': [{ t: 20, v: 5 }, { t: 10, v: 3 }, { t: 30, v: null }] } };
+    expect(parseLogger(json)).toEqual([
+      { t: 10, v: 3 },
+      { t: 20, v: 5 },
+    ]);
+    expect(() => parseLogger({ err: 401 })).toThrow();
+  });
+
+  it('attribue chaque journée à la bonne date, que l’horodatage marque le début ou la fin du jour', () => {
+    const start = [0, 1, 2].map((i) => ({ t: midnight + i * 86_400, v: 1_000_000 + i * 12_500 }));
+    expect(dailyFromLogger(start, utcDate)).toEqual([
+      { date: '2026-10-20', dayKwh: 12.5, totalKwh: 1012.5 },
+      { date: '2026-10-21', dayKwh: 12.5, totalKwh: 1025 },
+    ]);
+    const end = start.map((p) => ({ ...p, t: p.t - 300 }));
+    expect(dailyFromLogger(end, utcDate).map((d) => d.date)).toEqual(['2026-10-20', '2026-10-21']);
+  });
+
+  it('ignore les trous et les index qui reculent', () => {
+    const points = [
+      { t: midnight, v: 100_000 },
+      { t: midnight + 3 * 86_400, v: 130_000 },
+      { t: midnight + 4 * 86_400, v: 20_000 },
+    ];
+    expect(dailyFromLogger(points, utcDate)).toEqual([]);
+  });
+
+  it('calcule la puissance moyenne de chaque tranche de 5 minutes', () => {
+    const points = [
+      { t: midnight + 36_000, v: 1_000_000 },
+      { t: midnight + 36_300, v: 1_000_250 },
+      { t: midnight + 36_600, v: 1_000_500 },
+    ];
+    expect(powerFromLogger(points)).toEqual([
+      { at: (midnight + 36_300) * 1000, powerW: 3000 },
+      { at: (midnight + 36_600) * 1000, powerW: 3000 },
+    ]);
+  });
+});
+
 describe('client local de l’onduleur (serveur HTTPS simulé)', () => {
   let dir: string;
   let key: string;
@@ -166,6 +216,18 @@ describe('client local de l’onduleur (serveur HTTPS simulé)', () => {
                 : { error: { code: -28607 }, result: { res: -28607 } },
             ),
           );
+        } else if (path.startsWith('/dyn/getLogger.json')) {
+          // Journal simulé : un point par jour (minuit UTC) sur les 10 derniers jours, un point toutes les 5 minutes
+          // aujourd'hui ; 30 kWh par jour.
+          const step = json.key === 28704 ? 86_400 : 300;
+          const first = json.key === 28704 ? LOG_TODAY - 10 * 86_400 : LOG_TODAY;
+          const points = [];
+          for (let t = first; t <= Math.min(json.tEnd, LOG_TODAY + 43_200); t += step) {
+            if (t >= json.tStart) {
+              points.push({ t, v: 1_000_000 + Math.round(((t - first) / 86_400) * 30_000) });
+            }
+          }
+          res.end(JSON.stringify({ result: { '017A-xxxxx00D': points } }));
         } else if (path.startsWith('/dyn/getValues.json')) {
           if (!expired) {
             expired = true;
@@ -224,6 +286,23 @@ describe('client local de l’onduleur (serveur HTTPS simulé)', () => {
     const reading = await client.read();
     expect(reading.error).toContain('certificat');
     expect(s.log).toEqual([]);
+    s.close();
+  });
+
+  it('lit le journal quotidien et la courbe du jour dans la même session', async () => {
+    const s = await start();
+    const client = new InverterClient(() => PSK, 'usr', s.port);
+    client.configure({ enabled: true, host: s.host, certFingerprint: fingerprint });
+    const history = await client.history(new Date((LOG_TODAY + 43_200) * 1000));
+    expect(history.error).toBeNull();
+    expect(history.days).toHaveLength(10);
+    expect(history.days.every((d) => Math.abs(d.dayKwh - 30) < 0.01)).toBe(true);
+    expect(history.days.map((d) => d.date)).toEqual([...new Set(history.days.map((d) => d.date))]);
+    expect(history.today.length).toBeGreaterThan(100);
+    // Index arrondi au Wh : 104 ou 105 Wh par tranche de 5 minutes.
+    expect(history.today.every((p) => Math.abs(p.powerW - 1250) <= 15)).toBe(true);
+    expect(s.log.filter((p) => p === '/dyn/authYAPStart.json')).toHaveLength(1);
+    await client.close();
     s.close();
   });
 

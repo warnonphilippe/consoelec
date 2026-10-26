@@ -1,15 +1,21 @@
 import https from 'node:https';
 import type { TLSSocket } from 'node:tls';
 import {
+  dailyFromLogger,
   inverterError,
   isSessionExpired,
+  LOGGER_KEYS,
   MEASUREMENT_KEYS,
+  parseLogger,
   parseMeasurements,
+  powerFromLogger,
   srpFinish,
   srpStart,
   type InverterRole,
+  type LoggerDay,
+  type LoggerPoint,
 } from './sma-core';
-import type { InverterConfig, InverterReading } from './shared/ipc-contract';
+import type { InverterConfig, InverterHistory, InverterReading } from './shared/ipc-contract';
 
 interface Response {
   readonly status: number;
@@ -19,6 +25,16 @@ interface Response {
 const TIMEOUT_MS = 15_000;
 
 const normalizeFingerprint = (f: string): string => f.replace(/:/g, '').toUpperCase();
+
+const DAY_S = 86_400;
+/** Le journal quotidien est lu année par année, au plus loin 20 ans en arrière. */
+const HISTORY_MAX_YEARS = 20;
+
+const two = (n: number): string => String(n).padStart(2, '0');
+const localDate = (ms: number): string => {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`;
+};
 
 /**
  * Client local de l'onduleur (WebConnect) : connexion SRP avec la clé de la plaque, lecture des mesures, session réutilisée.
@@ -58,6 +74,13 @@ export class InverterClient {
     return run;
   }
 
+  /** Lit les journaux de production (jours passés, courbe du jour) ; ne lève jamais. */
+  history(now: Date = new Date()): Promise<InverterHistory> {
+    const run = this.queue.then(() => this.historyNow(now));
+    this.queue = run.catch(() => undefined);
+    return run;
+  }
+
   async close(): Promise<void> {
     await this.logout();
   }
@@ -80,27 +103,83 @@ export class InverterClient {
       return fail("Clé de l'onduleur absente ou coffre verrouillé.");
     }
     try {
-      for (let attempt = 0; attempt < 2; attempt++) {
-        if (this.sid === null) {
-          this.sid = await this.login(secret);
-        }
-        const keys = Object.values(MEASUREMENT_KEYS);
-        const res = await this.post(`/dyn/getValues.json?sid=${encodeURIComponent(this.sid)}`, {
+      const res = await this.request(secret, (sid) =>
+        this.post(`/dyn/getValues.json?sid=${encodeURIComponent(sid)}`, {
           destDev: [],
-          keys,
-        });
-        if (isSessionExpired(res.status, res.json)) {
-          this.sid = null;
-          continue;
-        }
-        const m = parseMeasurements(res.json);
-        return { at, ...m, error: null, certFingerprint: this.seenFingerprint };
-      }
-      return fail("La session de l'onduleur expire sans cesse.");
+          keys: Object.values(MEASUREMENT_KEYS),
+        }),
+      );
+      const m = parseMeasurements(res.json);
+      return { at, ...m, error: null, certFingerprint: this.seenFingerprint };
     } catch (error) {
       this.sid = null;
       return fail(error instanceof Error ? error.message : String(error));
     }
+  }
+
+  private async historyNow(now: Date): Promise<InverterHistory> {
+    const fail = (error: string): InverterHistory => ({ days: [], today: [], error });
+    if (!this.config.host) {
+      return fail("Adresse de l'onduleur non renseignée.");
+    }
+    const secret = this.secret();
+    if (secret === null) {
+      return fail("Clé de l'onduleur absente ou coffre verrouillé.");
+    }
+    try {
+      const end = Math.floor(now.getTime() / 1000);
+      const days = new Map<string, LoggerDay>();
+      let found = false;
+      for (let year = 0; year < HISTORY_MAX_YEARS; year++) {
+        const to = end - year * 365 * DAY_S;
+        // Deux jours de recouvrement : la première journée de chaque tranche a besoin du point de la veille.
+        const points = await this.logger(secret, LOGGER_KEYS.daily, to - 367 * DAY_S, to);
+        for (const day of dailyFromLogger(points, localDate)) {
+          days.set(day.date, day);
+        }
+        if (points.length > 0) {
+          found = true;
+        } else if (found || year >= 1) {
+          break;
+        }
+      }
+      const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() / 1000;
+      const five = await this.logger(secret, LOGGER_KEYS.fiveMinutes, midnight - 300, end);
+      return {
+        days: [...days.values()].sort((a, b) => a.date.localeCompare(b.date)),
+        today: powerFromLogger(five),
+        error: null,
+      };
+    } catch (error) {
+      this.sid = null;
+      return fail(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  private async logger(secret: string, key: number, tStart: number, tEnd: number): Promise<LoggerPoint[]> {
+    const res = await this.request(secret, (sid) =>
+      this.post(`/dyn/getLogger.json?sid=${encodeURIComponent(sid)}`, { destDev: [], key, tStart, tEnd }),
+    );
+    if (res.status !== 200) {
+      throw new Error(inverterError(res.status, res.json));
+    }
+    return parseLogger(res.json);
+  }
+
+  /** Envoie une requête dans la session ouverte, en se reconnectant une fois si elle a expiré. */
+  private async request(secret: string, send: (sid: string) => Promise<Response>): Promise<Response> {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (this.sid === null) {
+        this.sid = await this.login(secret);
+      }
+      const res = await send(this.sid);
+      if (isSessionExpired(res.status, res.json)) {
+        this.sid = null;
+        continue;
+      }
+      return res;
+    }
+    throw new Error("La session de l'onduleur expire sans cesse.");
   }
 
   private async login(secret: string): Promise<string> {

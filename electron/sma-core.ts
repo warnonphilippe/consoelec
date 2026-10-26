@@ -189,3 +189,75 @@ export function parseMeasurements(json: unknown): Measurements {
 export function isSessionExpired(status: number, json: unknown): boolean {
   return status === 401 || (json as { err?: number } | null)?.err === 401;
 }
+
+// --- Journaux de production de l'onduleur (`/dyn/getLogger.json`) ---------------------------------------------
+
+/** Journaux d'énergie : index total (Wh) toutes les 5 minutes, et une fois par jour. */
+export const LOGGER_KEYS = { fiveMinutes: 28672, daily: 28704 } as const;
+
+export interface LoggerPoint {
+  /** Horodatage (s, UTC). */
+  readonly t: number;
+  /** Index de production totale (Wh). */
+  readonly v: number;
+}
+
+/** Points d'un journal (triés, sans valeurs manquantes). */
+export function parseLogger(json: unknown): LoggerPoint[] {
+  const result = (json as { result?: Record<string, unknown> } | null)?.result;
+  const device = result ? Object.values(result)[0] : undefined;
+  if (!Array.isArray(device)) {
+    throw new Error("Réponse de journal inattendue de l'onduleur.");
+  }
+  return device
+    .map((p) => p as { t?: unknown; v?: unknown })
+    .filter((p): p is LoggerPoint => typeof p.t === 'number' && typeof p.v === 'number' && Number.isFinite(p.v))
+    .map((p) => ({ t: p.t, v: p.v }))
+    .sort((a, b) => a.t - b.t);
+}
+
+export interface LoggerDay {
+  /** `AAAA-MM-JJ`, date locale. */
+  readonly date: string;
+  readonly dayKwh: number;
+  /** Index en fin de journée (kWh). */
+  readonly totalKwh: number;
+}
+
+/**
+ * Production par jour à partir du journal quotidien : la différence entre deux points espacés d'environ un jour est
+ * attribuée à la date locale du milieu de l'intervalle (que l'onduleur horodate le début ou la fin de la journée).
+ */
+export function dailyFromLogger(points: readonly LoggerPoint[], localDate: (ms: number) => string): LoggerDay[] {
+  const days: LoggerDay[] = [];
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]!;
+    const b = points[i]!;
+    const hours = (b.t - a.t) / 3600;
+    const energy = b.v - a.v;
+    if (hours < 20 || hours > 28 || energy < 0) {
+      continue;
+    }
+    days.push({
+      date: localDate(((a.t + b.t) / 2) * 1000),
+      dayKwh: Math.round(energy) / 1000,
+      totalKwh: Math.round(b.v) / 1000,
+    });
+  }
+  return days;
+}
+
+/** Puissance moyenne (W) de chaque intervalle du journal des 5 minutes, horodatée à sa fin (ms). */
+export function powerFromLogger(points: readonly LoggerPoint[]): { at: number; powerW: number }[] {
+  const curve: { at: number; powerW: number }[] = [];
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]!;
+    const b = points[i]!;
+    const hours = (b.t - a.t) / 3600;
+    if (hours <= 0 || hours > 1 || b.v < a.v) {
+      continue;
+    }
+    curve.push({ at: b.t * 1000, powerW: Math.round((b.v - a.v) / hours) });
+  }
+  return curve;
+}

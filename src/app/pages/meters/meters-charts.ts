@@ -1,4 +1,4 @@
-import type { ChartConfiguration, TooltipItem } from 'chart.js';
+import type { ChartConfiguration } from 'chart.js';
 import { fr } from 'date-fns/locale';
 import type { FullAnalysis } from '../../core/calc/analysis';
 import type { Forecast } from '../../core/calc/forecast';
@@ -160,7 +160,7 @@ export function splitChart(
           legend: chartLegend(c),
           tooltip: {
             callbacks: {
-              label: (item: TooltipItem<'doughnut'>) =>
+              label: (item) =>
                 `${item.label}: ${fmt.kwh(Number(item.raw))}`,
             },
           },

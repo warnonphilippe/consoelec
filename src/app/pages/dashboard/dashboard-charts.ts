@@ -1,4 +1,4 @@
-import type { ChartConfiguration, TooltipItem } from 'chart.js';
+import type { ChartConfiguration } from 'chart.js';
 import type { FullAnalysis } from '../../core/calc/analysis';
 import { MONTH_SHORT } from '../../core/calc/time';
 import { alpha, chartLegend, type ChartColors } from '../../shared/chart/chart-colors';
@@ -122,15 +122,15 @@ export function monthlyBalanceChart(bars: MonthBar[]) {
           legend: chartLegend(c),
           tooltip: {
             callbacks: {
-              title: (items: TooltipItem<'bar'>[]) => {
+              title: (items) => {
                 const bar = bars[items[0]?.dataIndex ?? 0];
                 return bar
                   ? `${bar.label}${bar.forecast ? ' (prévision)' : bar.partial ? ' (incomplet)' : ''}`
                   : '';
               },
-              label: (item: TooltipItem<'bar'>) =>
+              label: (item) =>
                 `${item.dataset.label}: ${fmt.kwh(Math.abs(Number(item.raw)))}`,
-              footer: (items: TooltipItem<'bar'>[]) => {
+              footer: (items) => {
                 const bar = bars[items[0]?.dataIndex ?? 0];
                 return bar ? `Solde net : ${fmt.signedKwh(net(bar))}` : '';
               },
@@ -186,7 +186,7 @@ export function cumulativeNetChart(bars: MonthBar[]) {
         plugins: {
           legend: { display: false },
           tooltip: {
-            callbacks: { label: (item: TooltipItem<'line'>) => fmt.signedKwh(Number(item.raw)) },
+            callbacks: { label: (item) => fmt.signedKwh(Number(item.raw)) },
           },
         },
       },
