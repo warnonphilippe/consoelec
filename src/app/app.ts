@@ -54,8 +54,8 @@ export class App {
 
   protected readonly nav: NavItem[] = [
     { path: '/', label: 'Tableau de bord', icon: 'gauge', exact: true },
-    { path: '/compteurs', label: 'Compteurs', icon: 'plug' },
     { path: '/production', label: 'Production', icon: 'sun' },
+    { path: '/compteurs', label: 'Compteurs', icon: 'plug' },
     { path: '/releves', label: 'Relevés', icon: 'ruler' },
     { path: '/statistiques', label: 'Statistiques', icon: 'chart' },
     { path: '/previsions', label: 'Prévisions', icon: 'trend' },
