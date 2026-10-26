@@ -46,7 +46,7 @@ Les scripts lancent `npm ci` si les dépendances manquent ou sont périmées, pu
 
 Les paquets ne sont pas signés. Sur macOS, lever la quarantaine avec `xattr -dr com.apple.quarantine /Applications/ConsoElec.app`. Sur Windows, SmartScreen demande « Exécuter quand même ».
 
-## Widget macOS
+## Widgets macOS et iPhone
 
 Le dossier [`widget/`](widget) contient un vrai widget WidgetKit, « ConsoElec Widget », qui lit l'onduleur SMA lui-même (même ConsoElec fermée) et affiche la puissance instantanée, la production du jour, la courbe de la journée et l'index total.
 
@@ -59,6 +59,15 @@ Structure :
 - `widget/App` : petite app de réglage (adresse trouvée par Bonjour, clé WPA2-PSK rangée dans le Trousseau, test, aperçu).
 - `widget/Extension` : extension WidgetKit (petit et moyen formats), rafraîchie toutes les 5 minutes environ (c'est macOS qui décide).
 - `widget/Tests` : tests XCTest, dont les vecteurs SRP produits par `scripts/srp-vectors.mjs` à partir de l'implémentation TypeScript (`npm run build:main` d’abord).
+
+### iPhone
+
+Le même projet produit l'app iPhone « ConsoElec » et son widget (écran d'accueil : petit et moyen formats ; écran verrouillé : rond, rectangulaire, en ligne). Le code de l'app de réglage, de la vue et de l'extension est partagé avec le Mac.
+
+- **Prérequis** en plus du Mac : la plateforme iOS dans Xcode (`xcodebuild -downloadPlatform iOS`), l'iPhone branché en USB (« Se fier à cet ordinateur »), le **mode développeur** activé sur l'iPhone (Réglages → Confidentialité et sécurité).
+- `./widget/build-ios.sh` construit en Release, installe sur l'iPhone et lance l'app. Au premier lancement, autoriser le développeur : Réglages → Général → VPN et gestion de l'appareil.
+- Avec l'équipe gratuite « Personal Team », la signature **expire après 7 jours** : relancer le script chaque semaine (le programme développeur payant porte cette durée à un an).
+- Le widget lit l'onduleur sur le Wi-Fi de la maison ; ailleurs, il affiche la dernière lecture. Sur iOS, le groupe d'apps s'écrit `group.io.github.warnonphilippe.consoelec` (sans préfixe d'équipe).
 
 ## Architecture
 

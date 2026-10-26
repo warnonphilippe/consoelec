@@ -2,10 +2,10 @@
 import PackageDescription
 
 // Lecture locale des onduleurs SMA (WebConnect) : connexion SRP « YAP », mesures, épinglage du certificat.
-// Partagé par l'app « ConsoElec Widget » et son extension WidgetKit.
+// Partagé par les apps « ConsoElec Widget » (Mac) et « ConsoElec » (iPhone) et leurs extensions WidgetKit.
 let package = Package(
   name: "SmaKit",
-  platforms: [.macOS(.v14)],
+  platforms: [.macOS(.v14), .iOS(.v17)],
   products: [.library(name: "SmaKit", targets: ["SmaKit"])],
   dependencies: [.package(url: "https://github.com/attaswift/BigInt.git", from: "5.4.0")],
   targets: [

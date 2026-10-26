@@ -1,9 +1,11 @@
-# Projet Xcode du widget macOS de ConsoElec, généré par XcodeGen : `xcodegen generate` (voir build.sh).
+# Projet Xcode des widgets de ConsoElec (Mac et iPhone), généré par XcodeGen : `xcodegen generate`
+# (voir build.sh et build-ios.sh).
 name: ConsoElecWidget
 options:
   bundleIdPrefix: io.github.warnonphilippe
   deploymentTarget:
     macOS: "14.0"
+    iOS: "17.0"
   developmentLanguage: fr
 configFiles:
   Debug: Local.xcconfig
@@ -17,7 +19,6 @@ settings:
     CURRENT_PROJECT_VERSION: 1
     SWIFT_VERSION: "5.0"
     CODE_SIGN_STYLE: Automatic
-    ENABLE_HARDENED_RUNTIME: YES
 targets:
   ConsoElecWidget:
     type: application
@@ -33,6 +34,7 @@ targets:
         PRODUCT_NAME: ConsoElec Widget
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        ENABLE_HARDENED_RUNTIME: YES
     info:
       path: App/Info.plist
       properties:
@@ -60,6 +62,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.github.warnonphilippe.consoelec.widget.extension
         PRODUCT_NAME: ConsoElecWidgetExtension
+        ENABLE_HARDENED_RUNTIME: YES
     info:
       path: Extension/Info.plist
       properties:
@@ -75,6 +78,69 @@ targets:
         com.apple.security.app-sandbox: true
         com.apple.security.network.client: true
         com.apple.security.application-groups: [$(TeamIdentifierPrefix)group.io.github.warnonphilippe.consoelec]
+        keychain-access-groups: [$(AppIdentifierPrefix)io.github.warnonphilippe.consoelec.shared]
+  # iPhone : sur iOS, un groupe d'apps s'écrit « group.… », sans préfixe d'équipe.
+  ConsoElecPhone:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+        excludes: [Info.plist, App.entitlements]
+      - Shared
+    dependencies:
+      - package: SmaKit
+      - target: ConsoElecPhoneWidget
+        embed: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.warnonphilippe.consoelec.phone
+        PRODUCT_NAME: ConsoElec
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    info:
+      path: iOS/App-Info.plist
+      properties:
+        CFBundleDisplayName: ConsoElec
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        ConsoElecAppGroup: group.io.github.warnonphilippe.consoelec
+        ConsoElecKeychainGroup: $(AppIdentifierPrefix)io.github.warnonphilippe.consoelec.shared
+        NSLocalNetworkUsageDescription: Lire la production de votre onduleur solaire sur le Wi-Fi de la maison.
+        NSBonjourServices: [_http._tcp]
+    entitlements:
+      path: iOS/App.entitlements
+      properties:
+        com.apple.security.application-groups: [group.io.github.warnonphilippe.consoelec]
+        keychain-access-groups: [$(AppIdentifierPrefix)io.github.warnonphilippe.consoelec.shared]
+  ConsoElecPhoneWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Extension
+        excludes: [Info.plist, Extension.entitlements]
+      - Shared
+    dependencies:
+      - package: SmaKit
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.warnonphilippe.consoelec.phone.widget
+        PRODUCT_NAME: ConsoElecPhoneWidget
+        TARGETED_DEVICE_FAMILY: "1"
+    info:
+      path: iOS/Widget-Info.plist
+      properties:
+        CFBundleDisplayName: ConsoElec
+        ConsoElecAppGroup: group.io.github.warnonphilippe.consoelec
+        ConsoElecKeychainGroup: $(AppIdentifierPrefix)io.github.warnonphilippe.consoelec.shared
+        NSLocalNetworkUsageDescription: Lire la production de votre onduleur solaire sur le Wi-Fi de la maison.
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: iOS/Widget.entitlements
+      properties:
+        com.apple.security.application-groups: [group.io.github.warnonphilippe.consoelec]
         keychain-access-groups: [$(AppIdentifierPrefix)io.github.warnonphilippe.consoelec.shared]
   SmaKitTests:
     type: bundle.unit-test
@@ -93,3 +159,7 @@ schemes:
         ConsoElecWidget: all
     test:
       targets: [SmaKitTests]
+  ConsoElecPhone:
+    build:
+      targets:
+        ConsoElecPhone: all

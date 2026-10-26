@@ -79,7 +79,7 @@ public struct DayCurve: Codable, Equatable, Sendable {
   public var peakW: Double { points.map(\.powerW).max() ?? 0 }
 }
 
-/// Clé de l'onduleur dans le Trousseau macOS, partagée avec le widget par un groupe d'accès.
+/// Clé de l'onduleur dans le Trousseau (macOS ou iOS), partagée avec le widget par un groupe d'accès.
 public enum InverterKeychain {
   static let service = "io.github.warnonphilippe.consoelec.inverter"
   static let account = "wlan-psk"

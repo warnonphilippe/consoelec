@@ -11,11 +11,24 @@ struct SettingsView: View {
   @State private var outcome: ProductionReader.Outcome?
   @State private var message: String?
   @State private var fingerprint = WidgetConfig.store.pinnedFingerprint
+  @Environment(\.scenePhase) private var scenePhase
+
+  #if os(macOS)
+  private let intro = "Le widget lit votre onduleur SMA sur le réseau local (connexion sécurisée SRP) et affiche la production. macOS le rafraîchit environ toutes les 5 à 15 minutes."
+  private let keychainNote = "La clé est rangée dans le Trousseau macOS, partagée seulement avec le widget."
+  private let addWidget = "Clic droit sur le bureau → Modifier les widgets → ConsoElec, puis glissez le widget à l'endroit voulu."
+  private let previews = AnyLayout(HStackLayout(spacing: 16))
+  #else
+  private let intro = "Le widget lit votre onduleur SMA sur le Wi-Fi de la maison (connexion sécurisée SRP). Ailleurs, il garde la dernière lecture et affiche son heure. iOS le rafraîchit environ tous les quarts d'heure ; l'app ouverte lit l'onduleur chaque minute."
+  private let keychainNote = "La clé est rangée dans le Trousseau de l'iPhone, partagée seulement avec le widget."
+  private let addWidget = "Écran d'accueil : appui long sur un espace vide → Modifier → Ajouter un widget → ConsoElec. Écran verrouillé : appui long → Personnaliser → widgets."
+  private let previews = AnyLayout(VStackLayout(spacing: 16))
+  #endif
 
   var body: some View {
     Form {
       Section {
-        Text("Le widget lit votre onduleur SMA sur le réseau local (connexion sécurisée SRP) et affiche la production. macOS le rafraîchit environ toutes les 5 à 15 minutes.")
+        Text(intro)
           .font(.callout).foregroundStyle(.secondary)
       }
       Section("Onduleur") {
@@ -42,7 +55,7 @@ struct SettingsView: View {
             .onSubmit(saveKey)
           Button("Enregistrer", action: saveKey).disabled(keyDraft.isEmpty)
         }
-        Text("La clé est rangée dans le Trousseau macOS, partagée seulement avec le widget.")
+        Text(keychainNote)
           .font(.caption).foregroundStyle(.secondary)
         HStack {
           Button(testing ? "Lecture…" : "Tester la lecture") { Task { await test() } }
@@ -60,7 +73,7 @@ struct SettingsView: View {
       }
       if let outcome {
         Section("Aperçu") {
-          HStack(spacing: 16) {
+          previews {
             ProductionView(snapshot: outcome.snapshot, curve: outcome.curve, error: outcome.error, live: outcome.live, compact: true)
               .frame(width: 170, height: 170)
               .background(.quaternary, in: RoundedRectangle(cornerRadius: 20))
@@ -71,12 +84,24 @@ struct SettingsView: View {
         }
       }
       Section("Ajouter le widget") {
-        Text("Clic droit sur le bureau → Modifier les widgets → ConsoElec, puis glissez le widget à l'endroit voulu.")
+        Text(addWidget)
           .font(.callout)
       }
     }
     .formStyle(.grouped)
+    #if os(macOS)
     .padding()
+    #else
+    .autocorrectionDisabled()
+    .textInputAutocapitalization(.never)
+    #endif
+    // Tant que l'app est au premier plan, lecture à l'ouverture puis chaque minute.
+    .task(id: scenePhase) {
+      while scenePhase == .active && !Task.isCancelled {
+        if hasKey && !host.isEmpty && !testing { await test() }
+        try? await Task.sleep(for: .seconds(60))
+      }
+    }
   }
 
   private func saveHost() {
