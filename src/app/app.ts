@@ -21,6 +21,9 @@ import { AiService } from './core/ai/ai.service';
 import { InverterService } from './core/services/inverter.service';
 import { VaultService } from './core/services/vault.service';
 
+/** Durée couverte par les relevés à partir de laquelle les statistiques et les prévisions sont proposées. */
+const MIN_HISTORY_DAYS = 60;
+
 interface NavItem {
   readonly path: string;
   readonly label: string;
@@ -52,15 +55,23 @@ export class App {
   protected readonly askUnlock = computed(() => this.vault.locked() && !this.vault.postponed());
   private readonly dialog = viewChild<ElementRef<HTMLDialogElement>>('confirmDialog');
 
-  protected readonly nav: NavItem[] = [
+  private readonly allNav: (NavItem & { needsHistory?: boolean })[] = [
     { path: '/', label: 'Tableau de bord', icon: 'gauge', exact: true },
     { path: '/production', label: 'Production', icon: 'sun' },
     { path: '/compteurs', label: 'Compteurs', icon: 'plug' },
     { path: '/releves', label: 'Relevés', icon: 'ruler' },
-    { path: '/statistiques', label: 'Statistiques', icon: 'chart' },
-    { path: '/previsions', label: 'Prévisions', icon: 'trend' },
+    { path: '/statistiques', label: 'Statistiques', icon: 'chart', needsHistory: true },
+    { path: '/previsions', label: 'Prévisions', icon: 'trend', needsHistory: true },
     { path: '/maison', label: 'Maison', icon: 'home' },
   ];
+
+  /** Statistiques et prévisions n'apparaissent qu'avec assez de relevés pour avoir un sens. */
+  protected readonly nav = computed(() => {
+    const levels = this.store.analysis().consumption.levels;
+    const span = levels.length > 1 ? levels.at(-1)!.day - levels[0]!.day : 0;
+    const enough = span >= MIN_HISTORY_DAYS;
+    return this.allNav.filter((item) => enough || !item.needsHistory);
+  });
 
   protected readonly secondaryNav: NavItem[] = [
     { path: '/reglages', label: 'Réglages', icon: 'settings' },
