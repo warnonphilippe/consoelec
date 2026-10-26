@@ -36,9 +36,13 @@ xcodebuild -project ConsoElecWidget.xcodeproj -scheme ConsoElecPhone -configurat
 
 APP="build/Build/Products/Release-iphoneos/ConsoElec.app"
 xcrun devicectl device install app --device "$DEVICE" "$APP"
-if ! xcrun devicectl device process launch --device "$DEVICE" io.github.warnonphilippe.consoelec.phone >/dev/null 2>&1; then
-  echo "! L'app est installée mais n'a pas pu être lancée. Au premier lancement, autorisez le développeur :"
-  echo "  Réglages → Général → VPN et gestion de l'appareil → votre identifiant Apple → Faire confiance."
+if ! LAUNCH="$(xcrun devicectl device process launch --device "$DEVICE" io.github.warnonphilippe.consoelec.phone 2>&1)"; then
+  if grep -q "Locked" <<<"$LAUNCH"; then
+    echo "! L'app est installée mais l'iPhone était verrouillé : ouvrez ConsoElec vous-même."
+  else
+    echo "! L'app est installée mais n'a pas pu être lancée. Au premier lancement, autorisez le développeur :"
+    echo "  Réglages → Général → VPN et gestion de l'appareil → votre identifiant Apple → Faire confiance."
+  fi
 fi
 echo "✓ Installé sur l'iPhone : ConsoElec (signature valable 7 jours avec l'équipe gratuite)."
 echo "  Ajoutez le widget : appui long sur l'écran d'accueil → Modifier → Ajouter un widget → ConsoElec."

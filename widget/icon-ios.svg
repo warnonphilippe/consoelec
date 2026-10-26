@@ -1,16 +1,28 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Icône de « ConsoElec Widget » : soleil sur fond orangé, pour la distinguer de l'éclair bleu de ConsoElec. -->
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fbbf24"/>
+      <stop offset="1" stop-color="#ea580c"/>
+    </linearGradient>
+    <linearGradient id="bolt" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#3b82f6"/>
       <stop offset="1" stop-color="#1e3a8a"/>
     </linearGradient>
-    <linearGradient id="bolt" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#fde68a"/>
-      <stop offset="1" stop-color="#f59e0b"/>
-    </linearGradient>
   </defs>
-  <rect width="1024" height="1024" fill="url(#bg)"/><g transform="translate(512 512) scale(1.18) translate(-512 -512)">
-  <circle cx="512" cy="512" r="290" fill="#0f172a" opacity="0.35"/>
-  <circle cx="512" cy="512" r="290" fill="none" stroke="#ffffff" stroke-width="30"/>
-  <path d="M572 262 L388 548 H500 L452 762 L636 468 H524 Z" fill="url(#bolt)" stroke="#ffffff" stroke-width="22" stroke-linejoin="round"/>
-</g></svg>
+  <rect id="tile" width="1024" height="1024" fill="url(#bg)"/>
+  <g id="art" transform="translate(512 512) scale(1.15) translate(-512 -512)">
+    <g stroke="#ffffff" stroke-width="44" stroke-linecap="round">
+      <line x1="512" y1="168" x2="512" y2="236"/>
+      <line x1="512" y1="788" x2="512" y2="856"/>
+      <line x1="168" y1="512" x2="236" y2="512"/>
+      <line x1="788" y1="512" x2="856" y2="512"/>
+      <line x1="269" y1="269" x2="317" y2="317"/>
+      <line x1="707" y1="707" x2="755" y2="755"/>
+      <line x1="755" y1="269" x2="707" y2="317"/>
+      <line x1="317" y1="707" x2="269" y2="755"/>
+    </g>
+    <circle cx="512" cy="512" r="215" fill="#ffffff"/>
+    <path d="M556 352 L420 562 H502 L466 680 L604 466 H520 Z" fill="url(#bolt)" stroke="#1e3a8a" stroke-width="10" stroke-linejoin="round"/>
+  </g>
+</svg>
