@@ -6,7 +6,7 @@ import type {
 } from '../../../../electron/shared/ipc-contract';
 import { toLocalIso } from '../calc/time';
 import { DataStore } from './data-store.service';
-import { VaultService } from './vault.service';
+import { SecretsService } from './secrets.service';
 
 /** Une lecture plus ancienne n'est plus « en direct » (le relevé ne la propose plus). */
 const LIVE_MAX_AGE_MS = 2 * 60 * 60 * 1000;
@@ -28,7 +28,7 @@ const localDay = (ms: number): string => toLocalIso(new Date(ms)).slice(0, 10);
 @Injectable({ providedIn: 'root' })
 export class InverterService {
   private readonly store = inject(DataStore);
-  private readonly vault = inject(VaultService);
+  private readonly secrets = inject(SecretsService);
   private readonly api =
     typeof window !== 'undefined' ? (window.consoElec?.inverter ?? null) : null;
 
@@ -45,8 +45,8 @@ export class InverterService {
   /** Résultat de la dernière lecture des journaux : nombre de journées ajoutées ou message d'erreur. */
   readonly historyStatus = signal<{ at: number; added: number; error: string | null } | null>(null);
   readonly settings = computed(() => this.store.settings().inverter);
-  /** Prêt à interroger l'onduleur : activé, clé dans le coffre ouvert. */
-  readonly ready = computed(() => this.settings().enabled && this.vault.has('inverterPsk'));
+  /** Prêt à interroger l'onduleur : activé, clé enregistrée. */
+  readonly ready = computed(() => this.settings().enabled && this.secrets.has('inverterPsk'));
   /** Dernière lecture réussie récente (moins de 2 h). */
   readonly fresh = computed(() => {
     const r = this.live();
@@ -65,8 +65,8 @@ export class InverterService {
     }
     effect(() => {
       const s = this.settings();
-      // Relancé aussi quand le coffre s'ouvre ou que la clé change.
-      this.vault.status();
+      // Relancé aussi quand la clé de l'onduleur change.
+      this.secrets.status();
       void this.api?.configure({
         enabled: s.enabled,
         host: s.host,
@@ -152,7 +152,7 @@ export class InverterService {
       return { date, points: [], error: "La lecture de l'onduleur demande l'application de bureau." };
     }
     if (!this.ready()) {
-      return { date, points: [], error: "Onduleur non configuré ou coffre verrouillé." };
+      return { date, points: [], error: "Onduleur non configuré ou clé absente." };
     }
     const curve = await this.api.dayCurve(date);
     if (curve.error === null && curve.points.length > 0 && date < localDay(Date.now())) {

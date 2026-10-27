@@ -1,16 +1,6 @@
-import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { AiService, type FetchLike } from './ai';
 import { METER_TOOL_NAME } from './ai-core';
-import { SecretStore, type Cipher } from './secrets';
 import type { AiStreamEvent } from './shared/ipc-contract';
-
-const cipher: Cipher = {
-  isEncryptionAvailable: () => true,
-  encryptString: (s) => Buffer.from(s, 'utf-8'),
-  decryptString: (b) => b.toString('utf-8'),
-};
 
 const KEY = 'sk-ant-api03-cle-de-test-assez-longue';
 
@@ -32,15 +22,17 @@ function streamOf(text: string, chunk = 40): Response {
 }
 
 describe('AiService', () => {
-  let dir: string;
-  let secrets: SecretStore;
+  // Clé API fournie au service, comme le magasin de secrets du process principal.
+  let key: string | null;
+  const secrets = {
+    get: async () => key,
+    set: async (value: string) => {
+      key = value;
+    },
+  };
 
-  beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), 'consoelec-ai-'));
-    secrets = new SecretStore(join(dir, 'secrets.bin'), cipher);
-  });
-  afterEach(async () => {
-    await rm(dir, { recursive: true, force: true });
+  beforeEach(() => {
+    key = null;
   });
 
   it('refuse d’appeler l’API sans clé', async () => {

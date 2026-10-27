@@ -138,7 +138,7 @@ export class InverterClient {
     }
     const secret = this.secret();
     if (secret === null) {
-      return fail("Clé de l'onduleur absente ou coffre verrouillé.");
+      return fail("Clé de l'onduleur absente : ajoutez-la dans les réglages.");
     }
     try {
       const res = await this.request(secret, (sid) =>
@@ -162,7 +162,7 @@ export class InverterClient {
     }
     const secret = this.secret();
     if (secret === null) {
-      return fail("Clé de l'onduleur absente ou coffre verrouillé.");
+      return fail("Clé de l'onduleur absente : ajoutez-la dans les réglages.");
     }
     try {
       const end = Math.floor(now.getTime() / 1000);
@@ -207,7 +207,7 @@ export class InverterClient {
     }
     const secret = this.secret();
     if (secret === null) {
-      return fail("Clé de l'onduleur absente ou coffre verrouillé.");
+      return fail("Clé de l'onduleur absente : ajoutez-la dans les réglages.");
     }
     try {
       const points = await this.logger(secret, LOGGER_KEYS.fiveMinutes, start - 300, end);

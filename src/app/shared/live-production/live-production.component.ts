@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { InverterService } from '../../core/services/inverter.service';
-import { VaultService } from '../../core/services/vault.service';
 import { FORMAT_PIPES } from '../format';
 import { IconComponent } from '../icon.component';
 
@@ -16,5 +15,4 @@ import { IconComponent } from '../icon.component';
 })
 export class LiveProductionComponent {
   protected readonly inverter = inject(InverterService);
-  protected readonly vault = inject(VaultService);
 }

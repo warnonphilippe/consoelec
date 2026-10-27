@@ -367,7 +367,7 @@ describe('client local de l’onduleur (serveur HTTPS simulé)', () => {
     expect((await wrong.read()).error).toContain('WPA2-PSK');
     const none = new InverterClient(() => null, 'usr', s.port);
     none.configure({ enabled: true, host: s.host, certFingerprint: null });
-    expect((await none.read()).error).toContain('coffre');
+    expect((await none.read()).error).toContain('absente');
     s.close();
   });
 });

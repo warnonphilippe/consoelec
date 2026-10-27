@@ -22,12 +22,10 @@ const api: ConsoElecApi = {
   image: {
     toJpeg: (data) => ipcRenderer.invoke('image:toJpeg', data),
   },
-  vault: {
-    status: () => ipcRenderer.invoke('vault:status'),
-    create: (sshKeyPath, passphrase) => ipcRenderer.invoke('vault:create', sshKeyPath, passphrase),
-    unlock: (passphrase) => ipcRenderer.invoke('vault:unlock', passphrase),
-    lock: () => ipcRenderer.invoke('vault:lock'),
-    setSecret: (name, value) => ipcRenderer.invoke('vault:setSecret', name, value),
+  secrets: {
+    status: () => ipcRenderer.invoke('secrets:status'),
+    setSecret: (name, value) => ipcRenderer.invoke('secrets:set', name, value),
+    importVault: (passphrase) => ipcRenderer.invoke('secrets:importVault', passphrase),
   },
   inverter: {
     configure: (config) => ipcRenderer.invoke('inverter:configure', config),

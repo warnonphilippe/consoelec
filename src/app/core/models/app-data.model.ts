@@ -172,7 +172,7 @@ export interface PvDay {
   at: string;
 }
 
-/** Connexion locale à l'onduleur ; la clé (WPA2-PSK de la plaque) est dans le coffre, jamais ici. */
+/** Connexion locale à l'onduleur ; la clé (WPA2-PSK de la plaque) est dans le Trousseau, jamais ici. */
 export interface InverterSettings {
   enabled: boolean;
   host: string;

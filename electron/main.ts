@@ -18,8 +18,8 @@ import { AiService, type FetchLike } from './ai';
 import { convertToJpeg } from './image';
 import { discoverSmaInverters } from './discovery';
 import { InverterClient } from './inverter';
-import { SecretStore } from './secrets';
-import { DEFAULT_SSH_KEY, Vault } from './vault';
+import { SECRET_NAMES, Secrets, fileBackend, keychainBackend } from './secret-store';
+import { EncryptedFileSecrets } from './secrets';
 import { DataFileStore } from './storage';
 import {
   IPC,
@@ -29,7 +29,6 @@ import {
   type MeterPhoto,
   type SecretName,
   type ThemeMode,
-  type VaultStatus,
 } from './shared/ipc-contract';
 
 /** URL du serveur de développement Angular, honorée uniquement hors application packagée. */
@@ -155,7 +154,6 @@ function handle(channel: string, handler: (...args: unknown[]) => unknown): void
   });
 }
 
-const SECRET_NAMES: readonly SecretName[] = ['claudeApiKey', 'inverterPsk'];
 const INVERTER_POLL_MS = 60_000;
 
 function assertSecretName(value: unknown): SecretName {
@@ -197,21 +195,11 @@ function assertInverterConfig(value: unknown): InverterConfig {
   return { enabled: c.enabled, host, certFingerprint: fp ?? null };
 }
 
-async function vaultStatus(vault: Vault, legacy: SecretStore): Promise<VaultStatus> {
-  return {
-    state: await vault.state(),
-    sshKeyPath: await vault.sshKeyPath(),
-    defaultSshKeyPath: DEFAULT_SSH_KEY,
-    secrets: { claudeApiKey: vault.has('claudeApiKey'), inverterPsk: vault.has('inverterPsk') },
-    legacyApiKey: await legacy.hasKey(),
-  };
-}
-
 function registerIpc(
   store: DataFileStore,
   ai: AiService,
-  vault: Vault,
-  legacy: SecretStore,
+  secrets: Secrets,
+  secretsReady: Promise<void>,
   inverter: InverterClient,
   pollInverter: () => void,
 ): void {
@@ -272,43 +260,29 @@ function registerIpc(
     }
     return convertToJpeg(bytes, MAX_PHOTO_SIDE);
   });
-  handle(IPC.vaultStatus, () => vaultStatus(vault, legacy));
-  handle(IPC.vaultCreate, async (path, passphrase) => {
-    const keyPath = assertString(path, 'sshKeyPath').trim() || DEFAULT_SSH_KEY;
-    // L'ancienne clé API (Trousseau macOS) est reprise dans le coffre, puis effacée.
-    const legacyKey = await legacy.get();
-    await vault.create(
-      keyPath,
-      assertString(passphrase, 'passphrase'),
-      legacyKey ? { claudeApiKey: legacyKey } : {},
-    );
-    if (legacyKey) {
-      await legacy.clear();
-    }
-    pollInverter();
-    return vaultStatus(vault, legacy);
+  handle(IPC.secretsStatus, async () => {
+    await secretsReady;
+    return secrets.status();
   });
-  handle(IPC.vaultUnlock, async (passphrase) => {
-    await vault.unlock(assertString(passphrase, 'passphrase'));
-    pollInverter();
-    return vaultStatus(vault, legacy);
-  });
-  handle(IPC.vaultLock, async () => {
-    vault.lock();
-    await inverter.close();
-    return vaultStatus(vault, legacy);
-  });
-  handle(IPC.vaultSetSecret, async (name, value) => {
+  handle(IPC.secretsSet, async (name, value) => {
     if (value !== null && (typeof value !== 'string' || value.length > 400)) {
       throw new Error('Paramètre invalide : valeur');
     }
     const secretName = assertSecretName(name);
-    await vault.set(secretName, value === null ? null : value.trim().replace(/\s+/g, ''));
+    await secretsReady;
+    await secrets.set(secretName, value);
     if (secretName === 'inverterPsk') {
       await inverter.close();
       pollInverter();
     }
-    return vaultStatus(vault, legacy);
+    return secrets.status();
+  });
+  handle(IPC.secretsImportVault, async (passphrase) => {
+    await secretsReady;
+    await secrets.importVault(assertString(passphrase, 'passphrase'));
+    await inverter.close();
+    pollInverter();
+    return secrets.status();
   });
   handle(IPC.inverterConfigure, (config) => {
     inverter.configure(assertInverterConfig(config));
@@ -322,10 +296,10 @@ function registerIpc(
     mainWindow?.webContents.send(IPC.inverterReading, reading);
     return reading;
   });
-  handle(IPC.aiStatus, async () => ({
-    hasKey: vault.has('claudeApiKey'),
-    vault: await vault.state(),
-  }));
+  handle(IPC.aiStatus, async () => {
+    await secretsReady;
+    return { hasKey: secrets.has('claudeApiKey') };
+  });
   handle(IPC.aiTest, (model) => ai.test(assertModel(model)));
   handle(IPC.aiAbort, (requestId) => ai.abort(assertString(requestId, 'requestId')));
   handle(IPC.aiReadMeter, (model, photos) =>
@@ -416,41 +390,51 @@ function bootstrap(): void {
   }
 
   const userData = app.getPath('userData');
-  // Ancien stockage de la clé API (Trousseau macOS) : seulement relu pour la reprendre dans le coffre.
-  const legacy = new SecretStore(join(userData, 'secrets.bin'), safeStorage);
-  const vault = new Vault(join(userData, 'secrets.vault'), userData);
+  // Clés dans le Trousseau macOS (fichier chiffré par le système ailleurs) ; l'ancien coffre SSH est importé sur demande.
+  const secrets = new Secrets(
+    process.platform === 'darwin'
+      ? keychainBackend()
+      : fileBackend(new EncryptedFileSecrets(join(userData, 'secrets.bin'), safeStorage)),
+    join(userData, 'secrets.vault'),
+    userData,
+  );
+  const secretsReady = secrets.load();
   const ai = new AiService(
-    async () => vault.get('claudeApiKey'),
+    async () => {
+      await secretsReady;
+      return secrets.get('claudeApiKey');
+    },
     ((url, init) => net.fetch(url, init)) as FetchLike,
     DEV_API_URL,
   );
-  const inverter = new InverterClient(() => vault.get('inverterPsk'));
+  const inverter = new InverterClient(() => secrets.get('inverterPsk'));
   let pollTimer: ReturnType<typeof setInterval> | null = null;
   const pollOnce = async (): Promise<void> => {
-    if (!inverter.enabled || !vault.has('inverterPsk') || mainWindow === null) {
+    if (!inverter.enabled || !secrets.has('inverterPsk') || mainWindow === null) {
       return;
     }
     const reading = await inverter.read();
     mainWindow?.webContents.send(IPC.inverterReading, reading);
   };
   const pollInverter = (): void => {
-    if (pollTimer !== null) {
-      clearInterval(pollTimer);
-      pollTimer = null;
-    }
-    if (inverter.enabled && vault.has('inverterPsk')) {
-      void pollOnce();
-      pollTimer = setInterval(() => void pollOnce(), INVERTER_POLL_MS);
-    }
+    void secretsReady.then(() => {
+      if (pollTimer !== null) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+      if (inverter.enabled && secrets.has('inverterPsk')) {
+        void pollOnce();
+        pollTimer = setInterval(() => void pollOnce(), INVERTER_POLL_MS);
+      }
+    });
   };
   app.on('before-quit', () => {
     if (pollTimer !== null) {
       clearInterval(pollTimer);
     }
-    vault.lock();
     void inverter.close();
   });
-  registerIpc(store, ai, vault, legacy, inverter, pollInverter);
+  registerIpc(store, ai, secrets, secretsReady, inverter, pollInverter);
 
   const openWindow = (): void => {
     mainWindow = createWindow();

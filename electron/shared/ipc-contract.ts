@@ -17,25 +17,19 @@ export interface LoadResult {
 }
 
 export interface AiStatus {
-  /** Une clé API est disponible dans le coffre déverrouillé (elle n'est jamais renvoyée à la page). */
+  /** Une clé API est enregistrée (elle n'est jamais renvoyée à la page). */
   readonly hasKey: boolean;
-  /** État du coffre qui contient la clé. */
-  readonly vault: VaultState;
 }
 
-export type VaultState = 'absent' | 'locked' | 'unlocked';
 export type SecretName = 'claudeApiKey' | 'inverterPsk';
 
-export interface VaultStatus {
-  readonly state: VaultState;
-  /** Clé SSH qui chiffre le coffre, ou `null` s'il n'existe pas encore. */
-  readonly sshKeyPath: string | null;
-  /** Clé SSH proposée à la création. */
-  readonly defaultSshKeyPath: string;
-  /** Secrets présents (connus seulement quand le coffre est ouvert). */
+export interface SecretsStatus {
+  /** `keychain` : Trousseau macOS ; `file` : fichier chiffré par le système (hors macOS). */
+  readonly storage: 'keychain' | 'file';
+  /** Secrets présents. */
   readonly secrets: Readonly<Record<SecretName, boolean>>;
-  /** Une ancienne clé API (Trousseau macOS) attend d'être reprise dans le coffre. */
-  readonly legacyApiKey: boolean;
+  /** L'ancien coffre chiffré par la clé SSH attend d'être importé. */
+  readonly legacyVault: boolean;
 }
 
 export interface InverterConfig {
@@ -144,14 +138,12 @@ export interface ConsoElecApi {
     /** Décode une image que Chromium ne lit pas (HEIC d'iPhone…) avec les codecs du système, réduite et en JPEG. */
     toJpeg(data: ArrayBuffer): Promise<MeterPhoto>;
   };
-  readonly vault: {
-    status(): Promise<VaultStatus>;
-    /** Crée le coffre avec la clé SSH donnée (et y reprend l'ancienne clé API s'il y en a une). */
-    create(sshKeyPath: string, passphrase: string): Promise<VaultStatus>;
-    unlock(passphrase: string): Promise<VaultStatus>;
-    lock(): Promise<VaultStatus>;
+  readonly secrets: {
+    status(): Promise<SecretsStatus>;
     /** Enregistre ou efface un secret ; il n'est jamais renvoyé à la page. */
-    setSecret(name: SecretName, value: string | null): Promise<VaultStatus>;
+    setSecret(name: SecretName, value: string | null): Promise<SecretsStatus>;
+    /** Reprend les secrets de l'ancien coffre (phrase de passe de la clé SSH), puis le supprime. */
+    importVault(passphrase: string): Promise<SecretsStatus>;
   };
   readonly inverter: {
     configure(config: InverterConfig): Promise<void>;
@@ -186,11 +178,9 @@ export const IPC = {
   reveal: 'data:reveal',
   theme: 'theme:set',
   imageToJpeg: 'image:toJpeg',
-  vaultStatus: 'vault:status',
-  vaultCreate: 'vault:create',
-  vaultUnlock: 'vault:unlock',
-  vaultLock: 'vault:lock',
-  vaultSetSecret: 'vault:setSecret',
+  secretsStatus: 'secrets:status',
+  secretsSet: 'secrets:set',
+  secretsImportVault: 'secrets:importVault',
   inverterConfigure: 'inverter:configure',
   inverterRefresh: 'inverter:refresh',
   inverterReading: 'inverter:reading',

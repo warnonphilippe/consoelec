@@ -24,7 +24,7 @@ export type FetchLike = (
 ) => Promise<Response>;
 
 const NO_KEY =
-  'Clé API indisponible : déverrouillez le coffre ou ajoutez la clé dans les réglages.';
+  'Aucune clé API : ajoutez-la dans les réglages.';
 const OFFLINE = 'Impossible de joindre le service Claude : vérifiez la connexion internet.';
 
 /** Appels à l'API Claude, faits uniquement depuis le process principal : la clé n'atteint jamais la page. */
@@ -32,7 +32,7 @@ export class AiService {
   private readonly running = new Map<string, AbortController>();
 
   constructor(
-    /** Fournit la clé API (coffre déverrouillé) ou `null`. */
+    /** Fournit la clé API (Trousseau) ou `null`. */
     private readonly apiKey: () => Promise<string | null>,
     private readonly fetchImpl: FetchLike,
     /** Adresse de l'API ; remplaçable uniquement en développement (serveur de test local). */

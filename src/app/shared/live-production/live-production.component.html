@@ -15,9 +15,9 @@
   @if (!inverter.ready()) {
     <p class="small muted">
       {{
-        vault.unlocked()
+        inverter.settings().enabled
           ? 'Ajoutez la clé de l’onduleur dans les réglages.'
-          : 'Déverrouillez le coffre pour lire l’onduleur.'
+          : 'Activez la lecture de l’onduleur dans les réglages.'
       }}
       <a routerLink="/reglages" fragment="onduleur">Réglages</a>
     </p>

@@ -1,7 +1,8 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { SecretStore, type Cipher } from './secrets';
+import { EncryptedFileSecrets, type Cipher } from './secrets';
 
 const fakeCipher = (available = true): Cipher => ({
   isEncryptionAvailable: () => available,
@@ -9,7 +10,7 @@ const fakeCipher = (available = true): Cipher => ({
   decryptString: (buffer) => buffer.toString('utf-8').split('').reverse().join(''),
 });
 
-describe('SecretStore', () => {
+describe('EncryptedFileSecrets (repli hors macOS)', () => {
   let dir: string;
   beforeEach(async () => {
     dir = await mkdtemp(join(tmpdir(), 'consoelec-secrets-'));
@@ -20,22 +21,24 @@ describe('SecretStore', () => {
 
   const KEY = 'sk-ant-api03-exemple-de-cle-assez-longue';
 
-  it('enregistre la clé chiffrée, jamais en clair', async () => {
-    const store = new SecretStore(join(dir, 'secrets.bin'), fakeCipher());
-    expect(await store.hasKey()).toBe(false);
-    await store.set(`  ${KEY}\n`);
-    expect(await store.get()).toBe(KEY);
-    expect((await readFile(join(dir, 'secrets.bin'))).toString('utf-8')).not.toContain(KEY);
-    await store.clear();
-    expect(await store.hasKey()).toBe(false);
+  it('range plusieurs secrets chiffrés, jamais en clair, et supprime le fichier vide', async () => {
+    const path = join(dir, 'secrets.bin');
+    const store = new EncryptedFileSecrets(path, fakeCipher());
+    expect(await store.read('claudeApiKey')).toBeNull();
+    await store.write('claudeApiKey', KEY);
+    await store.write('inverterPsk', 'ABCDEFGH12345678');
+    expect(await store.read('claudeApiKey')).toBe(KEY);
+    expect(await store.read('inverterPsk')).toBe('ABCDEFGH12345678');
+    expect((await readFile(path)).toString('utf-8')).not.toContain(KEY);
+    await store.remove('claudeApiKey');
+    expect(await store.read('claudeApiKey')).toBeNull();
+    await store.remove('inverterPsk');
+    expect(existsSync(path)).toBe(false);
   });
 
-  it('refuse une clé invalide ou sans chiffrement disponible', async () => {
-    await expect(new SecretStore(join(dir, 'a.bin'), fakeCipher()).set('court')).rejects.toThrow(
-      'format',
-    );
-    await expect(new SecretStore(join(dir, 'b.bin'), fakeCipher(false)).set(KEY)).rejects.toThrow(
-      'chiffrement',
-    );
+  it('refuse d’écrire sans chiffrement disponible', async () => {
+    await expect(
+      new EncryptedFileSecrets(join(dir, 'b.bin'), fakeCipher(false)).write('claudeApiKey', KEY),
+    ).rejects.toThrow('chiffrement');
   });
 });

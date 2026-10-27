@@ -6,7 +6,7 @@ import type {
 } from '../../../../electron/shared/ipc-contract';
 import { newId } from '../models/normalize';
 import { DataStore } from '../services/data-store.service';
-import { VaultService } from '../services/vault.service';
+import { SecretsService } from '../services/secrets.service';
 import { buildSystemPrompt } from './ai-context';
 
 export interface ChatMessage {
@@ -20,13 +20,13 @@ export interface ChatMessage {
 @Injectable({ providedIn: 'root' })
 export class AiService {
   private readonly store = inject(DataStore);
-  private readonly vault = inject(VaultService);
+  private readonly secrets = inject(SecretsService);
   private readonly api = typeof window !== 'undefined' ? (window.consoElec?.ai ?? null) : null;
 
   /** Les appels à Claude passent par l'application de bureau ; pas disponibles dans un simple navigateur. */
   readonly available = this.api !== null;
-  /** La clé API est dans le coffre, et le coffre est ouvert. */
-  readonly hasKey = computed(() => this.vault.has('claudeApiKey'));
+  /** Une clé API est enregistrée dans le Trousseau. */
+  readonly hasKey = computed(() => this.secrets.has('claudeApiKey'));
 
   readonly open = signal(false);
   readonly messages = signal<ChatMessage[]>([]);
@@ -41,11 +41,11 @@ export class AiService {
   }
 
   async setKey(key: string): Promise<void> {
-    await this.vault.setSecret('claudeApiKey', key.trim());
+    await this.secrets.setSecret('claudeApiKey', key.trim());
   }
 
   async clearKey(): Promise<void> {
-    await this.vault.setSecret('claudeApiKey', null);
+    await this.secrets.setSecret('claudeApiKey', null);
   }
 
   test(): Promise<{ ok: boolean; message: string }> {

@@ -27,7 +27,7 @@ import {
 import type { MergeReport } from '../../core/models/merge';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { InverterService } from '../../core/services/inverter.service';
-import { VaultService } from '../../core/services/vault.service';
+import { SecretsService } from '../../core/services/secrets.service';
 import { DataStore } from '../../core/services/data-store.service';
 import { StorageService } from '../../core/services/storage.service';
 import { ThemeService } from '../../core/services/theme.service';
@@ -49,13 +49,13 @@ export default class SettingsPage {
   protected readonly storage = inject(StorageService);
   protected readonly theme = inject(ThemeService);
   protected readonly ai = inject(AiService);
-  protected readonly vault = inject(VaultService);
+  protected readonly secrets = inject(SecretsService);
   protected readonly inverter = inject(InverterService);
   protected readonly inverterSettings = computed(() => this.settings().inverter);
-  protected readonly sshKeyPath = signal('~/.ssh/id_rsa');
+  /** Phrase de passe de la clé SSH, pour l'import unique de l'ancien coffre. */
   protected readonly vaultPass = signal('');
-  protected readonly vaultBusy = signal(false);
-  protected readonly vaultError = signal<string | null>(null);
+  protected readonly importBusy = signal(false);
+  protected readonly importError = signal<string | null>(null);
   protected readonly pskDraft = signal('');
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
@@ -164,34 +164,22 @@ export default class SettingsPage {
     this.testResult.set(null);
   }
 
-  // --- Coffre ---
-  private async vaultAction(action: () => Promise<void>, done: string): Promise<void> {
-    this.vaultBusy.set(true);
-    this.vaultError.set(null);
-    try {
-      await action();
-      this.vaultPass.set('');
-      this.toast.show(done);
-    } catch (error) {
-      this.vaultError.set(cleanError(error));
-    } finally {
-      this.vaultBusy.set(false);
+  // --- Clés ---
+  protected async importVault(): Promise<void> {
+    if (this.vaultPass() === '' || this.importBusy()) {
+      return;
     }
-  }
-
-  protected createVault(): Promise<void> {
-    return this.vaultAction(
-      () => this.vault.create(this.sshKeyPath().trim(), this.vaultPass()),
-      'Coffre créé et déverrouillé.',
-    );
-  }
-
-  protected unlockVault(): Promise<void> {
-    return this.vaultAction(() => this.vault.unlock(this.vaultPass()), 'Coffre déverrouillé.');
-  }
-
-  protected lockVault(): Promise<void> {
-    return this.vaultAction(() => this.vault.lock(), 'Coffre verrouillé.');
+    this.importBusy.set(true);
+    this.importError.set(null);
+    try {
+      await this.secrets.importVault(this.vaultPass());
+      this.vaultPass.set('');
+      this.toast.show('Clés reprises dans le Trousseau ; l’ancien coffre est supprimé.');
+    } catch (error) {
+      this.importError.set(cleanError(error));
+    } finally {
+      this.importBusy.set(false);
+    }
   }
 
   // --- Onduleur ---
@@ -215,9 +203,9 @@ export default class SettingsPage {
       return;
     }
     try {
-      await this.vault.setSecret('inverterPsk', value);
+      await this.secrets.setSecret('inverterPsk', value);
       this.pskDraft.set('');
-      this.toast.show('Clé de l’onduleur enregistrée dans le coffre.');
+      this.toast.show('Clé de l’onduleur enregistrée dans le Trousseau.');
       if (this.inverterSettings().enabled) {
         await this.inverter.refresh();
       }

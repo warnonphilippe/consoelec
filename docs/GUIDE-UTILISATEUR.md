@@ -226,26 +226,27 @@ Le bouton **Assistant IA** de la barre latérale ouvre un panneau, disponible su
 
 ### Activer l'assistant
 
-1. Créez le **coffre chiffré** (voir plus bas) s'il n'existe pas encore.
-2. Créez une clé API sur [console.anthropic.com](https://console.anthropic.com/).
-3. Dans **Réglages → Assistant IA**, collez-la et cliquez sur **Enregistrer**, puis sur **Tester la connexion**.
-4. Choisissez le modèle Claude à utiliser (modifiable à tout moment).
+1. Créez une clé API sur [console.anthropic.com](https://console.anthropic.com/).
+2. Dans **Réglages → Assistant IA**, collez-la et cliquez sur **Enregistrer**, puis sur **Tester la connexion**.
+3. Choisissez le modèle Claude à utiliser (modifiable à tout moment).
 
 ### Confidentialité et coût
 
-- La clé est rangée dans le **coffre chiffré par votre clé SSH**. Elle n'est **jamais exposée à la page**, n'est **pas exportée** et n'est **pas synchronisée** avec vos données.
+- La clé est rangée dans le **Trousseau macOS**. Elle n'est **jamais exposée à la page**, n'est **pas exportée** et n'est **pas synchronisée** avec vos données.
 - Vos données ne quittent l'ordinateur que **lorsque vous posez une question** ou déposez une photo : elles sont envoyées à Claude (Anthropic) via votre clé.
 - Les appels sont **facturés par Anthropic** selon votre usage ; la lecture d'une photo et une question coûtent chacune quelques centimes au plus.
 - L'assistant donne des ordres de grandeur et des pistes, pas de conseil financier ni juridique. Vérifiez ses chiffres sur le tableau de bord.
 
-## Coffre chiffré par votre clé SSH
+## Clés dans le Trousseau macOS
 
-La clé API Claude et la clé de l'onduleur sont rangées dans un **coffre** chiffré (AES-256) par votre **clé SSH** personnelle, par exemple `~/.ssh/id_rsa`.
+La clé API Claude et la clé de l'onduleur sont rangées dans le **Trousseau macOS**, comme les mots de passe du Mac.
 
-- **Création** : **Réglages → Coffre chiffré**, indiquez la clé SSH et sa phrase de passe, puis **Créer le coffre**. Une clé API enregistrée auparavant dans le Trousseau macOS y est reprise automatiquement.
-- **Au démarrage**, ConsoElec demande la phrase de passe de la clé SSH. **Plus tard** laisse l'application utilisable sans l'assistant ni la lecture de l'onduleur ; le coffre peut être ouvert ensuite depuis les réglages.
-- **Comment ça marche** : `ssh-keygen` signe un défi fixe avec votre clé ; cette signature (identique à chaque fois avec une clé RSA ou Ed25519) donne la clé de chiffrement. La phrase de passe n'est transmise qu'à `ssh-keygen`, sur ce Mac, et n'est enregistrée nulle part. Les clés ECDSA ne conviennent pas.
-- **Sauvegarde** : le coffre (`secrets.vault`) n'est ni exporté ni synchronisé. Sur un autre Mac, recréez-le et ressaisissez les clés. Si vous changez de clé SSH, le coffre ne s'ouvre plus : recréez-le de même.
+- **Saisie** : dans **Réglages → Assistant IA** et **Réglages → Onduleur**. **Réglages → Clés** indique lesquelles sont enregistrées.
+- **Au démarrage**, ConsoElec les lit sans rien demander : la production en direct s'affiche tout de suite.
+- **Où les voir** : dans l'app **Trousseau d'accès**, éléments « ConsoElec — clé API Claude » et « ConsoElec — clé de l'onduleur ». Vous pouvez les y consulter ou les supprimer ; une clé supprimée se ressaisit dans les réglages.
+- **Sauvegarde** : les clés ne sont ni exportées ni synchronisées avec vos données. Sur un autre Mac, ressaisissez-les dans les réglages.
+- **Ancien coffre SSH** : les versions précédentes chiffraient les clés avec votre clé SSH (`secrets.vault`). S'il existe encore, **Réglages → Clés** propose de l'importer : saisissez une dernière fois la phrase de passe de la clé SSH, les clés passent dans le Trousseau et le coffre est supprimé.
+- **Windows** : les clés sont rangées dans un fichier chiffré par le système (`secrets.bin`).
 
 ## Lecture de l'onduleur
 
@@ -347,6 +348,6 @@ L'enregistrement est automatique ; la version précédente est conservée en `.b
 
 **Faut-il relever chaque jour ?** Non : un relevé par mois suffit, la répartition journalière tient compte de la saison. Relevé le 1er de chaque mois, les mois sont exacts ; relevé à mi-mois, l'erreur sur un mois reste de l'ordre de 3 % pour le soutirage et 9 % pour l'injection ; tous les deux ou trois mois, elle monte à 5-6 % et 10-12 %. Les totaux sur l'année restent exacts. Au-delà de deux mois sans relevé, l'intervalle est signalé comme approximatif.
 
-**L'assistant ou la lecture de photo ne fonctionnent pas.** Ils nécessitent l'application de bureau, le coffre déverrouillé, une clé API valide (Réglages → Tester la connexion) et une connexion internet.
+**L'assistant ou la lecture de photo ne fonctionnent pas.** Ils nécessitent l'application de bureau, une clé API valide (Réglages → Tester la connexion) et une connexion internet.
 
 **La lecture de l'onduleur échoue.** Vérifiez que le Mac et l'onduleur sont sur le même réseau, l'adresse dans les réglages et la clé WPA2-PSK (16 caractères, majuscules et minuscules). La nuit, la puissance est vide mais la production du jour et l'index total restent lisibles.

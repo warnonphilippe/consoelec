@@ -193,120 +193,69 @@
     </div>
   </div>
 
-  <div class="section" id="coffre">
-    <span class="pill"><app-icon name="key" [size]="13" /> Coffre chiffré (clé SSH)</span>
+  <div class="section" id="cles">
+    <span class="pill"><app-icon name="key" [size]="13" /> Clés (Trousseau macOS)</span>
   </div>
   <div class="card form">
-    @if (!vault.available) {
+    @if (!secrets.available) {
       <div class="callout">
         <app-icon name="info" />
-        <div>
-          Le coffre, l'assistant IA et la lecture de l'onduleur fonctionnent dans l'application de
-          bureau.
-        </div>
+        <div>Les clés, l'assistant IA et la lecture de l'onduleur fonctionnent dans l'application de bureau.</div>
       </div>
     } @else {
       <p class="muted small">
-        La clé API Claude et la clé de l'onduleur sont rangées dans un coffre chiffré (AES-256) par
-        votre
-        <strong>clé SSH</strong> : la phrase de passe de la clé est demandée au démarrage de
-        l'application. Le coffre reste sur ce Mac (<code>secrets.vault</code>) : il n'est
-        <strong>ni exporté ni synchronisé</strong>, et les secrets ne sont jamais renvoyés à la
-        page.
+        @if (secrets.inKeychain()) {
+          La clé API Claude et la clé de l'onduleur sont rangées dans le <strong>Trousseau macOS</strong>
+          (éléments « ConsoElec — … », visibles dans l'app Trousseau d'accès). Elles sont lues au démarrage, sans
+          rien demander, restent sur ce Mac et ne sont <strong>ni exportées ni synchronisées</strong> ; la page ne
+          les voit jamais.
+        } @else {
+          La clé API Claude et la clé de l'onduleur sont rangées dans un fichier chiffré par le système, sur cet
+          ordinateur ; elles ne sont ni exportées ni synchronisées.
+        }
       </p>
-      @switch (vault.state()) {
-        @case ('absent') {
-          @if (vault.status()?.legacyApiKey) {
-            <div class="callout warning small">
-              <app-icon name="info" [size]="16" />
-              <div>
-                Votre clé API actuelle (Trousseau macOS) sera reprise dans le coffre à sa création.
-              </div>
-            </div>
-          }
-          <div class="form-grid">
-            <div class="field">
-              <label for="sshkey">Clé SSH</label>
-              <input
-                id="sshkey"
-                class="input mono"
-                spellcheck="false"
-                [value]="sshKeyPath()"
-                (input)="sshKeyPath.set($any($event.target).value)"
-              />
-              <span class="help">Clé RSA ou Ed25519 (les clés ECDSA ne conviennent pas).</span>
-            </div>
-            <div class="field">
-              <label for="sshpass">Phrase de passe de la clé</label>
-              <input
-                id="sshpass"
-                class="input"
-                type="password"
-                autocomplete="off"
-                [value]="vaultPass()"
-                (input)="vaultPass.set($any($event.target).value)"
-                (keydown.enter)="createVault()"
-              />
-            </div>
+      <div class="key-status">
+        <span class="badge" [class.success]="secrets.has('claudeApiKey')" [class.warning]="!secrets.has('claudeApiKey')"
+          ><app-icon [name]="secrets.has('claudeApiKey') ? 'check' : 'key'" [size]="12" /> Clé API Claude</span
+        >
+        <span class="badge" [class.success]="secrets.has('inverterPsk')" [class.warning]="!secrets.has('inverterPsk')"
+          ><app-icon [name]="secrets.has('inverterPsk') ? 'check' : 'key'" [size]="12" /> Clé de l'onduleur</span
+        >
+      </div>
+      @if (secrets.legacyVault()) {
+        <div class="callout warning small">
+          <app-icon name="key" [size]="16" />
+          <div>
+            Un ancien coffre chiffré par votre clé SSH contient encore vos clés. Saisissez une dernière fois la phrase
+            de passe de la clé SSH pour les reprendre dans le Trousseau ; le coffre est ensuite supprimé.
           </div>
-          <div class="row">
-            <button
-              type="button"
-              class="btn primary"
-              [disabled]="vaultBusy()"
-              (click)="createVault()"
-            >
-              <app-icon name="key" [size]="15" /> Créer le coffre
-            </button>
-          </div>
-        }
-        @case ('locked') {
-          <div class="key-status">
-            <span class="badge warning"><app-icon name="key" [size]="12" /> Verrouillé</span>
-            <span class="small muted"
-              >Clé SSH : <code>{{ vault.status()?.sshKeyPath }}</code></span
-            >
-          </div>
-          <div class="key-row">
-            <input
-              class="input"
-              type="password"
-              autocomplete="off"
-              placeholder="Phrase de passe de la clé SSH"
-              aria-label="Phrase de passe de la clé SSH"
-              [value]="vaultPass()"
-              (input)="vaultPass.set($any($event.target).value)"
-              (keydown.enter)="unlockVault()"
-            />
-            <button
-              type="button"
-              class="btn primary"
-              [disabled]="vaultBusy() || vaultPass() === ''"
-              (click)="unlockVault()"
-            >
-              <app-icon name="key" [size]="15" /> Déverrouiller
-            </button>
-          </div>
-        }
-        @case ('unlocked') {
-          <div class="key-status">
-            <span class="badge success"><app-icon name="check" [size]="12" /> Déverrouillé</span>
-            <span class="small muted"
-              >Clé SSH : <code>{{ vault.status()?.sshKeyPath }}</code></span
-            >
-          </div>
-          <div class="row">
-            <button type="button" class="btn" (click)="lockVault()">
-              <app-icon name="key" [size]="15" /> Verrouiller
-            </button>
-          </div>
-        }
-      }
-      @if (vaultError(); as e) {
-        <div class="callout danger small">
-          <app-icon name="alert" [size]="16" />
-          <div>{{ e }}</div>
         </div>
+        <div class="key-row">
+          <input
+            class="input"
+            type="password"
+            autocomplete="off"
+            placeholder="Phrase de passe de la clé SSH"
+            aria-label="Phrase de passe de la clé SSH"
+            [value]="vaultPass()"
+            (input)="vaultPass.set($any($event.target).value)"
+            (keydown.enter)="importVault()"
+          />
+          <button
+            type="button"
+            class="btn primary"
+            [disabled]="importBusy() || vaultPass() === ''"
+            (click)="importVault()"
+          >
+            <app-icon name="download" [size]="15" /> {{ importBusy() ? 'Import…' : 'Importer les clés' }}
+          </button>
+        </div>
+        @if (importError(); as e) {
+          <div class="callout danger small">
+            <app-icon name="alert" [size]="16" />
+            <div>{{ e }}</div>
+          </div>
+        }
       }
     }
   </div>
@@ -326,50 +275,37 @@
     } @else {
       <p class="muted small">
         Une clé API Anthropic (console.anthropic.com) permet à l'assistant d'analyser toutes vos
-        données et de lire les index sur la photo du compteur. Elle est rangée dans le coffre. Les
+        données et de lire les index sur la photo du compteur. Elle est rangée dans le Trousseau. Les
         appels sont facturés par Anthropic selon votre usage.
       </p>
-      @if (!vault.unlocked()) {
-        <div class="callout small">
-          <app-icon name="key" [size]="16" />
-          <div>
-            {{
-              vault.state() === 'absent'
-                ? 'Créez d’abord le coffre ci-dessus.'
-                : 'Déverrouillez le coffre pour utiliser ou modifier la clé.'
-            }}
-          </div>
-        </div>
-      } @else {
-        <div class="key-status">
-          @if (ai.hasKey()) {
-            <span class="badge success"><app-icon name="check" [size]="12" /> Clé enregistrée</span>
-          } @else {
-            <span class="badge warning"><app-icon name="key" [size]="12" /> Aucune clé</span>
-          }
-        </div>
-        <div class="key-row">
-          <input
-            class="input"
-            type="password"
-            autocomplete="off"
-            spellcheck="false"
-            placeholder="sk-ant-…"
-            aria-label="Clé API Anthropic"
-            [value]="keyDraft()"
-            (input)="keyDraft.set($any($event.target).value)"
-            (keydown.enter)="saveKey()"
-          />
-          <button
-            type="button"
-            class="btn primary"
-            [disabled]="keyBusy() || keyDraft().trim() === ''"
-            (click)="saveKey()"
-          >
-            <app-icon name="key" [size]="15" /> {{ ai.hasKey() ? 'Remplacer' : 'Enregistrer' }}
-          </button>
-        </div>
-      }
+      <div class="key-status">
+        @if (ai.hasKey()) {
+          <span class="badge success"><app-icon name="check" [size]="12" /> Clé enregistrée</span>
+        } @else {
+          <span class="badge warning"><app-icon name="key" [size]="12" /> Aucune clé</span>
+        }
+      </div>
+      <div class="key-row">
+        <input
+          class="input"
+          type="password"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="sk-ant-…"
+          aria-label="Clé API Anthropic"
+          [value]="keyDraft()"
+          (input)="keyDraft.set($any($event.target).value)"
+          (keydown.enter)="saveKey()"
+        />
+        <button
+          type="button"
+          class="btn primary"
+          [disabled]="keyBusy() || keyDraft().trim() === ''"
+          (click)="saveKey()"
+        >
+          <app-icon name="key" [size]="15" /> {{ ai.hasKey() ? 'Remplacer' : 'Enregistrer' }}
+        </button>
+      </div>
       <div class="form-grid">
         <div class="field">
           <label for="model">Modèle</label>
@@ -455,39 +391,36 @@
         </div>
         <div class="field">
           <label for="invpsk">Clé WPA2-PSK de la plaque</label>
-          @if (vault.unlocked()) {
-            <div class="key-row">
-              <input
-                id="invpsk"
-                class="input mono"
-                type="password"
-                autocomplete="off"
-                spellcheck="false"
-                [placeholder]="
-                  vault.has('inverterPsk')
-                    ? 'Clé enregistrée — saisir pour remplacer'
-                    : '16 caractères'
-                "
-                [value]="pskDraft()"
-                (input)="pskDraft.set($any($event.target).value)"
-                (keydown.enter)="savePsk()"
-              />
-              <button
-                type="button"
-                class="btn primary"
-                [disabled]="pskDraft().trim() === ''"
-                (click)="savePsk()"
-              >
-                Enregistrer
-              </button>
-            </div>
-            <span class="help"
-              >Rangée dans le coffre. Votre onduleur utilise cette clé pour la connexion «
-              Utilisateur ».</span
+          <div class="key-row">
+            <input
+              id="invpsk"
+              class="input mono"
+              type="password"
+              autocomplete="off"
+              spellcheck="false"
+              [placeholder]="
+                secrets.has('inverterPsk')
+                  ? 'Clé enregistrée — saisir pour remplacer'
+                  : '16 caractères'
+              "
+              [value]="pskDraft()"
+              (input)="pskDraft.set($any($event.target).value)"
+              (keydown.enter)="savePsk()"
+            />
+            <button
+              type="button"
+              class="btn primary"
+              [disabled]="pskDraft().trim() === ''"
+              (click)="savePsk()"
             >
-          } @else {
-            <span class="small muted">Déverrouillez ou créez le coffre pour saisir la clé.</span>
-          }
+              Enregistrer
+            </button>
+          </div>
+          <span class="help"
+            >Rangée dans le Trousseau. Votre onduleur utilise cette clé pour la connexion «
+            Utilisateur ».</span
+          >
+
         </div>
       </div>
       <div class="row">
