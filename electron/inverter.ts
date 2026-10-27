@@ -32,6 +32,8 @@ const TIMEOUT_MS = 15_000;
 const normalizeFingerprint = (f: string): string => f.replace(/:/g, '').toUpperCase();
 
 const DAY_S = 86_400;
+/** Après une session neuve sans valeurs (la nuit), on ne rouvre pas de session avant ce délai. */
+const EMPTY_RETRY_MS = 15 * 60 * 1000;
 /** Le journal quotidien est lu année par année, au plus loin 20 ans en arrière. */
 const HISTORY_MAX_YEARS = 20;
 
@@ -51,6 +53,8 @@ export class InverterClient {
   private sid: string | null = null;
   private queue: Promise<unknown> = Promise.resolve();
   private seenFingerprint: string | null = null;
+  /** Dernière fois qu'une session neuve a répondu sans aucune valeur (ms). */
+  private emptyFreshAt = 0;
 
   constructor(
     private readonly secret: () => string | null,
@@ -115,14 +119,29 @@ export class InverterClient {
       return fail("Clé de l'onduleur absente ou coffre verrouillé.");
     }
     try {
-      const res = await this.request(secret, (sid) =>
-        this.post(`/dyn/getValues.json?sid=${encodeURIComponent(sid)}`, {
-          destDev: [],
-          keys: Object.values(MEASUREMENT_KEYS),
-        }),
-      );
-      const m = parseMeasurements(res.json);
-      return { at, ...m, error: null, certFingerprint: this.seenFingerprint };
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const reused = this.sid !== null;
+        const res = await this.request(secret, (sid) =>
+          this.post(`/dyn/getValues.json?sid=${encodeURIComponent(sid)}`, {
+            destDev: [],
+            keys: Object.values(MEASUREMENT_KEYS),
+          }),
+        );
+        const m = parseMeasurements(res.json);
+        // L'index total ne disparaît jamais, même la nuit : une session ouverte avant la mise en veille nocturne de
+        // l'onduleur peut continuer à répondre sans aucune valeur. On la ferme et on relit dans une session neuve.
+        if (m.totalWh === null) {
+          if (reused && Date.now() - this.emptyFreshAt >= EMPTY_RETRY_MS) {
+            await this.logout();
+            continue;
+          }
+          if (!reused) {
+            this.emptyFreshAt = Date.now();
+          }
+        }
+        return { at, ...m, error: null, certFingerprint: this.seenFingerprint };
+      }
+      return fail("L'onduleur ne renvoie aucune mesure.");
     } catch (error) {
       this.sid = null;
       return fail(error instanceof Error ? error.message : String(error));

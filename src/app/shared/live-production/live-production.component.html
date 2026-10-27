@@ -34,12 +34,12 @@
           }}</span>
         </div>
         <div>
-          <span class="live-value">{{ (r.dayWh ?? 0) / 1000 | num: 1 }}</span>
+          <span class="live-value">{{ r.dayWh === null ? '—' : (r.dayWh / 1000 | num: 1) }}</span>
           <span class="live-unit">kWh</span>
           <span class="small faint">aujourd'hui</span>
         </div>
         <div>
-          <span class="live-value">{{ (r.totalWh ?? 0) / 1000 | num }}</span>
+          <span class="live-value">{{ r.totalWh === null ? '—' : (r.totalWh / 1000 | num) }}</span>
           <span class="live-unit">kWh</span>
           <span class="small faint">index total</span>
         </div>

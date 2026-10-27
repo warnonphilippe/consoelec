@@ -189,7 +189,15 @@ describe('client local de l’onduleur (serveur HTTPS simulé)', () => {
     await rm(dir, { recursive: true, force: true });
   });
 
-  function start(options: { expireOnce?: boolean } = {}) {
+  /** `empty(sid, n)` : la n-ième lecture (1, 2…) de cette session répond sans aucune valeur. */
+  function start(options: { expireOnce?: boolean; empty?: (sid: string, n: number) => boolean } = {}) {
+    const reads = new Map<string, number>();
+    const emptyRead = (path: string): boolean => {
+      const sid = /sid=([^&]+)/.exec(path)?.[1] ?? '';
+      const n = (reads.get(sid) ?? 0) + 1;
+      reads.set(sid, n);
+      return options.empty!(sid, n);
+    };
     const srp = fakeServer('usr', PSK);
     const log: string[] = [];
     let pendingA = '';
@@ -232,6 +240,19 @@ describe('client local de l’onduleur (serveur HTTPS simulé)', () => {
           if (!expired) {
             expired = true;
             res.end(JSON.stringify({ err: 401 }));
+          } else if (options.empty && emptyRead(path)) {
+            // L'onduleur répond, mais sans aucune valeur.
+            res.end(
+              JSON.stringify({
+                result: {
+                  '017A-xxxxx00D': {
+                    '6100_40263F00': { '1': [{ val: null }] },
+                    '6400_00260100': { '1': [{ val: null }] },
+                    '6400_00262200': { '1': [{ val: null }] },
+                  },
+                },
+              }),
+            );
           } else {
             res.end(JSON.stringify(values(1830)));
           }
@@ -275,6 +296,33 @@ describe('client local de l’onduleur (serveur HTTPS simulé)', () => {
     client.configure({ enabled: true, host: s.host, certFingerprint: fingerprint });
     expect((await client.read()).powerW).toBe(1830);
     expect(s.log.filter((p) => p === '/dyn/authYAPStart.json')).toHaveLength(2);
+    await client.close();
+    s.close();
+  });
+
+  it('rouvre une session qui ne renvoie plus aucune valeur (après la veille de nuit)', async () => {
+    // La première session répond le soir, puis plus rien le lendemain matin.
+    const s = await start({ empty: (sid, n) => sid === 'sid1' && n > 1 });
+    const client = new InverterClient(() => PSK, 'usr', s.port);
+    client.configure({ enabled: true, host: s.host, certFingerprint: fingerprint });
+    expect((await client.read()).totalWh).toBe(32070489);
+    const reading = await client.read();
+    expect(reading).toMatchObject({ powerW: 1830, totalWh: 32070489, error: null });
+    expect(s.log.filter((p) => p === '/dyn/logout.json')).toHaveLength(1);
+    expect(s.log.filter((p) => p === '/dyn/authYAPStart.json')).toHaveLength(2);
+    await client.close();
+    s.close();
+  });
+
+  it('la nuit, ne rouvre pas une session vide à chaque lecture', async () => {
+    const s = await start({ empty: () => true });
+    const client = new InverterClient(() => PSK, 'usr', s.port);
+    client.configure({ enabled: true, host: s.host, certFingerprint: fingerprint });
+    for (let i = 0; i < 3; i++) {
+      const reading = await client.read();
+      expect(reading).toMatchObject({ powerW: null, totalWh: null, error: null });
+    }
+    expect(s.log.filter((p) => p === '/dyn/authYAPStart.json')).toHaveLength(1);
     await client.close();
     s.close();
   });
