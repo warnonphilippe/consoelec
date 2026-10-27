@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { indexAxisRange } from './meters-charts';
+import { indexAxisRange, keepTooltipItem } from './meters-charts';
 
 describe('indexAxisRange', () => {
   const now = 20_000;
@@ -25,5 +25,16 @@ describe('indexAxisRange', () => {
   it('sans relevé dans la période, montre la période entière', () => {
     expect(indexAxisRange([], now - 183, 0, now)).toEqual({ min: now - 183, max: now });
     expect(indexAxisRange([], null, 0, now)).toEqual({ min: now - 30, max: now });
+  });
+});
+
+describe('keepTooltipItem', () => {
+  it('masque une prévision quand la mesure de la même série est déjà dans l’infobulle', () => {
+    const labels = ['Soutirage HP', 'Soutirage HP (prévision)', 'Injection HC (prévision)'];
+    expect(keepTooltipItem('Soutirage HP', labels)).toBe(true);
+    expect(keepTooltipItem('Soutirage HP (prévision)', labels)).toBe(false);
+    // Pas de mesure de cette série à cet endroit : la prévision reste.
+    expect(keepTooltipItem('Injection HC (prévision)', labels)).toBe(true);
+    expect(keepTooltipItem(undefined, labels)).toBe(true);
   });
 });

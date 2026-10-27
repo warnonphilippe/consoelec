@@ -22,6 +22,23 @@ interface XY {
   y: number;
 }
 
+/** Suffixe des courbes de prévision (« Soutirage HP (prévision) »). */
+const FORECAST_SUFFIX = ' (prévision)';
+
+/**
+ * Faut-il garder une ligne dans l'infobulle ? Une prévision est masquée quand la valeur mesurée de la même série est
+ * déjà dans l'infobulle : à la date du dernier relevé, la prévision démarre sur le même point et doublerait la liste.
+ */
+export function keepTooltipItem(
+  label: string | undefined,
+  labels: readonly (string | undefined)[],
+): boolean {
+  if (!label?.endsWith(FORECAST_SUFFIX)) {
+    return true;
+  }
+  return !labels.includes(label.slice(0, -FORECAST_SUFFIX.length));
+}
+
 /**
  * Bornes de l'axe du temps : au plus tôt le début de la période choisie, sinon un peu avant le premier relevé
  * affiché, pour qu'il ne soit pas collé au bord ; à droite, la fin de la prévision ou aujourd'hui.
@@ -121,6 +138,11 @@ export function indexChart(
         plugins: {
           legend: chartLegend(c),
           tooltip: {
+            filter: (item, _index, items) =>
+              keepTooltipItem(
+                item.dataset.label,
+                items.map((i) => i.dataset.label),
+              ),
             callbacks: {
               label: (item) =>
                 `${item.dataset.label}: ${fmt.kwh((item.raw as XY).y, 1)}`,
@@ -266,6 +288,11 @@ export function balanceChart(
         plugins: {
           legend: chartLegend(c),
           tooltip: {
+            filter: (item, _index, items) =>
+              keepTooltipItem(
+                item.dataset.label,
+                items.map((i) => i.dataset.label),
+              ),
             callbacks: {
               label: (item) => {
                 const raw = item.raw as BalanceDatum;
