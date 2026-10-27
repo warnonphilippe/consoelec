@@ -191,7 +191,7 @@ Le **graphique des soldes**, sous les index cumulés, suit ces deux soldes depui
 
 Les **courbes limites** (gros points, une par période) sont un **plafond** à ne pas dépasser pour revenir à zéro en fin d'année de facturation, si la suite de l'année suit la prévision : consommation habituelle de la maison (calée sur vos factures annuelles) et production attendue des panneaux.
 
-- **En hiver**, la limite est une **droite** qui part de zéro à la facturation et monte jusqu'au **plafond**, au point où la prévision commence à redescendre (fin d'hiver, souvent en mars ou en avril) : c'est le total à ne pas dépasser pendant l'hiver, réparti régulièrement, pour profiter ensuite d'une descente suffisante.
+- **En hiver**, la limite est une **droite horizontale** au niveau du **plafond**, de la facturation jusqu'au point où la prévision commence à redescendre (fin d'hiver, souvent en mars ou en avril) : c'est le total à ne pas dépasser pendant l'hiver pour profiter ensuite d'une descente suffisante.
 - **Après le plafond**, elle suit ce que le printemps et l'été peuvent encore effacer, jusqu'à zéro à la facturation suivante.
 
 Rester sous la limite, c'est finir l'année à zéro ou en surplus, sans rien à payer dans cette période ; finir en dessous n'est pas un problème. Sur le graphique, les limites sont étiquetées « Limite HP (max.) » / « Limite HC (max.) » à leur plafond, la prévision en tirets « Prévision HP » / « Prévision HC ». Prévision et limites ne s'affichent qu'à partir d'aujourd'hui. HP et HC ne se compensent pas entre elles : un surplus en heures creuses n'efface pas un dépassement en heures pleines.

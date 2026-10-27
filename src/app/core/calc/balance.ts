@@ -118,7 +118,7 @@ export interface BalanceSeries {
   /**
    * Courbes limites : le solde le plus haut qu'on peut avoir à chaque instant et quand même finir l'année de
    * facturation à zéro, si la suite de l'année suit le profil de la prévision (injection attendue − soutirage attendu
-   * d'ici la fin de l'année). Pendant l'hiver, une droite de zéro (facturation) au plafond (bascule de la prévision),
+   * d'ici la fin de l'année). Pendant l'hiver, une droite horizontale au plafond jusqu'à la bascule de la prévision,
    * puis la limite exacte jusqu'à zéro en fin d'année (voir `winterBudget`) ; `null` pour une période sans plafond
    * au-dessus de zéro cette année-là.
    */
@@ -362,8 +362,8 @@ function limitCurve(forecast: Forecast, days: readonly number[], end: number): B
  * Limite d'une période sur une année, à partir de la limite exacte (ce que la suite de l'année peut encore effacer) :
  * - le **plafond** est son point le plus haut, le jour où la prévision bascule (fin d'hiver), car avant elle monte
  *   et après elle descend ;
- * - pendant l'hiver, la limite est une droite qui part de zéro à la facturation et monte jusqu'au plafond : le
- *   total à ne pas dépasser, réparti sur l'hiver, pour que le printemps et l'été fassent redescendre le solde à zéro ;
+ * - pendant l'hiver, la limite est une droite horizontale au plafond, de la facturation jusqu'à la bascule : le total
+ *   à ne pas dépasser pendant l'hiver pour que le printemps et l'été fassent redescendre le solde à zéro ;
  * - après le plafond, elle suit la limite exacte jusqu'à zéro en fin d'année.
  * Sans plafond au-dessus de zéro (l'été prévu ne fait pas redescendre le solde), pas de limite : valeurs `null`.
  */
@@ -375,10 +375,7 @@ export function winterBudget(
   if (top[key] <= 0) {
     return { values: exact.map(() => null), ceiling: null, ceilingDay: null };
   }
-  const from = exact[0]!.day;
-  const values = exact.map((p) =>
-    p.day >= top.day || top.day <= from ? p[key] : (top[key] * (p.day - from)) / (top.day - from),
-  );
+  const values = exact.map((p) => (p.day >= top.day ? p[key] : top[key]));
   return { values, ceiling: top[key], ceilingDay: top.day };
 }
 

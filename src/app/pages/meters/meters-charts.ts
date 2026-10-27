@@ -198,7 +198,7 @@ interface CurveLabel {
   /** Libellé du jeu de données à annoter. */
   readonly dataset: string;
   readonly text: string;
-  /** `top` : au point le plus haut de la courbe visible ; `end` : à son dernier point visible. */
+  /** `top` : au point le plus haut de la courbe visible (le dernier, à égalité) ; `end` : à son dernier point visible. */
   readonly at: 'top' | 'end';
   readonly color: string;
 }
@@ -236,7 +236,8 @@ function curveLabels(labels: readonly CurveLabel[], background: string): Plugin 
           continue;
         }
         const anchor =
-          label.at === 'top' ? points.reduce((a, b) => (b.y < a.y ? b : a)) : points[points.length - 1]!;
+          // À égalité (palier d'hiver), le dernier point le plus haut : la bascule de la courbe.
+          label.at === 'top' ? points.reduce((a, b) => (b.y <= a.y + 0.5 ? b : a)) : points[points.length - 1]!;
         const w = ctx.measureText(label.text).width + 10;
         const h = 17;
         const rect = {

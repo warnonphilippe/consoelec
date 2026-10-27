@@ -149,17 +149,13 @@ describe('balanceSeries', () => {
       expect(ceiling!.hcDay).toBeLessThan(toDayNumber('2027-05-15'));
     });
 
-    it('monte en droite de zéro au plafond pendant l’hiver, puis suit ce que l’été peut effacer', () => {
+    it('reste au plafond pendant l’hiver, puis suit ce que l’été peut effacer', () => {
       const next = s.years[1]!;
       const year = s.limit.filter((p) => p.day >= next.start);
-      const first = year.find((p) => p.kind === 'yearStart')!;
-      expect(first.hc).toBe(0);
       const day = next.ceiling!.hcDay!;
-      const winter = year.filter((p) => p.day > next.start && p.day < day);
+      const winter = year.filter((p) => p.day >= next.start && p.day < day && p.kind !== 'yearEnd');
       expect(winter.length).toBeGreaterThan(5);
-      for (const p of winter) {
-        expect(p.hc).toBeCloseTo((next.ceiling!.hc! * (p.day - next.start)) / (day - next.start), 6);
-      }
+      expect(winter.every((p) => p.hc === next.ceiling!.hc)).toBe(true);
       // Après le plafond, la limite ne remonte plus.
       const after = year.filter((p) => p.day >= day && p.kind !== 'yearEnd').map((p) => p.hc!);
       expect(after.every((v, i) => i === 0 || v <= after[i - 1]! + 1e-9)).toBe(true);
@@ -281,9 +277,9 @@ describe('winterBudget', () => {
     { day: 300, hp: 0, hc: 0 },
   ];
 
-  it('trace une droite de zéro au plafond, puis la limite exacte', () => {
-    expect(winterBudget(exact, 'hp')).toEqual({ values: [0, 100, 200, 50, 0], ceiling: 200, ceilingDay: 100 });
-    expect(winterBudget(exact, 'hc').values).toEqual([0, 450, 900, 300, 0]);
+  it('trace une droite horizontale au plafond jusqu’à la bascule, puis la limite exacte', () => {
+    expect(winterBudget(exact, 'hp')).toEqual({ values: [200, 200, 200, 50, 0], ceiling: 200, ceilingDay: 100 });
+    expect(winterBudget(exact, 'hc').values).toEqual([900, 900, 900, 300, 0]);
   });
 
   it('ne donne pas de limite sans plafond au-dessus de zéro', () => {
