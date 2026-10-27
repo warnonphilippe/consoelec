@@ -46,3 +46,39 @@
 .legend-note {
   margin: 8px 0 0;
 }
+
+.schedule-now {
+  font-size: 22px;
+}
+
+.hour-strip {
+  display: grid;
+  grid-template-columns: repeat(24, minmax(0, 1fr));
+  gap: 2px;
+  margin-top: 6px;
+}
+
+.hour-cell {
+  height: 14px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.hour-cell.off {
+  background: var(--violet-soft);
+  border-color: var(--violet);
+}
+
+.hour-cell.now {
+  outline: 2px solid var(--text);
+  outline-offset: 1px;
+}
+
+.hour-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}

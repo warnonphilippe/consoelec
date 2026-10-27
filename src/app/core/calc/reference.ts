@@ -77,6 +77,32 @@ export function isOffPeakHour(hour: number, weekend: boolean, settings: Settings
   return (weekend && settings.offPeakWeekends) || settings.offPeakHours.includes(hour);
 }
 
+/** Plages horaires d'un ensemble d'heures (0-23), en tenant compte du passage par minuit : « 22 h – 7 h ». */
+export function hourRanges(hours: readonly number[]): string[] {
+  const set = new Set(hours);
+  if (set.size === 0) {
+    return [];
+  }
+  if (set.size === 24) {
+    return ['toute la journée'];
+  }
+  const ranges: string[] = [];
+  // On part d'une heure hors de l'ensemble pour ne jamais couper une plage qui passe par minuit.
+  const start = [...Array(24).keys()].find((h) => !set.has(h))!;
+  let from: number | null = null;
+  for (let i = 1; i <= 24; i++) {
+    const h = (start + i) % 24;
+    if (set.has(h) && from === null) {
+      from = h;
+    }
+    if (!set.has(h) && from !== null) {
+      ranges.push(`${from} h – ${h} h`);
+      from = null;
+    }
+  }
+  return ranges;
+}
+
 /** Le radiateur d'appoint est-il utilisable ce mois-là (0-11) ? */
 export function heaterSeasonIncludes(month: number, startMonth: number, endMonth: number): boolean {
   const m = month + 1;

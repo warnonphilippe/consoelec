@@ -116,13 +116,34 @@
           <a routerLink="/reglages">modifier</a>
         </span>
       </div>
+      @let sch = schedule();
+      <div class="card kpi">
+        <span class="kpi-label"><app-icon name="clock" [size]="15" /> Horaire heures pleines / creuses</span>
+        <span class="kpi-value schedule-now" [class.tone-success]="sch.current" [class.tone-warning]="!sch.current"
+          >{{ sch.current ? 'Heures creuses' : 'Heures pleines' }}</span
+        >
+        <span class="kpi-sub">
+          maintenant{{ sch.until !== null ? ", jusqu'à " + sch.until + ' h' : '' }}
+        </span>
+        <div class="hour-strip" role="img" [attr.aria-label]="'Heures creuses : ' + sch.off.join(', ')">
+          @for (cell of sch.hours; track cell.h) {
+            <span class="hour-cell" [class.off]="cell.off" [class.now]="cell.h === sch.hour"></span>
+          }
+        </div>
+        <div class="hour-scale"><span>0 h</span><span>6 h</span><span>12 h</span><span>18 h</span><span>24 h</span></div>
+        <span class="kpi-sub">
+          <strong>HC</strong> {{ sch.off.join(', ') }}<br />
+          <strong>HP</strong> {{ sch.peak.join(', ') }}<br />
+          {{ sch.weekends ? 'en semaine ; week-ends entiers en heures creuses' : 'tous les jours, week-ends compris' }} ·
+          <a routerLink="/reglages">modifier</a>
+        </span>
+      </div>
     </div>
     <p class="small faint legend-note">
       Le fournisseur compense soutirage et injection séparément en heures pleines et en heures creuses, sur l'année de
       facturation ; seul un solde positif se paie. Estimation au prix moyen du kWh : la facture réelle détaille
-      énergie, réseau et taxes (le réseau se paie sur tout le soutirage).
+      énergie, réseau et taxes (le réseau se paie sur tout le soutirage). L'évolution des soldes au fil de l'année est sur la page
+      <a routerLink="/compteurs">Compteurs</a>.
     </p>
-
-    <app-balance-card [summary]="false" />
   }
 </div>

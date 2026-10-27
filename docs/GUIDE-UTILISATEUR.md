@@ -143,7 +143,6 @@ Le tableau de bord est centré sur ce que vous paierez au fournisseur, pour l'**
 - la **production en direct** de l'onduleur ;
 - le **solde heures pleines** (soutiré 1.8.1 − injecté 2.8.1) et le **solde heures creuses** (soutiré 1.8.2 − injecté 2.8.2) : la valeur à ce jour, au dernier relevé, et l'estimation en fin d'année avec son coût. Un solde négatif est un surplus non remboursé ;
 - le **coût estimé de l'année** : les soldes positifs multipliés par les **prix moyens du kWh** en heures pleines et en heures creuses (**Réglages → Prix moyen du kWh**, tout compris, TVA incluse ; à recopier de votre contrat) ;
-- le **graphique des soldes**, comme sur la page Compteurs.
 
 La barre latérale affiche en permanence la **facture estimée** de l'année. C'est une estimation au prix moyen : la facture réelle détaille énergie, réseau et taxes, et les frais de réseau se paient sur tout le soutirage. L'autoconsommation est sur la page Production.
 

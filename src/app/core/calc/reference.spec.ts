@@ -8,7 +8,7 @@ import {
   type Settings,
 } from '../models/app-data.model';
 import { evAnnualKwh, evDelta } from './ev';
-import { loadShape, referenceProfile, seriesWeights } from './reference';
+import { hourRanges, loadShape, referenceProfile, seriesWeights } from './reference';
 import { sunShape } from './solar';
 import { toDayNumber } from './time';
 
@@ -366,5 +366,17 @@ describe('poids de répartition entre deux relevés', () => {
     const jun = toDayNumber('2025-06-15');
     expect(weights.exportPeak(jun)).toBeGreaterThan(weights.exportPeak(jan) * 5);
     expect(weights.importPeak(jan)).toBeGreaterThan(weights.importPeak(jun));
+  });
+});
+
+describe('hourRanges', () => {
+  it('regroupe les heures en plages, y compris celle qui passe par minuit', () => {
+    expect(hourRanges([0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 15, 16, 22, 23])).toEqual([
+      '11 h – 17 h',
+      '22 h – 7 h',
+    ]);
+    expect(hourRanges([7, 8, 9, 10, 17, 18, 19, 20, 21])).toEqual(['7 h – 11 h', '17 h – 22 h']);
+    expect(hourRanges([])).toEqual([]);
+    expect(hourRanges(Array.from({ length: 24 }, (_, h) => h))).toEqual(['toute la journée']);
   });
 });

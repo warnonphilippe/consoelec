@@ -1,10 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { hourRanges, isOffPeakHour } from '../../core/calc/reference';
+import { dayNumberToDate } from '../../core/calc/time';
 import { pvKwp } from '../../core/models/app-data.model';
 import { DataStore } from '../../core/services/data-store.service';
 import { InverterService } from '../../core/services/inverter.service';
 import { ToastService } from '../../core/services/toast.service';
-import { BalanceCardComponent } from '../../shared/balance-card/balance-card.component';
 import { FORMAT_PIPES } from '../../shared/format';
 import { IconComponent, type IconName } from '../../shared/icon.component';
 import { LiveProductionComponent } from '../../shared/live-production/live-production.component';
@@ -21,7 +22,7 @@ interface Period {
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [RouterLink, IconComponent, LiveProductionComponent, BalanceCardComponent, ...FORMAT_PIPES],
+  imports: [RouterLink, IconComponent, LiveProductionComponent, ...FORMAT_PIPES],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './dashboard.page.html',
   styleUrl: './dashboard.page.css',
@@ -55,6 +56,34 @@ export default class DashboardPage {
       exportKey: 'exportOff',
     },
   ];
+
+  /** Horaire des heures pleines / creuses (réglages) et période en cours. */
+  protected readonly schedule = computed(() => {
+    const s = this.store.settings();
+    const date = dayNumberToDate(this.store.now());
+    const weekend = date.getDay() === 0 || date.getDay() === 6;
+    const hour = date.getHours();
+    const off = (h: number) => isOffPeakHour(h, weekend, s);
+    const current = off(hour);
+    let until: number | null = null;
+    for (let i = 1; i < 24; i++) {
+      if (off((hour + i) % 24) !== current) {
+        until = (hour + i) % 24;
+        break;
+      }
+    }
+    const weekday = Array.from({ length: 24 }, (_, h) => h).filter((h) => s.offPeakHours.includes(h));
+    return {
+      current,
+      until,
+      hour,
+      weekend,
+      hours: Array.from({ length: 24 }, (_, h) => ({ h, off: off(h) })),
+      off: hourRanges(weekday),
+      peak: hourRanges(Array.from({ length: 24 }, (_, h) => h).filter((h) => !weekday.includes(h))),
+      weekends: s.offPeakWeekends,
+    };
+  });
 
   protected loadDemo(): void {
     this.store.loadDemo();
