@@ -64,15 +64,26 @@ enum Parsing {
   }
 
   /// Décode `/dyn/getValues.json` : `result → appareil → clé → { "1": [ { "val": … } ] }`.
+  /// La réponse peut lister plusieurs appareils : chaque mesure est prise dans le premier qui en donne une valeur
+  /// (l'ordre d'un dictionnaire Swift n'est pas fixe, on ne peut pas se fier au « premier » appareil).
   static func measurements(_ json: [String: Any]?) throws -> Measurements {
-    guard let result = json?["result"] as? [String: Any], let device = result.values.first as? [String: Any] else {
+    guard let result = json?["result"] as? [String: Any] else {
+      throw InverterError.unexpected("mesures")
+    }
+    let devices = result.values.compactMap { $0 as? [String: Any] }
+    guard !devices.isEmpty else {
       throw InverterError.unexpected("mesures")
     }
     func read(_ key: String) -> Double? {
-      guard let entry = device[key] as? [String: Any], let first = entry.values.first as? [[String: Any]] else {
-        return nil
+      for device in devices {
+        guard let entry = device[key] as? [String: Any] else { continue }
+        for case let values as [[String: Any]] in entry.values {
+          if let value = (values.first?["val"] as? NSNumber)?.doubleValue {
+            return value
+          }
+        }
       }
-      return (first.first?["val"] as? NSNumber)?.doubleValue
+      return nil
     }
     return Measurements(powerW: read(MeasurementKey.powerW), dayWh: read(MeasurementKey.dayWh), totalWh: read(MeasurementKey.totalWh))
   }

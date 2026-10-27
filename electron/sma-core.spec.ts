@@ -104,6 +104,19 @@ describe('SRP de l’onduleur', () => {
     expect(() => parseMeasurements({ result: {} })).toThrow();
   });
 
+  it('prend chaque mesure dans l’appareil qui la donne quand la réponse en liste plusieurs', () => {
+    const json = {
+      result: {
+        '0199-xxxxx385': {
+          '6100_40263F00': { '1': [{ val: null }] },
+          '6400_00260100': { '1': [{ val: null }] },
+        },
+        '017A-xxxxx00D': values(762).result['017A-xxxxx00D'],
+      },
+    };
+    expect(parseMeasurements(json)).toEqual({ powerW: 762, totalWh: 32070489, dayWh: 15727 });
+  });
+
   it('traduit les erreurs de l’onduleur', () => {
     expect(inverterError(200, { result: { res: -28607 } })).toContain('WPA2-PSK');
     expect(inverterError(403, null)).toContain('403');

@@ -166,17 +166,27 @@ function numberOrNull(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-/** Extrait les mesures de la réponse de `/dyn/getValues.json` (valeurs `null` la nuit). */
+/**
+ * Extrait les mesures de la réponse de `/dyn/getValues.json` (valeurs `null` la nuit). La réponse peut lister
+ * plusieurs appareils : chaque mesure est prise dans le premier qui en donne une valeur.
+ */
 export function parseMeasurements(json: unknown): Measurements {
   const result = (json as { result?: Record<string, Record<string, unknown>> } | null)?.result;
-  const device = result ? Object.values(result)[0] : undefined;
-  if (!device) {
+  const devices = result ? Object.values(result).filter((d) => d !== null && typeof d === 'object') : [];
+  if (devices.length === 0) {
     throw new Error("Réponse de mesures inattendue de l'onduleur.");
   }
   const read = (key: string): number | null => {
-    const entry = device[key] as Record<string, { val?: unknown }[]> | undefined;
-    const first = entry ? Object.values(entry)[0] : undefined;
-    return Array.isArray(first) ? numberOrNull(first[0]?.val) : null;
+    for (const device of devices) {
+      const entry = device[key] as Record<string, { val?: unknown }[]> | undefined;
+      for (const values of entry ? Object.values(entry) : []) {
+        const value = Array.isArray(values) ? numberOrNull(values[0]?.val) : null;
+        if (value !== null) {
+          return value;
+        }
+      }
+    }
+    return null;
   };
   return {
     powerW: read(MEASUREMENT_KEYS.powerW),

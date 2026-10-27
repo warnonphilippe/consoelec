@@ -432,6 +432,12 @@ function bootstrap(): void {
     }
     const reading = await inverter.read();
     mainWindow?.webContents.send(IPC.inverterReading, reading);
+    // Diagnostic : réponse brute de l'onduleur quand elle ne contient aucune mesure (aucun secret dedans).
+    if (reading.error === null && reading.totalWh === null && inverter.lastEmptyResponse !== null) {
+      const raw = { at: new Date(reading.at).toISOString(), response: inverter.lastEmptyResponse };
+      inverter.lastEmptyResponse = null;
+      void writeFile(join(userData, 'inverter-debug.json'), JSON.stringify(raw, null, 2)).catch(() => undefined);
+    }
   };
   const pollInverter = (): void => {
     if (pollTimer !== null) {

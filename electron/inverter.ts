@@ -53,6 +53,8 @@ export class InverterClient {
   private sid: string | null = null;
   private queue: Promise<unknown> = Promise.resolve();
   private seenFingerprint: string | null = null;
+  /** Dernière réponse de mesures sans aucune valeur (diagnostic), ou `null`. */
+  lastEmptyResponse: unknown = null;
   /** Dernière fois qu'une session neuve a répondu sans aucune valeur (ms). */
   private emptyFreshAt = 0;
 
@@ -128,6 +130,9 @@ export class InverterClient {
           }),
         );
         const m = parseMeasurements(res.json);
+        if (m.totalWh === null) {
+          this.lastEmptyResponse = res.json;
+        }
         // L'index total ne disparaît jamais, même la nuit : une session ouverte avant la mise en veille nocturne de
         // l'onduleur peut continuer à répondre sans aucune valeur. On la ferme et on relit dans une session neuve.
         if (m.totalWh === null) {

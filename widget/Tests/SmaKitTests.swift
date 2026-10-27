@@ -1,4 +1,4 @@
-import SmaKit
+@testable import SmaKit
 import XCTest
 
 final class SmaKitTests: XCTestCase {
@@ -28,6 +28,23 @@ final class SmaKitTests: XCTestCase {
     curve.add(powerW: 100, at: day1.addingTimeInterval(24 * 3600), calendar: calendar)
     XCTAssertEqual(curve.points.count, 1)
     XCTAssertEqual(curve.day, "2026-10-26")
+  }
+
+  func testMeasurementsAcrossSeveralDevices() throws {
+    let json: [String: Any] = [
+      "result": [
+        "0199-xxxxx385": ["6100_40263F00": ["1": [["val": NSNull()]]], "6400_00260100": ["1": [["val": NSNull()]]]],
+        "017A-xxxxx00D": [
+          "6100_40263F00": ["1": [["val": 762]]],
+          "6400_00260100": ["1": [["val": 32_081_733]]],
+          "6400_00262200": ["1": [["val": 457]]],
+        ],
+      ],
+    ]
+    let m = try Parsing.measurements(json)
+    XCTAssertEqual(m.powerW, 762)
+    XCTAssertEqual(m.totalWh, 32_081_733)
+    XCTAssertEqual(m.dayWh, 457)
   }
 
   func testFingerprintFormat() {
