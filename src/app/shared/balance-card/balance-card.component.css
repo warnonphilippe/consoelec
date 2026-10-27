@@ -35,3 +35,22 @@
 .legend-note {
   margin: 10px 0 0;
 }
+
+.limits {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  margin: 8px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.limits dt {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.limits dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}

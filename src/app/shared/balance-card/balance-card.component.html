@@ -36,12 +36,17 @@
     <a routerLink="/reglages">Réglages</a>). Au-dessus de zéro : à payer ; en dessous : surplus. À chaque ligne
     « Facturation », le gros point est le solde facturé de l'année qui se termine ; la courbe repart ensuite de
     zéro, car l'année suivante se calcule à partir des nouveaux index (le compteur, lui, n'est pas remis à zéro).
+    Les <strong>courbes limites</strong> (pointillés fins) donnent le solde à ne pas dépasser pour revenir à zéro en
+    fin d'année, si la suite de l'année suit la prévision (consommation habituelle de la maison et production
+    attendue). Elles montent pendant l'hiver jusqu'à un plafond, puis le surplus du printemps et de l'été les ramène
+    à zéro. HP et HC ne se compensent pas entre elles : chaque période a sa limite.
   </p>
   @if (store.billing().history.length > 0) {
-    <app-chart [build]="balanceChart()" [height]="300" />
+    <app-chart [build]="balanceChart()" [height]="360" />
     @if (summary() && store.billing().years.length > 0) {
       <div class="balance-years">
-        @for (y of store.billing().years; track y.start) {
+        @for (p of plans(); track p.year.start) {
+          @let y = p.year;
           <div class="balance-year">
             <span class="kpi-label"
               >Année du {{ y.settledFrom ?? y.start | day }} au {{ lastDayOf(y.end) | day }}{{ y.forecast ? ' · prévision' : '' }}</span
@@ -63,6 +68,49 @@
                 <br />relevés depuis le {{ y.coveredFrom | day }} seulement
               }
             </span>
+            @if (y.ceiling; as c) {
+              <dl class="limits small">
+                <dt>Plafond</dt>
+                <dd>
+                  HP
+                  @if (c.hp > 0) {
+                    <strong>{{ c.hp | kwh }}</strong> vers le {{ c.hpDay | day }}
+                  } @else {
+                    <strong>aucun</strong> (même une année moyenne finit à payer)
+                  }
+                  <br />HC
+                  @if (c.hc > 0) {
+                    <strong>{{ c.hc | kwh }}</strong> vers le {{ c.hcDay | day }}
+                  } @else {
+                    <strong>aucun</strong> (même une année moyenne finit à payer)
+                  }
+                </dd>
+                @if (y.margin; as m) {
+                  <dt>Marge{{ m.day > y.start ? ' au ' + (m.day | day) : '' }}</dt>
+                  <dd>
+                    <span [class.tone-success]="m.hp >= 0" [class.tone-warning]="m.hp < 0">HP {{ m.hp | skwh }}</span>
+                    ·
+                    <span [class.tone-success]="m.hc >= 0" [class.tone-warning]="m.hc < 0">HC {{ m.hc | skwh }}</span>
+                  </dd>
+                }
+                @if (p.heater; as h) {
+                  <dt>Radiateur {{ heaterKw() | num: 1 }} kW</dt>
+                  <dd>
+                    @for (period of [{ name: 'HC', a: h.hc }, { name: 'HP', a: h.hp }]; track period.name) {
+                      {{ period.name }} :
+                      @if (period.a.hours >= 1) {
+                        <strong>{{ period.a.hours | num }} h</strong> d'ici le {{ lastDayOf(y.end) | day }}, soit
+                        <strong>~{{ period.a.hoursPerWeek | num: 1 }} h par semaine</strong> jusqu'au
+                        {{ lastDayOf(period.a.until) | day }}
+                      } @else {
+                        pas de marge
+                      }
+                      <br />
+                    }
+                  </dd>
+                }
+              </dl>
+            }
           </div>
         }
       </div>
@@ -71,6 +119,10 @@
       Régime de compensation wallon (installations mises en service avant 2024, jusqu'au 31 décembre 2030) : un
       solde positif est facturé au prix de l'énergie, un solde négatif en fin d'année n'est pas remboursé. Les frais
       de réseau et les taxes se calculent, eux, sur tout le soutirage. Montants en kWh, hors prix.
+      La marge et les heures de radiateur s'ajoutent à l'usage habituel du radiateur, déjà compris dans la
+      consommation des factures. Mieux vaut le faire tourner en heures creuses (11 h-17 h et 22 h-7 h) : c'est là que
+      le surplus d'été est le plus grand. Puissance et saison de chauffe du radiateur :
+      <a routerLink="/maison">Maison</a>.
     </p>
   } @else {
     <p class="small muted">Encodez au moins deux relevés pour calculer les soldes.</p>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { indexAxisRange, keepTooltipItem } from './meters-charts';
+import { billingHorizon, indexAxisRange, keepTooltipItem } from './meters-charts';
 
 describe('indexAxisRange', () => {
   const now = 20_000;
@@ -36,5 +36,14 @@ describe('keepTooltipItem', () => {
     // Pas de mesure de cette série à cet endroit : la prévision reste.
     expect(keepTooltipItem('Injection HC (prévision)', labels)).toBe(true);
     expect(keepTooltipItem(undefined, labels)).toBe(true);
+  });
+});
+
+describe('billingHorizon', () => {
+  it('va jusqu’à une facturation qui tombe juste après la période choisie', () => {
+    const now = 20_000;
+    expect(billingHorizon([now + 5, now + 370], now, 365)).toBe(372);
+    expect(billingHorizon([now + 5, now + 400], now, 365)).toBe(365);
+    expect(billingHorizon([now + 5], now, 0)).toBe(0);
   });
 });

@@ -1,7 +1,7 @@
 import { totalsBetween, type ConsumptionAnalysis } from './consumption';
-import type { Forecast, ForecastPoint, IndexValues } from './forecast';
+import { expectedBetween, type Forecast, type ForecastPoint, type IndexValues } from './forecast';
 import type { SeriesWeights } from './reference';
-import { toDayNumber, yearMonthOf } from './time';
+import { MS_PER_DAY, toDayNumber, yearMonthOf } from './time';
 
 /**
  * Soldes de facturation d'un compteur intelligent wallon en régime de compensation : sur l'année de facturation, le
@@ -38,6 +38,28 @@ export interface BillingYear {
   readonly settledFrom: number | null;
   /** Mesuré du début de l'année au dernier relevé (s'il tombe dans l'année) : soutirages, injections et soldes. */
   readonly toDate: YearToDate | null;
+  /** Plus haut point de chaque courbe limite sur l'année, et sa date ; `null` sans prévision. */
+  readonly ceiling: BalanceCeiling | null;
+  /**
+   * Marge avant de dépasser la limite, au dernier relevé (ou au début de l'année si elle est encore à venir) :
+   * ce qu'on peut encore consommer en plus de l'attendu sans finir l'année au-dessus de zéro. `null` sans prévision
+   * ou pour une année terminée.
+   */
+  readonly margin: BalanceMargin | null;
+}
+
+export interface BalanceCeiling {
+  readonly hp: number;
+  readonly hpDay: number;
+  readonly hc: number;
+  readonly hcDay: number;
+}
+
+export interface BalanceMargin {
+  /** Jour à partir duquel la marge se compte. */
+  readonly day: number;
+  readonly hp: number;
+  readonly hc: number;
 }
 
 export interface YearToDate {
@@ -82,6 +104,12 @@ export function billingCost(hp: number, hc: number, prices: BillingPrices): Bill
 export interface BalanceSeries {
   readonly history: BalancePoint[];
   readonly forecast: BalancePoint[];
+  /**
+   * Courbes limites : le solde le plus haut qu'on peut avoir à chaque instant et quand même finir l'année de
+   * facturation à zéro, si la suite de l'année suit le profil de la prévision (injection attendue − soutirage attendu
+   * d'ici la fin de l'année). Elles valent zéro à la fin de chaque année.
+   */
+  readonly limit: BalancePoint[];
   /** Année de facturation en cours et suivante. */
   readonly years: BillingYear[];
 }
@@ -150,7 +178,7 @@ export function balanceSeries(
 ): BalanceSeries {
   const levels = consumption.levels;
   if (levels.length < 2) {
-    return { history: [], forecast: [], years: [] };
+    return { history: [], forecast: [], limit: [], years: [] };
   }
   const first = levels[0]!.day;
   const last = levels[levels.length - 1]!.day;
@@ -216,8 +244,9 @@ export function balanceSeries(
     }
   }
 
-  // Année en cours et suivante : soldes à leur fin.
+  // Année en cours et suivante : soldes à leur fin, et courbe limite de chacune.
   const years: BillingYear[] = [];
+  const limit: BalancePoint[] = [];
   let start = billingYearStart(now, billingStart);
   for (let i = 0; i < 2; i++) {
     const end = nextBillingStart(start, billingStart);
@@ -229,6 +258,21 @@ export function balanceSeries(
     const value = usesForecast ? project(end - 1e-6) : endOfYear(from, end);
     const toDateDay = Math.min(last, end);
     const measuredYear = toDateDay > from ? totalsBetween(consumption, from, toDateDay, weights).values : null;
+    const yearLimit = forecast ? limitCurve(forecast, limitDays(from, end, last, history), end) : [];
+    let ceiling: BalanceCeiling | null = null;
+    let margin: BalanceMargin | null = null;
+    if (yearLimit.length > 0) {
+      const top = (key: 'hp' | 'hc') => yearLimit.reduce((a, b) => (b[key] > a[key] ? b : a));
+      ceiling = { hp: top('hp').hp, hpDay: top('hp').day, hc: top('hc').hc, hcDay: top('hc').day };
+      if (last < end) {
+        const day = Math.max(from, last);
+        const allowed = remainingNet(forecast!, day, end);
+        const hp = measuredYear && last > from ? measuredYear.importPeak - measuredYear.exportPeak : 0;
+        const hc = measuredYear && last > from ? measuredYear.importOff - measuredYear.exportOff : 0;
+        margin = { day, hp: allowed.hp - hp, hc: allowed.hc - hc };
+      }
+      limit.push({ ...yearLimit[0]!, kind: limit.length > 0 ? 'yearStart' : undefined }, ...yearLimit.slice(1));
+    }
     years.push({
       start,
       end,
@@ -249,8 +293,84 @@ export function balanceSeries(
               hp: measuredYear.importPeak - measuredYear.exportPeak,
               hc: measuredYear.importOff - measuredYear.exportOff,
             },
+      ceiling,
+      margin,
     });
     start = end;
   }
-  return { history, forecast: projected, years };
+  return { history, forecast: projected, limit, years };
+}
+
+/** Injection attendue − soutirage attendu entre `from` et `to`, par période (le solde qu'on peut encore « rattraper »). */
+function remainingNet(forecast: Forecast, from: number, to: number): { hp: number; hc: number } {
+  const e = (key: keyof IndexValues) => expectedBetween(forecast.profile, key, from, to, forecast.ev);
+  return { hp: e('exportPeak') - e('importPeak'), hc: e('exportOff') - e('importOff') };
+}
+
+/**
+ * Jours où calculer la limite d'une année [`from`, `end`] : chaque semaine, aux mêmes jours que la prévision (qui
+ * avance de 7 jours depuis le dernier relevé), et aux relevés, pour que l'infobulle montre solde et limite ensemble.
+ */
+function limitDays(from: number, end: number, last: number, history: readonly BalancePoint[]): number[] {
+  const days = new Set([from, end]);
+  for (let day = last - 7 * Math.floor((last - from) / 7); day < end; day += 7) {
+    if (day > from) {
+      days.add(day);
+    }
+  }
+  for (const p of history) {
+    if (p.day > from && p.day < end) {
+      days.add(p.day);
+    }
+  }
+  return [...days].sort((a, b) => a - b);
+}
+
+/**
+ * Courbe limite d'une année de facturation aux jours donnés (le dernier est la fin de l'année, où elle vaut zéro),
+ * calculée en remontant depuis la fin ; le dernier point est marqué `yearEnd`.
+ */
+function limitCurve(forecast: Forecast, days: readonly number[], end: number): BalancePoint[] {
+  const points: BalancePoint[] = [{ day: end, hp: 0, hc: 0, kind: 'yearEnd' }];
+  let hp = 0;
+  let hc = 0;
+  for (let i = days.length - 2; i >= 0; i--) {
+    const net = remainingNet(forecast, days[i]!, days[i + 1]!);
+    hp += net.hp;
+    hc += net.hc;
+    points.push({ day: days[i]!, hp, hc });
+  }
+  return points.reverse();
+}
+
+export interface HeaterAllowance {
+  /** Heures de radiateur que la marge permet d'ici la fin de l'année de facturation. */
+  readonly hours: number;
+  /** Semaines de chauffe restantes (au moins une). */
+  readonly weeks: number;
+  readonly hoursPerWeek: number;
+  /** Fin de la période sur laquelle les heures sont réparties (fin de la saison de chauffe ou de l'année). */
+  readonly until: number;
+}
+
+/**
+ * Dosage d'un radiateur électrique : la marge (kWh) d'une période tarifaire en heures de fonctionnement à `powerKw`,
+ * réparties sur les semaines qui restent jusqu'à la fin de la saison de chauffe (`seasonEndMonth`, 1-12, inclus), sans
+ * dépasser la fin de l'année de facturation. Sans marge, aucune heure.
+ */
+export function heaterAllowance(
+  marginKwh: number,
+  powerKw: number,
+  from: number,
+  yearEnd: number,
+  seasonEndMonth: number,
+): HeaterAllowance {
+  // Premier jour du mois qui suit la fin de la saison, après `from` (Date.UTC fait passer le mois 12 à janvier).
+  const afterSeasonOf = (year: number) => Date.UTC(year, seasonEndMonth, 1) / MS_PER_DAY;
+  const { year } = yearMonthOf(from);
+  const afterSeason = afterSeasonOf(year) > from ? afterSeasonOf(year) : afterSeasonOf(year + 1);
+  const until = Math.min(afterSeason, yearEnd);
+  const hours = powerKw > 0 ? Math.max(0, marginKwh) / powerKw : 0;
+  const weeks = Math.max(1, (until - from) / 7);
+  return { hours, weeks, hoursPerWeek: hours / weeks, until };
 }

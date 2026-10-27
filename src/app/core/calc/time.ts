@@ -4,7 +4,7 @@
  * Les changements d'heure n'introduisent ainsi aucun décalage dans les calculs journaliers.
  */
 
-const MS_PER_DAY = 86_400_000;
+export const MS_PER_DAY = 86_400_000;
 
 /** `YYYY-MM-DDTHH:mm` (ou `YYYY-MM-DD`) → numéro de jour. */
 export function toDayNumber(iso: string): number {

@@ -187,6 +187,18 @@ En Wallonie, une installation photovoltaïque de 10 kVA au plus mise en service 
 
 Le **graphique des soldes**, sous les index cumulés, suit ces deux soldes depuis le début de l'année de facturation, puis les prolonge par la prévision (pointillés). Ils repartent de zéro à chaque début d'année. Au-dessus de zéro, c'est de l'énergie à payer ; en dessous, un **surplus** qui n'est pas remboursé en fin d'année. Sous le graphique, le résumé donne pour l'année en cours et la suivante les kWh à payer et le surplus perdu.
 
+#### Courbes limites et dosage du radiateur
+
+Les **courbes limites** (pointillés fins, une par période) donnent, à chaque date, le solde le plus haut que vous pouvez atteindre tout en revenant à zéro en fin d'année de facturation, si la suite de l'année suit la prévision : consommation habituelle de la maison (calée sur vos factures annuelles) et production attendue des panneaux. Elles valent zéro le dernier jour de l'année, montent pendant l'hiver jusqu'à un **plafond** (vers la fin de l'hiver), puis le surplus du printemps et de l'été les ramène à zéro. Tant que le solde reste sous sa limite, l'année devrait finir sans rien à payer dans cette période. HP et HC ne se compensent pas entre elles : un surplus en heures creuses n'efface pas un dépassement en heures pleines.
+
+Le résumé de chaque année donne :
+
+- le **plafond** de chaque limite et sa date. « Aucun » signifie que même une année moyenne finit avec un solde à payer dans cette période ;
+- la **marge** : ce que vous pouvez encore consommer en plus de l'habitude d'ici la fin de l'année sans dépasser zéro (au dernier relevé, ou au début de l'année à venir). Elle vaut l'opposé du solde de fin d'année prévu ;
+- le **dosage du radiateur électrique** : la marge convertie en heures de fonctionnement à la puissance du radiateur (page **Maison**, radiateur électrique d'appoint), et répartie en heures par semaine jusqu'à la fin de la saison de chauffe. Faites-le tourner de préférence en **heures creuses** (11 h-17 h et 22 h-7 h) : c'est là que le surplus d'été est le plus grand. Ces heures s'ajoutent à l'usage habituel du radiateur, déjà compris dans la consommation de vos factures.
+
+Pour suivre le dosage, encodez un relevé régulièrement (par exemple chaque semaine) : si le solde mesuré passe au-dessus de la limite, réduisez le radiateur ; s'il reste nettement en dessous, vous avez encore de la marge.
+
 Un **changement de compteur** solde l'ancien compteur (facture de clôture) : dans l'année du changement, les soldes ne se comptent qu'à partir du relevé « nouveau compteur ».
 
 Réglez la date dans **Réglages → Début de l'année de facturation** : c'est la date du relevé annuel de votre compteur intelligent, indiquée sur la facture de régularisation.

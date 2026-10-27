@@ -58,6 +58,18 @@ export function indexAxisRange(
   return { min: Math.max(fromDay ?? -Infinity, first - margin), max };
 }
 
+/**
+ * Jours de prévision à montrer : si une fin d'année de facturation tombe dans les 15 jours qui suivent la période
+ * choisie, on va jusqu'à elle (la vue « + 12 mois » du 27 octobre montre ainsi la facturation du 1er novembre).
+ */
+export function billingHorizon(yearEnds: readonly number[], now: number, forecastDays: number): number {
+  if (forecastDays <= 0) {
+    return forecastDays;
+  }
+  const end = yearEnds.find((e) => e > now + forecastDays && e <= now + forecastDays + 15);
+  return end === undefined ? forecastDays : Math.ceil(end - now) + 2;
+}
+
 /** Index cumulés des registres choisis : relevés réels (points) puis projection (pointillés). */
 export function indexChart(
   analysis: FullAnalysis,
@@ -195,7 +207,8 @@ function billingLines(days: readonly number[], color: string): Plugin {
 
 /**
  * Soldes de facturation HP et HC (soutiré − injecté par période tarifaire) depuis le début de l'année de facturation :
- * mesurés aux relevés, puis prévus (pointillés) ; ils repartent de zéro à chaque début d'année.
+ * mesurés aux relevés, puis prévus (tirets) ; ils repartent de zéro à chaque début d'année. Les courbes limites
+ * (pointillés fins) donnent le solde à ne pas dépasser pour finir l'année à zéro.
  */
 export function balanceChart(
   series: BalanceSeries,
@@ -205,7 +218,12 @@ export function balanceChart(
   now: number,
 ) {
   return (c: ChartColors): ChartConfiguration => {
-    const range = indexAxisRange(levelDays, fromDay, series.forecast.length > 0 ? forecastDays : 0, now);
+    const shownDays = billingHorizon(
+      series.years.map((y) => y.end),
+      now,
+      series.forecast.length > 0 ? forecastDays : 0,
+    );
+    const range = indexAxisRange(levelDays, fromDay, shownDays, now);
     const visible = (p: BalancePoint) => p.day >= range.min && p.day <= range.max;
     // À chaque facturation, la courbe s'arrête sur le solde facturé (point marqué), puis repart de zéro : un point
     // vide entre les deux évite le trait vertical, qui ressemblerait à une chute de consommation.
@@ -225,9 +243,10 @@ export function balanceChart(
       .filter((p) => p.kind === 'yearStart' && visible(p))
       .map((p) => p.day);
     const lines = [
-      { key: 'hp' as const, label: 'Solde heures pleines', color: c[COLOR.importPeak] as string },
-      { key: 'hc' as const, label: 'Solde heures creuses', color: c[COLOR.importOff] as string },
+      { key: 'hp' as const, label: 'Solde heures pleines', limit: 'Limite heures pleines', color: c[COLOR.importPeak] as string },
+      { key: 'hc' as const, label: 'Solde heures creuses', limit: 'Limite heures creuses', color: c[COLOR.importOff] as string },
     ];
+    const limitLabels: string[] = lines.map((l) => l.limit);
     const datasets: ChartConfiguration['data']['datasets'] = [];
     for (const line of lines) {
       datasets.push({
@@ -252,6 +271,20 @@ export function balanceChart(
           pointHoverRadius: radius(4),
           borderWidth: 1.5,
           tension: 0,
+        });
+      }
+      if (series.limit.length > 0) {
+        datasets.push({
+          type: 'line',
+          label: line.limit,
+          data: toData(series.limit, line.key) as unknown as XY[],
+          borderColor: alpha(line.color, 0.9),
+          backgroundColor: alpha(line.color, 0.9),
+          borderDash: [2, 3],
+          borderWidth: 1.5,
+          pointRadius: 0,
+          pointHoverRadius: 3,
+          tension: 0.3,
         });
       }
     }
@@ -297,6 +330,9 @@ export function balanceChart(
               label: (item) => {
                 const raw = item.raw as BalanceDatum;
                 const y = raw.y ?? 0;
+                if (limitLabels.includes(item.dataset.label ?? '')) {
+                  return `${item.dataset.label} : ${fmt.signedKwh(y)} (à ne pas dépasser pour finir l'année à zéro)`;
+                }
                 if (raw.kind === 'yearEnd') {
                   return `${item.dataset.label} facturé : ${fmt.signedKwh(y)} ${y > 0 ? '(à payer)' : y < 0 ? '(surplus perdu)' : ''}`;
                 }

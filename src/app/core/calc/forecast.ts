@@ -40,6 +40,8 @@ export interface ForecastPoint {
 
 export interface Forecast {
   readonly profile: ForecastProfile;
+  /** Voiture électrique comptée dans la prévision, s'il y en a une. */
+  readonly ev: EvScenario | null;
   readonly points: ForecastPoint[];
   /** Index estimés à l'instant présent. */
   readonly current: IndexValues;
@@ -304,7 +306,7 @@ export function simulate(profile: ForecastProfile, options: ForecastOptions): Fo
     }
     months.push({ key: `${year}-${String(month + 1).padStart(2, '0')}`, year, month, values });
   }
-  return { profile, points, current, next12, months };
+  return { profile, ev, points, current, next12, months };
 }
 
 function clamp(value: number, min: number, max: number): number {
