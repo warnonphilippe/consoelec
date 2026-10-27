@@ -36,10 +36,13 @@
     <a routerLink="/reglages">Réglages</a>). Au-dessus de zéro : à payer ; en dessous : surplus. À chaque ligne
     « Facturation », le gros point est le solde facturé de l'année qui se termine ; la courbe repart ensuite de
     zéro, car l'année suivante se calcule à partir des nouveaux index (le compteur, lui, n'est pas remis à zéro).
-    Les <strong>courbes limites</strong> (pointillés fins) donnent le solde à ne pas dépasser pour revenir à zéro en
-    fin d'année, si la suite de l'année suit la prévision (consommation habituelle de la maison et production
-    attendue). Elles montent pendant l'hiver jusqu'à un plafond, puis le surplus du printemps et de l'été les ramène
-    à zéro. HP et HC ne se compensent pas entre elles : chaque période a sa limite.
+    Les <strong>courbes limites</strong> (gros points) sont un <strong>plafond</strong> : tant que le solde reste
+    en dessous, l'année finit à zéro ou en surplus, rien à payer ; s'il passe au-dessus, l'année finit avec un solde à
+    payer, si la suite de l'année suit la prévision (consommation habituelle de la maison et production attendue).
+    Finir sous la limite n'est pas un problème : ce n'est pas un objectif à atteindre. La limite monte pendant
+    l'hiver, car le surplus du printemps et de l'été effacera ce qui a été consommé, puis redescend à zéro à la
+    facturation. Les tirets sont la prévision du solde. HP et HC ne se compensent pas : chaque période a sa
+    limite.
   </p>
   @if (store.billing().history.length > 0) {
     <app-chart [build]="balanceChart()" [height]="360" />

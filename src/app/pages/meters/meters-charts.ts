@@ -172,6 +172,71 @@ interface BalanceDatum {
   kind: BalancePoint['kind'];
 }
 
+interface CurveLabel {
+  /** Libellé du jeu de données à annoter. */
+  readonly dataset: string;
+  readonly text: string;
+  /** `top` : au point le plus haut de la courbe visible ; `end` : à son dernier point visible. */
+  readonly at: 'top' | 'end';
+  readonly color: string;
+}
+
+/**
+ * Libellés courts posés sur les courbes (« Limite HC », « Prévision HC ») pour les distinguer sans passer par la
+ * légende ; décalés vers le bas quand ils se chevauchent, ignorés pour une courbe masquée.
+ */
+function curveLabels(labels: readonly CurveLabel[], background: string): Plugin {
+  return {
+    id: 'curveLabels',
+    afterDatasetsDraw(chart: Chart) {
+      const { ctx, chartArea } = chart;
+      ctx.save();
+      ctx.font = '600 11px ui-sans-serif, system-ui, -apple-system, sans-serif';
+      ctx.textBaseline = 'middle';
+      const placed: { x: number; y: number; w: number; h: number }[] = [];
+      const overlaps = (r: { x: number; y: number; w: number; h: number }) =>
+        placed.some((p) => r.x < p.x + p.w && p.x < r.x + r.w && r.y < p.y + p.h && p.y < r.y + r.h);
+      for (const label of labels) {
+        const index = chart.data.datasets.findIndex((d) => d.label === label.dataset);
+        if (index < 0 || !chart.isDatasetVisible(index)) {
+          continue;
+        }
+        const points = chart
+          .getDatasetMeta(index)
+          .data.filter((p) => p.x >= chartArea.left && p.x <= chartArea.right && Number.isFinite(p.y));
+        if (points.length === 0) {
+          continue;
+        }
+        const anchor =
+          label.at === 'top' ? points.reduce((a, b) => (b.y < a.y ? b : a)) : points[points.length - 1]!;
+        const w = ctx.measureText(label.text).width + 10;
+        const h = 17;
+        const rect = {
+          x: Math.min(Math.max(anchor.x - w / 2, chartArea.left), chartArea.right - w),
+          y: Math.min(Math.max(anchor.y - h - 6, chartArea.top), chartArea.bottom - h),
+          w,
+          h,
+        };
+        for (let i = 0; i < 6 && overlaps(rect); i++) {
+          rect.y = Math.min(rect.y + h + 2, chartArea.bottom - h);
+        }
+        placed.push(rect);
+        ctx.fillStyle = background;
+        ctx.strokeStyle = label.color;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(rect.x, rect.y, rect.w, rect.h, 4);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = label.color;
+        ctx.textAlign = 'center';
+        ctx.fillText(label.text, rect.x + rect.w / 2, rect.y + rect.h / 2 + 0.5);
+      }
+      ctx.restore();
+    },
+  };
+}
+
 /** Trait vertical pointillé « Facturation » à chaque début d'année de facturation. */
 function billingLines(days: readonly number[], color: string): Plugin {
   return {
@@ -208,7 +273,7 @@ function billingLines(days: readonly number[], color: string): Plugin {
 /**
  * Soldes de facturation HP et HC (soutiré − injecté par période tarifaire) depuis le début de l'année de facturation :
  * mesurés aux relevés, puis prévus (tirets) ; ils repartent de zéro à chaque début d'année. Les courbes limites
- * (pointillés fins) donnent le solde à ne pas dépasser pour finir l'année à zéro.
+ * (gros points, étiquetés sur le graphique) sont le plafond à ne pas dépasser pour ne rien payer en fin d'année.
  */
 export function balanceChart(
   series: BalanceSeries,
@@ -243,10 +308,14 @@ export function balanceChart(
       .filter((p) => p.kind === 'yearStart' && visible(p))
       .map((p) => p.day);
     const lines = [
-      { key: 'hp' as const, label: 'Solde heures pleines', limit: 'Limite heures pleines', color: c[COLOR.importPeak] as string },
-      { key: 'hc' as const, label: 'Solde heures creuses', limit: 'Limite heures creuses', color: c[COLOR.importOff] as string },
+      { key: 'hp' as const, short: 'HP', label: 'Solde heures pleines', limit: 'Limite heures pleines', color: c[COLOR.importPeak] as string },
+      { key: 'hc' as const, short: 'HC', label: 'Solde heures creuses', limit: 'Limite heures creuses', color: c[COLOR.importOff] as string },
     ];
     const limitLabels: string[] = lines.map((l) => l.limit);
+    const onCurves: CurveLabel[] = lines.flatMap((l) => [
+      { dataset: l.limit, text: `Limite ${l.short} (max.)`, at: 'top' as const, color: l.color },
+      { dataset: `${l.label} (prévision)`, text: `Prévision ${l.short}`, at: 'end' as const, color: l.color },
+    ]);
     const datasets: ChartConfiguration['data']['datasets'] = [];
     for (const line of lines) {
       datasets.push({
@@ -278,10 +347,12 @@ export function balanceChart(
           type: 'line',
           label: line.limit,
           data: toData(series.limit, line.key) as unknown as XY[],
-          borderColor: alpha(line.color, 0.9),
-          backgroundColor: alpha(line.color, 0.9),
-          borderDash: [2, 3],
-          borderWidth: 1.5,
+          // Points ronds espacés, plus épais que les tirets de la prévision : on ne confond pas les deux.
+          borderColor: line.color,
+          backgroundColor: line.color,
+          borderDash: [0.5, 5],
+          borderCapStyle: 'round',
+          borderWidth: 3,
           pointRadius: 0,
           pointHoverRadius: 3,
           tension: 0.3,
@@ -291,7 +362,7 @@ export function balanceChart(
     return {
       type: 'line',
       data: { datasets },
-      plugins: [billingLines(billingDays, c.muted)],
+      plugins: [billingLines(billingDays, c.muted), curveLabels(onCurves, alpha(c.surface, 0.9))],
       options: {
         responsive: true,
         maintainAspectRatio: false,
@@ -331,7 +402,7 @@ export function balanceChart(
                 const raw = item.raw as BalanceDatum;
                 const y = raw.y ?? 0;
                 if (limitLabels.includes(item.dataset.label ?? '')) {
-                  return `${item.dataset.label} : ${fmt.signedKwh(y)} (à ne pas dépasser pour finir l'année à zéro)`;
+                  return `${item.dataset.label} : ne pas dépasser ${fmt.signedKwh(y)} (en dessous, l'année finit à zéro ou en surplus)`;
                 }
                 if (raw.kind === 'yearEnd') {
                   return `${item.dataset.label} facturé : ${fmt.signedKwh(y)} ${y > 0 ? '(à payer)' : y < 0 ? '(surplus perdu)' : ''}`;
