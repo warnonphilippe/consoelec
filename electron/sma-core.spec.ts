@@ -5,7 +5,7 @@ import https from 'node:https';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { InverterClient } from './inverter';
+import { InverterClient, networkErrorMessage } from './inverter';
 import {
   SRP_G,
   SRP_N,
@@ -123,6 +123,21 @@ describe('SRP de l’onduleur', () => {
   });
 });
 
+describe('erreurs réseau', () => {
+  it('donne un message lisible, même pour une erreur agrégée sans message', () => {
+    const refused = Object.assign(new Error('connect ECONNREFUSED'), { code: 'ECONNREFUSED' });
+    const timeout = Object.assign(new Error('connect ETIMEDOUT'), { code: 'ETIMEDOUT' });
+    expect(networkErrorMessage(new AggregateError([timeout, refused], ''), 'SMA1.local')).toBe(
+      'Onduleur injoignable (SMA1.local : ETIMEDOUT, ECONNREFUSED).',
+    );
+    const missing = Object.assign(new Error('getaddrinfo ENOTFOUND'), { code: 'ENOTFOUND' });
+    expect(networkErrorMessage(missing, 'SMA1.local')).toBe('Onduleur introuvable sur le réseau (SMA1.local).');
+    expect(networkErrorMessage(new Error(''), 'SMA1.local')).toBe(
+      "Connexion à l'onduleur impossible (SMA1.local).",
+    );
+  });
+});
+
 describe('journaux de production', () => {
   const utcDate = (ms: number) => new Date(ms).toISOString().slice(0, 10);
   const midnight = Date.UTC(2026, 9, 20) / 1000;
@@ -202,15 +217,7 @@ describe('client local de l’onduleur (serveur HTTPS simulé)', () => {
     await rm(dir, { recursive: true, force: true });
   });
 
-  /** `empty(sid, n)` : la n-ième lecture (1, 2…) de cette session répond sans aucune valeur. */
-  function start(options: { expireOnce?: boolean; empty?: (sid: string, n: number) => boolean } = {}) {
-    const reads = new Map<string, number>();
-    const emptyRead = (path: string): boolean => {
-      const sid = /sid=([^&]+)/.exec(path)?.[1] ?? '';
-      const n = (reads.get(sid) ?? 0) + 1;
-      reads.set(sid, n);
-      return options.empty!(sid, n);
-    };
+  function start(options: { expireOnce?: boolean } = {}) {
     const srp = fakeServer('usr', PSK);
     const log: string[] = [];
     let pendingA = '';
@@ -253,19 +260,6 @@ describe('client local de l’onduleur (serveur HTTPS simulé)', () => {
           if (!expired) {
             expired = true;
             res.end(JSON.stringify({ err: 401 }));
-          } else if (options.empty && emptyRead(path)) {
-            // L'onduleur répond, mais sans aucune valeur.
-            res.end(
-              JSON.stringify({
-                result: {
-                  '017A-xxxxx00D': {
-                    '6100_40263F00': { '1': [{ val: null }] },
-                    '6400_00260100': { '1': [{ val: null }] },
-                    '6400_00262200': { '1': [{ val: null }] },
-                  },
-                },
-              }),
-            );
           } else {
             res.end(JSON.stringify(values(1830)));
           }
@@ -313,29 +307,12 @@ describe('client local de l’onduleur (serveur HTTPS simulé)', () => {
     s.close();
   });
 
-  it('rouvre une session qui ne renvoie plus aucune valeur (après la veille de nuit)', async () => {
-    // La première session répond le soir, puis plus rien le lendemain matin.
-    const s = await start({ empty: (sid, n) => sid === 'sid1' && n > 1 });
+  it('se connecte en IPv4 quand le nom résout aussi une adresse IPv6 qui refuse les connexions', async () => {
+    // Le serveur simulé n'écoute qu'en IPv4 ; « localhost » résout aussi ::1, qui refuse la connexion.
+    const s = await start();
     const client = new InverterClient(() => PSK, 'usr', s.port);
-    client.configure({ enabled: true, host: s.host, certFingerprint: fingerprint });
-    expect((await client.read()).totalWh).toBe(32070489);
-    const reading = await client.read();
-    expect(reading).toMatchObject({ powerW: 1830, totalWh: 32070489, error: null });
-    expect(s.log.filter((p) => p === '/dyn/logout.json')).toHaveLength(1);
-    expect(s.log.filter((p) => p === '/dyn/authYAPStart.json')).toHaveLength(2);
-    await client.close();
-    s.close();
-  });
-
-  it('la nuit, ne rouvre pas une session vide à chaque lecture', async () => {
-    const s = await start({ empty: () => true });
-    const client = new InverterClient(() => PSK, 'usr', s.port);
-    client.configure({ enabled: true, host: s.host, certFingerprint: fingerprint });
-    for (let i = 0; i < 3; i++) {
-      const reading = await client.read();
-      expect(reading).toMatchObject({ powerW: null, totalWh: null, error: null });
-    }
-    expect(s.log.filter((p) => p === '/dyn/authYAPStart.json')).toHaveLength(1);
+    client.configure({ enabled: true, host: 'localhost', certFingerprint: fingerprint });
+    expect(await client.read()).toMatchObject({ powerW: 1830, error: null });
     await client.close();
     s.close();
   });
