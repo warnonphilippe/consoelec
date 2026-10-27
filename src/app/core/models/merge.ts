@@ -1,4 +1,4 @@
-import type { AppData, House, MeterReading, PvDay } from './app-data.model';
+import type { AnnualBill, AppData, House, MeterReading, PvDay } from './app-data.model';
 
 export interface MergeReport {
   /** Relevés du fichier ajoutés aux données locales. */
@@ -9,6 +9,8 @@ export interface MergeReport {
   readonly conflicts: number;
   /** Jours de production (onduleur) ajoutés ou complétés par une lecture plus récente. */
   readonly addedPvDays: number;
+  /** Factures annuelles du fichier ajoutées (périodes absentes localement). */
+  readonly addedBills: number;
   /** La maison du fichier a été reprise (la maison locale n’avait jamais été modifiée). */
   readonly houseAdopted: boolean;
   /** La description de la maison du fichier diffère de la locale (la locale est conservée). */
@@ -60,6 +62,7 @@ export function mergeData(
   }
 
   const pv = mergePvDaily(local.pvDaily, incoming.pvDaily);
+  const bills = mergeBills(local.annualBills, incoming.annualBills);
   const houseAdopted = localHouseIsDefault && !sameHouse(local.house, incoming.house);
   const houseDiffers = !localHouseIsDefault && !sameHouse(local.house, incoming.house);
   return {
@@ -68,16 +71,31 @@ export function mergeData(
       house: houseAdopted ? incoming.house : local.house,
       readings,
       pvDaily: pv.list,
+      annualBills: bills.list,
     },
     report: {
       addedReadings: added,
       duplicateReadings: duplicates,
       conflicts,
       addedPvDays: pv.added,
+      addedBills: bills.added,
       houseAdopted,
       houseDiffers,
     },
   };
+}
+
+/** Factures annuelles : celles d'une période absente localement sont ajoutées ; les locales ne changent pas. */
+function mergeBills(local: AnnualBill[], incoming: AnnualBill[]): { list: AnnualBill[]; added: number } {
+  const periods = new Set(local.map((b) => `${b.from}|${b.to}`));
+  const list = [...local];
+  for (const bill of incoming) {
+    if (!periods.has(`${bill.from}|${bill.to}`)) {
+      list.push(bill);
+      periods.add(`${bill.from}|${bill.to}`);
+    }
+  }
+  return { list: list.sort((a, b) => a.from.localeCompare(b.from)), added: list.length - local.length };
 }
 
 /** Production par jour : on garde, pour chaque jour, la lecture la plus tardive (la plus complète). */

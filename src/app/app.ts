@@ -48,22 +48,30 @@ export class App {
   protected readonly inverter = inject(InverterService);
   private readonly dialog = viewChild<ElementRef<HTMLDialogElement>>('confirmDialog');
 
-  private readonly allNav: (NavItem & { needsHistory?: boolean })[] = [
+  /** `needs` : `readings` = assez de relevés ; `forecast` = assez de relevés ou des factures annuelles. */
+  private readonly allNav: (NavItem & { needs?: 'readings' | 'forecast' })[] = [
     { path: '/', label: 'Tableau de bord', icon: 'gauge', exact: true },
     { path: '/production', label: 'Production', icon: 'sun' },
     { path: '/compteurs', label: 'Compteurs', icon: 'plug' },
     { path: '/releves', label: 'Relevés', icon: 'ruler' },
-    { path: '/statistiques', label: 'Statistiques', icon: 'chart', needsHistory: true },
-    { path: '/previsions', label: 'Prévisions', icon: 'trend', needsHistory: true },
+    { path: '/statistiques', label: 'Statistiques', icon: 'chart', needs: 'readings' },
+    { path: '/previsions', label: 'Prévisions', icon: 'trend', needs: 'forecast' },
     { path: '/maison', label: 'Maison', icon: 'home' },
   ];
 
-  /** Statistiques et prévisions n'apparaissent qu'avec assez de relevés pour avoir un sens. */
+  /**
+   * Statistiques et prévisions n'apparaissent qu'avec assez de données pour avoir un sens : les prévisions dès que des
+   * factures annuelles décrivent la maison, les statistiques avec assez de relevés.
+   */
   protected readonly nav = computed(() => {
-    const levels = this.store.analysis().consumption.levels;
+    const analysis = this.store.analysis();
+    const levels = analysis.consumption.levels;
     const span = levels.length > 1 ? levels.at(-1)!.day - levels[0]!.day : 0;
-    const enough = span >= MIN_HISTORY_DAYS;
-    return this.allNav.filter((item) => enough || !item.needsHistory);
+    const readings = span >= MIN_HISTORY_DAYS;
+    const forecast = readings || (analysis.annual !== null && levels.length > 0);
+    return this.allNav.filter(
+      (item) => !item.needs || (item.needs === 'readings' ? readings : forecast),
+    );
   });
 
   protected readonly secondaryNav: NavItem[] = [

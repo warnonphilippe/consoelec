@@ -16,6 +16,16 @@
         annuelle d'une maison belge type, réglée ici. La chaudière mazout fait le chauffage et l'eau
         chaude : la référence est celle d'un ménage <strong>sans chauffage électrique</strong>.
       </p>
+      @if (analysis().annual; as an) {
+        <div class="callout success small">
+          <app-icon name="home" [size]="16" />
+          <div>
+            Vos factures annuelles calent les prévisions sur votre maison :
+            <strong>{{ an.baseline.annualKwh | kwh }} par an</strong>. Le réglage ci-dessous ne sert plus que
+            d'appoint ({{ an.baseline.belgianSharePct | num }} %) et de profil belge de comparaison.
+          </div>
+        </div>
+      }
       <div class="presets">
         @for (p of presets; track p.key) {
           <button
@@ -687,6 +697,12 @@
           <span class="value">{{ p.report.addedReadings }}</span>
           <span class="label">relevé{{ p.report.addedReadings > 1 ? 's' : '' }} à ajouter</span>
         </div>
+        @if (p.report.addedBills > 0) {
+          <div class="import-stat added">
+            <span class="value">{{ p.report.addedBills }}</span>
+            <span class="label">facture{{ p.report.addedBills > 1 ? 's' : '' }} annuelle{{ p.report.addedBills > 1 ? 's' : '' }}</span>
+          </div>
+        }
         <div class="import-stat">
           <span class="value">{{ p.report.duplicateReadings }}</span>
           <span class="label">déjà présent{{ p.report.duplicateReadings > 1 ? 's' : '' }}</span>
@@ -734,7 +750,7 @@
         type="button"
         class="btn primary"
         (click)="applyMerge()"
-        [disabled]="p.report.addedReadings === 0 && !p.report.houseAdopted"
+        [disabled]="p.report.addedReadings === 0 && p.report.addedBills === 0 && !p.report.houseAdopted"
       >
         <app-icon name="plus" [size]="16" /> Ajouter les nouvelles données
       </button>

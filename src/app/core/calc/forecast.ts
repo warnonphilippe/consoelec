@@ -6,7 +6,7 @@ import type { MonthlyByRegister, ReferenceProfile } from './reference';
 import { smoothMonthlyProfile, type DailyProfile } from './smooth';
 import { daysInMonth, toDayNumber } from './time';
 
-export type ProfileKey = 'reference' | 'adjusted' | 'history';
+export type ProfileKey = 'reference' | 'annual' | 'adjusted' | 'history';
 
 export interface ForecastProfile {
   readonly key: ProfileKey;
@@ -113,15 +113,31 @@ export function buildProfiles(
   analysis: ConsumptionAnalysis | null,
   averages: MonthAverages,
   ev: EvScenario | null,
+  /**
+   * Profil belge type, quand `reference` est calée sur les factures annuelles de la maison : il reste proposé pour
+   * comparaison, et `reference` devient le profil « historique annuel ».
+   */
+  belgian: ReferenceProfile | null = null,
 ): ForecastProfile[] {
-  const referenceProfile: ForecastProfile = {
+  const belgianProfile: ForecastProfile = {
     key: 'reference',
     label: 'Statistique belge',
-    monthly: reference.registers,
+    monthly: (belgian ?? reference).registers,
     available: true,
     note: 'Profil d’une maison belge type avec vos réglages (panneaux, onduleur, présence, heures creuses).',
   };
-  const profiles: ForecastProfile[] = [referenceProfile];
+  const referenceProfile: ForecastProfile =
+    belgian === null
+      ? belgianProfile
+      : {
+          key: 'annual',
+          label: 'Historique annuel',
+          monthly: reference.registers,
+          available: true,
+          note: 'Consommation de la maison d’après vos factures annuelles (années récentes privilégiées, moyenne belge en appoint) et production d’après le rendement mesuré par l’onduleur.',
+        };
+  const profiles: ForecastProfile[] =
+    belgian === null ? [belgianProfile] : [belgianProfile, referenceProfile];
 
   const enough =
     analysis !== null && REGISTER_KEYS.every((k) => analysis.observed.days[k] >= MIN_ADJUST_DAYS);
@@ -163,7 +179,7 @@ export function buildProfiles(
       available: true,
       ratios,
       confidence: mean,
-      note: `Profil belge recalé sur vos relevés, registre par registre (confiance ${Math.round(mean * 100)} % : elle augmente avec la durée couverte).`,
+      note: `${belgian === null ? 'Profil belge' : 'Historique annuel de la maison'} recalé sur vos relevés, registre par registre (confiance ${Math.round(mean * 100)} % : elle augmente avec la durée couverte).`,
     };
   } else {
     adjusted = {
@@ -221,7 +237,7 @@ export function bestProfile(
   if (scored.length >= 2) {
     return scored[0]!;
   }
-  for (const key of ['history', 'adjusted', 'reference'] as const) {
+  for (const key of ['history', 'adjusted', 'annual', 'reference'] as const) {
     const profile = profiles.find((p) => p.key === key && p.available);
     if (profile) {
       return profile;

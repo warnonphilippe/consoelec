@@ -1,4 +1,5 @@
 import {
+  type AnnualBill,
   AI_MODELS,
   DEFAULT_EV,
   DEFAULT_HOUSE,
@@ -39,7 +40,13 @@ const PRESENCES: readonly Presence[] = ['absent', 'partial', 'home'];
 export function normalizeData(input: unknown): AppData {
   if (
     !isObject(input) ||
-    !('settings' in input || 'readings' in input || 'house' in input || 'pvDaily' in input)
+    !(
+      'settings' in input ||
+      'readings' in input ||
+      'house' in input ||
+      'pvDaily' in input ||
+      'annualBills' in input
+    )
   ) {
     throw new Error('Ce fichier ne contient pas de données ConsoElec.');
   }
@@ -51,6 +58,7 @@ export function normalizeData(input: unknown): AppData {
       .map(normalizeReading)
       .filter((r): r is MeterReading => r !== null),
     pvDaily: normalizePvDaily(input['pvDaily']),
+    annualBills: normalizeAnnualBills(input['annualBills']),
     settings: isObject(input['settings']) ? normalizeSettings(input['settings']) : base.settings,
   };
 }
@@ -219,6 +227,39 @@ function normalizePvDaily(value: unknown): PvDay[] {
     }
   }
   return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/** Factures annuelles valides (période cohérente, soldes chiffrés), une par période, triées. */
+function normalizeAnnualBills(value: unknown): AnnualBill[] {
+  const byPeriod = new Map<string, AnnualBill>();
+  for (const raw of asArray(value)) {
+    if (!isObject(raw)) {
+      continue;
+    }
+    const from = str(raw['from'], '');
+    const to = str(raw['to'], '');
+    const netPeak = num(raw['netPeak'], Number.NaN);
+    const netOff = num(raw['netOff'], Number.NaN);
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(from) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(to) ||
+      !(to > from) ||
+      !Number.isFinite(netPeak) ||
+      !Number.isFinite(netOff)
+    ) {
+      continue;
+    }
+    byPeriod.set(`${from}|${to}`, {
+      id: str(raw['id'], '') || newId(),
+      from,
+      to,
+      netPeak,
+      netOff,
+      schedule: raw['schedule'] === 'current' ? 'current' : 'legacy',
+      note: str(raw['note'], ''),
+    });
+  }
+  return [...byPeriod.values()].sort((a, b) => a.from.localeCompare(b.from));
 }
 
 function normalizeInverter(raw: unknown): InverterSettings {

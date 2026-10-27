@@ -174,4 +174,21 @@ describe('normalizeData', () => {
     });
     expect(normalizeData({ readings: [] }).settings.inverter.host).toBe('');
   });
+
+  it('garde les factures annuelles valides, une par période, et l’ancien bihoraire par défaut', () => {
+    const data = normalizeData({
+      annualBills: [
+        { from: '2021-11-01', to: '2022-11-01', netPeak: -150, netOff: 20 },
+        { from: '2020-11-01', to: '2021-11-01', netPeak: 300, netOff: 200, schedule: 'current' },
+        { from: '2022-11-01', to: '2022-10-01', netPeak: 1, netOff: 1 },
+        { from: '2023-11-01', to: '2024-11-01', netPeak: 'x', netOff: 1 },
+      ],
+    });
+    expect(data.annualBills.map((b) => [b.from, b.netPeak, b.schedule])).toEqual([
+      ['2020-11-01', 300, 'current'],
+      ['2021-11-01', -150, 'legacy'],
+    ]);
+    expect(data.annualBills.every((b) => b.id.length > 0)).toBe(true);
+    expect(normalizeData({ readings: [] }).annualBills).toEqual([]);
+  });
 });

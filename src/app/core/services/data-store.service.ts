@@ -4,6 +4,7 @@ import { balanceSeries, billingCost } from '../calc/balance';
 import { buildDemoData } from '../calc/demo-data';
 import { dateToDayNumber } from '../calc/time';
 import {
+  type AnnualBill,
   DEFAULT_HOUSE,
   emptyData,
   type AppData,
@@ -149,6 +150,22 @@ export class DataStore {
       }));
     }
     return changed;
+  }
+
+  /** Ajoute ou remplace une facture annuelle (même identifiant, ou même période). */
+  saveBill(bill: Omit<AnnualBill, 'id'> & { id?: string }): void {
+    const entry: AnnualBill = { ...bill, id: bill.id ?? newId() };
+    this.update((d) => ({
+      ...d,
+      annualBills: [
+        ...d.annualBills.filter((b) => b.id !== entry.id && !(b.from === entry.from && b.to === entry.to)),
+        entry,
+      ].sort((a, b) => a.from.localeCompare(b.from)),
+    }));
+  }
+
+  deleteBill(id: string): void {
+    this.update((d) => ({ ...d, annualBills: d.annualBills.filter((b) => b.id !== id) }));
   }
 
   deleteReading(id: string): void {

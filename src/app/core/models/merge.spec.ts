@@ -77,4 +77,24 @@ describe('mergeData', () => {
     ]);
     expect(report.addedPvDays).toBe(2);
   });
+
+  it('ajoute les factures annuelles d’une période absente, sans toucher aux locales', () => {
+    const bill = (from: string, to: string, netPeak: number) => ({
+      id: from,
+      from,
+      to,
+      netPeak,
+      netOff: 10,
+      schedule: 'legacy' as const,
+      note: '',
+    });
+    const local: AppData = { ...emptyData(), annualBills: [bill('2020-11-01', '2021-11-01', 100)] };
+    const incoming: AppData = {
+      ...emptyData(),
+      annualBills: [bill('2020-11-01', '2021-11-01', 999), bill('2021-11-01', '2022-11-01', 200)],
+    };
+    const { data, report } = mergeData(local, incoming);
+    expect(report.addedBills).toBe(1);
+    expect(data.annualBills.map((b) => b.netPeak)).toEqual([100, 200]);
+  });
 });

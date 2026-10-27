@@ -383,11 +383,12 @@ export default class SettingsPage {
     }
     const report = this.store.mergeImport(pending.incoming);
     this.pendingImport.set(null);
+    const added = report.addedReadings + report.addedBills;
     this.toast.show(
-      report.addedReadings > 0
-        ? `${report.addedReadings} relevé(s) ajouté(s) ; vos données existantes sont inchangées.`
+      added > 0
+        ? `${report.addedReadings} relevé(s) et ${report.addedBills} facture(s) annuelle(s) ajouté(s) ; vos données existantes sont inchangées.`
         : 'Rien de nouveau dans ce fichier : vos données sont déjà à jour.',
-      report.addedReadings > 0 ? 'success' : 'info',
+      added > 0 ? 'success' : 'info',
     );
   }
 

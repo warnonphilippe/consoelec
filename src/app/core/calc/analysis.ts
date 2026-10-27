@@ -1,4 +1,5 @@
 import { REGISTER_KEYS, type AppData } from '../models/app-data.model';
+import { annualHistory, type AnnualHistory } from './annual-history';
 import { backtest, type BacktestResult } from './backtest';
 import {
   analyzeConsumption,
@@ -65,7 +66,12 @@ export interface ForecastSet {
 }
 
 export interface FullAnalysis {
+  /** Référence des prévisions : calée sur les factures annuelles de la maison s'il y en a, sinon profil belge. */
   readonly reference: ReferenceProfile;
+  /** Profil belge type (réglages), pour comparaison. */
+  readonly belgian: ReferenceProfile;
+  /** Factures annuelles, consommation de la maison qu'on en déduit et réglages de la référence « maison ». */
+  readonly annual: AnnualHistory | null;
   readonly weights: SeriesWeights;
   readonly consumption: ConsumptionAnalysis;
   readonly hasReadings: boolean;
@@ -119,12 +125,14 @@ function forecastSet(
   ev: EvScenario | null,
   scores: ProfileScores,
   now: number,
+  belgian: ReferenceProfile | null,
 ): ForecastSet {
   const profiles = buildProfiles(
     reference,
     consumption.levels.length > 1 ? consumption : null,
     averages,
     ev,
+    belgian,
   );
   const forecasts: Partial<Record<ProfileKey, Forecast>> = {};
   const last = consumption.levels.at(-1);
@@ -184,7 +192,10 @@ export function periodTotals(
 
 export function analyze(data: AppData, now: number): FullAnalysis {
   const { settings, house } = data;
-  const reference = referenceProfile(house, settings);
+  const belgian = referenceProfile(house, settings);
+  const annual = annualHistory(data, belgian, now);
+  const reference = annual?.reference ?? belgian;
+  const comparedTo = annual ? belgian : null;
   const weights = seriesWeights(reference);
   const consumption = analyzeConsumption(data.readings, weights);
   const averages = monthlyAverages(consumption.months);
@@ -192,12 +203,14 @@ export function analyze(data: AppData, now: number): FullAnalysis {
   // Voiture déjà en service : elle fait partie du scénario de base. Voiture prévue : scénario à part.
   const baseEv = house.ev.mode === 'owned' ? scenario : null;
   const result =
-    consumption.levels.length >= 3 ? backtest(data.readings, reference, weights, baseEv) : null;
+    consumption.levels.length >= 3
+      ? backtest(data.readings, reference, weights, baseEv, comparedTo)
+      : null;
   const scores = result?.scores ?? {};
-  const base = forecastSet(consumption, averages, reference, baseEv, scores, now);
+  const base = forecastSet(consumption, averages, reference, baseEv, scores, now, comparedTo);
   const withEv =
     house.ev.mode === 'planned'
-      ? forecastSet(consumption, averages, reference, scenario, scores, now)
+      ? forecastSet(consumption, averages, reference, scenario, scores, now, comparedTo)
       : null;
 
   const last = consumption.levels.at(-1);
@@ -225,6 +238,8 @@ export function analyze(data: AppData, now: number): FullAnalysis {
 
   return {
     reference,
+    belgian,
+    annual,
     weights,
     consumption,
     hasReadings: consumption.levels.length > 0,

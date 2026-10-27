@@ -9,6 +9,29 @@
     </div>
   </header>
 
+  @if (analysis().annual; as an) {
+    <div class="callout success small">
+      <app-icon name="home" [size]="16" />
+      <div>
+        Base des prévisions : la consommation de votre maison d'après vos factures annuelles,
+        <strong>{{ an.baseline.annualKwh | kwh }} par an</strong> ({{ an.baseline.years }} année{{
+          an.baseline.years > 1 ? 's' : ''
+        }}), et un rendement des panneaux de
+        <strong>{{ an.settings.specificYieldKwhPerKwp | num }} kWh/kWc</strong>
+        {{ an.measuredYield !== null ? 'mesuré par l’onduleur' : '(réglage)' }}. Le profil belge reste affiché pour
+        comparaison. <a routerLink="/releves">Factures annuelles</a>
+      </div>
+    </div>
+  } @else {
+    <div class="callout small">
+      <app-icon name="info" [size]="16" />
+      <div>
+        Base des prévisions : une maison belge type ({{ analysis().belgian.annual.consumption | kwh }} par an).
+        Encodez vos <a routerLink="/releves">factures annuelles</a> des années passées pour les caler sur votre maison.
+      </div>
+    </div>
+  }
+
   @if (!analysis().hasReadings) {
     <div class="callout warning">
       <app-icon name="alert" />

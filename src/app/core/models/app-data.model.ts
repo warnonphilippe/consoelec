@@ -181,6 +181,27 @@ export interface PvDay {
   at: string;
 }
 
+/** Horaire des heures pleines / creuses en vigueur pendant une facture. */
+export type BillSchedule = 'legacy' | 'current';
+
+/**
+ * Facture annuelle (de régularisation) d'un compteur bihoraire, ancien ou intelligent : soldes facturés de l'année,
+ * soutirage moins injection, par période tarifaire (négatifs quand l'injection l'emporte).
+ */
+export interface AnnualBill {
+  id: string;
+  /** Début et fin (exclue) de l'année facturée, `AAAA-MM-JJ`. */
+  from: string;
+  to: string;
+  /** Solde heures pleines / « jour » (I), kWh. */
+  netPeak: number;
+  /** Solde heures creuses / « nuit » (II), kWh. */
+  netOff: number;
+  /** `legacy` : ancien bihoraire (22 h-7 h et week-ends en heures creuses) ; `current` : horaire des réglages. */
+  schedule: BillSchedule;
+  note: string;
+}
+
 /** Connexion locale à l'onduleur ; la clé (WPA2-PSK de la plaque) est dans le Trousseau, jamais ici. */
 export interface InverterSettings {
   enabled: boolean;
@@ -195,6 +216,8 @@ export interface AppData {
   readings: MeterReading[];
   /** Historique quotidien de la production lue sur l'onduleur. */
   pvDaily: PvDay[];
+  /** Factures annuelles des années passées (soldes jour / nuit). */
+  annualBills: AnnualBill[];
   settings: Settings;
 }
 
@@ -290,6 +313,7 @@ export function emptyData(): AppData {
     house: structuredClone(DEFAULT_HOUSE),
     readings: [],
     pvDaily: [],
+    annualBills: [],
     settings: {
       ...DEFAULT_SETTINGS,
       offPeakHours: [...DEFAULT_SETTINGS.offPeakHours],

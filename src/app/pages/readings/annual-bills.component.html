@@ -1,0 +1,146 @@
+<div class="card flush bills">
+  <div class="card-header">
+    <h2>Factures annuelles</h2>
+    <span class="badge">{{ store.data().annualBills.length }}</span>
+    <button type="button" class="btn sm" (click)="add()">
+      <app-icon name="plus" [size]="14" /> Ajouter une facture
+    </button>
+  </div>
+  <p class="small muted intro">
+    Les soldes de vos factures de régularisation des années passées (ancien compteur compris) : « jour » (I) et « nuit »
+    (II), soutirage moins injection, négatifs quand l'injection l'emporte. Avec la production de l'onduleur sur la même
+    période, ils donnent la consommation réelle de la maison, qui sert de base aux prévisions.
+  </p>
+
+  @if (annual(); as a) {
+    <div class="callout success small baseline">
+      <app-icon name="home" [size]="16" />
+      <div>
+        Consommation retenue pour la maison : <strong>{{ a.baseline.annualKwh | kwh }} par an</strong>
+        ({{ a.baseline.years }} facture{{ a.baseline.years > 1 ? 's' : '' }}, de {{ a.baseline.minKwh | kwh }} à
+        {{ a.baseline.maxKwh | kwh }} ; années récentes privilégiées, moyenne belge de
+        {{ a.baseline.belgianKwh | kwh }} en appoint pour {{ a.baseline.belgianSharePct | num }} %).
+        @if (a.measuredYield !== null) {
+          <br />Rendement des panneaux mesuré par l'onduleur : <strong>{{ a.measuredYield | num }} kWh/kWc/an</strong>.
+        }
+      </div>
+    </div>
+  }
+
+  @if (draft(); as d) {
+    <div class="form bill-form">
+      <div class="form-grid">
+        <div class="field">
+          <label for="billfrom">Du</label>
+          <input id="billfrom" class="input" type="date" [value]="d.from" (change)="patch({ from: $any($event.target).value })" />
+        </div>
+        <div class="field">
+          <label for="billto">Au (relevé suivant)</label>
+          <input id="billto" class="input" type="date" [value]="d.to" (change)="patch({ to: $any($event.target).value })" />
+        </div>
+        <div class="field">
+          <label for="billpeak">Solde jour / heures pleines (I)</label>
+          <input
+            id="billpeak"
+            class="input"
+            inputmode="decimal"
+            placeholder="ex. -1 200"
+            [value]="d.netPeak"
+            (input)="patch({ netPeak: $any($event.target).value })"
+          />
+        </div>
+        <div class="field">
+          <label for="billoff">Solde nuit / heures creuses (II)</label>
+          <input
+            id="billoff"
+            class="input"
+            inputmode="decimal"
+            placeholder="ex. 150"
+            [value]="d.netOff"
+            (input)="patch({ netOff: $any($event.target).value })"
+          />
+        </div>
+        <div class="field">
+          <label for="billsched">Horaire des heures creuses</label>
+          <select id="billsched" class="input" (change)="patch({ schedule: $any($event.target).value })">
+            <option value="legacy" [selected]="d.schedule === 'legacy'">Ancien bihoraire (22 h-7 h et week-ends)</option>
+            <option value="current" [selected]="d.schedule === 'current'">Horaire actuel (réglages)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="billnote">Note</label>
+          <input id="billnote" class="input" [value]="d.note" (input)="patch({ note: $any($event.target).value })" />
+        </div>
+      </div>
+      <div class="row">
+        <button type="button" class="btn primary" (click)="save()">
+          <app-icon name="check" [size]="15" /> Enregistrer
+        </button>
+        <button type="button" class="btn" (click)="draft.set(null)">Annuler</button>
+      </div>
+    </div>
+  }
+
+  @if (rows().length > 0) {
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Année</th>
+            <th class="num" title="Solde facturé heures pleines / jour (I)">Jour</th>
+            <th class="num" title="Solde facturé heures creuses / nuit (II)">Nuit</th>
+            <th class="num" title="Production de l'onduleur sur la période">Prod.</th>
+            <th class="num" title="Solde jour + nuit + production">Conso.</th>
+            <th class="num" title="Soldes jour / nuit que donne le modèle calé, pour comparaison">Modèle</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (y of rows(); track y.bill.id) {
+            <tr>
+              <td>
+                {{ period(y.bill) }}
+                @if (y.bill.note) {
+                  <span class="small faint" [title]="y.bill.note"> · {{ y.bill.note }}</span>
+                }
+              </td>
+              <td class="num">{{ y.bill.netPeak | skwh }}</td>
+              <td class="num">{{ y.bill.netOff | skwh }}</td>
+              <td class="num">
+                @if (y.productionStatus === 'none') {
+                  <span class="faint">—</span>
+                } @else {
+                  {{ y.production | kwh }}{{ y.productionStatus === 'estimated' ? ' (est.)' : '' }}
+                }
+              </td>
+              <td class="num"><strong>{{ y.consumption | kwh }}</strong></td>
+              <td class="num faint">
+                @if (y.model; as m) {
+                  {{ m.netPeak | skwh }}<br />{{ m.netOff | skwh }}
+                } @else {
+                  —
+                }
+              </td>
+              <td class="actions">
+                <button type="button" class="icon-btn" title="Modifier" (click)="edit(y.bill)">
+                  <app-icon name="edit" [size]="15" />
+                </button>
+                <button type="button" class="icon-btn danger" title="Supprimer" (click)="remove(y.bill)">
+                  <app-icon name="trash" [size]="15" />
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="small faint footnote">
+      « Modèle » : soldes que donne le modèle calé sur la moyenne des années, avec l'horaire de la facture ; l'écart
+      d'une année à l'autre vient de la météo et des habitudes.
+    </p>
+  } @else if (!draft()) {
+    <p class="small muted empty-bills">
+      Aucune facture encodée : les prévisions se basent sur la moyenne belge et sur vos relevés.
+    </p>
+  }
+</div>

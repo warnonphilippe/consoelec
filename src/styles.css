@@ -813,9 +813,12 @@ dialog.modal .modal-foot {
   }
 }
 
-.entry-layout > .entry {
-  position: sticky;
-  top: 24px;
+/* Formulaire fixe pendant le défilement de la liste, seulement en deux colonnes (sinon la liste passerait dessus). */
+@media (min-width: 1101px) {
+  .entry-layout > .entry {
+    position: sticky;
+    top: 24px;
+  }
 }
 
 .input.big-input {

@@ -27,6 +27,7 @@ import { ToastService } from '../../core/services/toast.service';
 import { FORMAT_PIPES, fmt } from '../../shared/format';
 import { IconComponent } from '../../shared/icon.component';
 import { photoDataUrl, prepareMeterPhoto } from '../../shared/meter-image';
+import { AnnualBillsComponent } from './annual-bills.component';
 
 interface ReadingRow {
   readonly reading: MeterReading;
@@ -56,7 +57,7 @@ type FormKey = RegisterKey | 'pvTotal';
 
 @Component({
   selector: 'app-readings-page',
-  imports: [ReactiveFormsModule, RouterLink, DatePipe, IconComponent, ...FORMAT_PIPES],
+  imports: [ReactiveFormsModule, RouterLink, DatePipe, IconComponent, AnnualBillsComponent, ...FORMAT_PIPES],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './readings.page.html',
   styleUrl: './readings.page.css',

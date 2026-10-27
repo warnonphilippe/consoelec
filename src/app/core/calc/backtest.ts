@@ -46,6 +46,8 @@ export function backtest(
   reference: ReferenceProfile,
   weights: SeriesWeights,
   ev: EvScenario | null,
+  /** Profil belge type, quand `reference` est calée sur les factures annuelles (voir `buildProfiles`). */
+  belgian: ReferenceProfile | null = null,
 ): BacktestResult {
   const full = analyzeConsumption(readings, weights);
   const levels = full.levels;
@@ -69,6 +71,7 @@ export function backtest(
       priorAnalysis,
       monthlyAverages(priorAnalysis.months),
       ev,
+      belgian,
     );
     const end = start + daysInMonth(bucket.year, bucket.month);
     const predicted: BacktestMonth['predicted'] = {};
@@ -93,7 +96,7 @@ export function backtest(
   }
 
   const scores: ProfileScores = {};
-  for (const key of ['reference', 'adjusted', 'history'] as const) {
+  for (const key of ['reference', 'annual', 'adjusted', 'history'] as const) {
     const tested = months.filter((m) => m.predicted[key] !== undefined);
     if (tested.length === 0) {
       continue;

@@ -136,6 +136,14 @@ Au lieu de taper les index, **déposez une photo** du compteur dans la zone pré
 
 Rien n'est enregistré sans votre validation, et la photo n'est pas conservée. Les photos au format HEIC des iPhone sont acceptées. La lecture demande l'application de bureau et une [clé API Claude](#assistant-ia).
 
+### Factures annuelles des années passées
+
+Sous l'historique des relevés, **Factures annuelles** accueille les soldes de vos factures de régularisation, ancien compteur compris : pour chaque année facturée, le solde **jour** (I, heures pleines) et le solde **nuit** (II, heures creuses), soutirage moins injection (négatif quand l'injection l'emporte), et l'horaire des heures creuses de l'époque (ancien bihoraire 22 h-7 h et week-ends, avant 2026).
+
+ConsoElec y ajoute la production de l'onduleur sur la même période (journal de l'onduleur) : solde + production = **consommation réelle de la maison**, année par année. La moyenne de ces années, les plus récentes pesant davantage, avec la moyenne belge en léger appoint, devient la base des prévisions ; le rendement mesuré des panneaux (dès un an de journal) remplace le rendement réglé. La colonne « Modèle » compare les soldes jour / nuit du modèle ainsi calé à ceux de chaque facture.
+
+Avec des factures, la page **Prévisions** apparaît dans le menu sans attendre deux mois de relevés.
+
 ## Tableau de bord
 
 Le tableau de bord est centré sur ce que vous paierez au fournisseur, pour l'**année de facturation** en cours (depuis la date du relevé annuel, réglable dans les réglages) :
@@ -199,10 +207,11 @@ Entre deux relevés, l'augmentation de chaque index est **répartie jour par jou
 
 ![Page Prévisions](img/previsions.png)
 
-ConsoElec projette les quatre index sur 18 mois et calcule le bilan des 12 prochains mois. Trois profils sont proposés :
+ConsoElec projette les quatre index sur 18 mois et calcule le bilan des 12 prochains mois. Plusieurs profils sont proposés :
 
 - **Statistique belge** : une maison belge type avec vos réglages (consommation annuelle, puissance crête, heures creuses).
-- **Statistique ajustée** : la référence recalée, registre par registre, sur ce que vos relevés montrent. Disponible dès deux relevés espacés de quelques semaines.
+- **Historique annuel** : avec vos factures annuelles (voir plus bas), la consommation réelle de la maison et le rendement mesuré des panneaux remplacent la maison belge type.
+- **Statistique ajustée** : la référence (historique annuel s'il existe, sinon statistique belge) recalée, registre par registre, sur ce que vos relevés montrent. Disponible dès deux relevés espacés de quelques semaines.
 - **Historique de la maison** : la moyenne réelle de chaque mois sur les années précédentes. Disponible quand les douze mois sont couverts.
 
 Le meilleur profil est utilisé par défaut ; vous pouvez en choisir un autre.
