@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { billingHorizon, indexAxisRange, keepTooltipItem } from './meters-charts';
+import { billingHorizon, indexAxisRange, keepTooltipItem, pointsFrom } from './meters-charts';
 
 describe('indexAxisRange', () => {
   const now = 20_000;
@@ -45,5 +45,19 @@ describe('billingHorizon', () => {
     expect(billingHorizon([now + 5, now + 370], now, 365)).toBe(372);
     expect(billingHorizon([now + 5, now + 400], now, 365)).toBe(365);
     expect(billingHorizon([now + 5], now, 0)).toBe(0);
+  });
+});
+
+describe('pointsFrom', () => {
+  it('coupe la courbe à la date donnée, sur un point interpolé', () => {
+    const points = [
+      { day: 10, hp: 0, hc: 100 },
+      { day: 20, hp: 50, hc: 0 },
+      { day: 30, hp: 80, hc: -20 },
+    ];
+    expect(pointsFrom(points, 15)).toEqual([{ day: 15, hp: 25, hc: 50 }, points[1], points[2]]);
+    expect(pointsFrom(points, 20)).toEqual([points[1], points[2]]);
+    expect(pointsFrom(points, 5)).toEqual(points);
+    expect(pointsFrom(points, 40)).toEqual([]);
   });
 });

@@ -166,6 +166,27 @@ export function indexChart(
   };
 }
 
+/**
+ * Points à partir de `day` seulement : la courbe démarre sur un point interpolé à cette date (prévision et limites
+ * ne s'affichent pas dans le passé).
+ */
+export function pointsFrom(points: readonly BalancePoint[], day: number): BalancePoint[] {
+  const kept: BalancePoint[] = [];
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i]!;
+    if (p.day < day) {
+      continue;
+    }
+    const before = points[i - 1];
+    if (kept.length === 0 && before && p.day > day) {
+      const f = (day - before.day) / (p.day - before.day);
+      kept.push({ day, hp: before.hp + (p.hp - before.hp) * f, hc: before.hc + (p.hc - before.hc) * f });
+    }
+    kept.push(p);
+  }
+  return kept;
+}
+
 interface BalanceDatum {
   x: number;
   y: number | null;
@@ -272,8 +293,9 @@ function billingLines(days: readonly number[], color: string): Plugin {
 
 /**
  * Soldes de facturation HP et HC (soutiré − injecté par période tarifaire) depuis le début de l'année de facturation :
- * mesurés aux relevés, puis prévus (tirets) ; ils repartent de zéro à chaque début d'année. Les courbes limites
- * (gros points, étiquetés sur le graphique) sont le plafond à ne pas dépasser pour ne rien payer en fin d'année.
+ * mesurés aux relevés, puis prévus (tirets) ; ils repartent de zéro à chaque début d'année. Les courbes limites (gros
+ * points, étiquetés) sont le plafond à ne pas dépasser pour ne rien payer en fin d'année. Prévision et limites ne
+ * s'affichent qu'à partir d'aujourd'hui.
  */
 export function balanceChart(
   series: BalanceSeries,
@@ -304,7 +326,7 @@ export function balanceChart(
     };
     const radius = (base: number) => (ctx: { raw: unknown }) =>
       (ctx.raw as BalanceDatum | undefined)?.kind === 'yearEnd' ? 6 : base;
-    const billingDays = [...series.history, ...series.forecast]
+    const billingDays = [...series.history, ...pointsFrom(series.forecast, now)]
       .filter((p) => p.kind === 'yearStart' && visible(p))
       .map((p) => p.day);
     const lines = [
@@ -332,7 +354,7 @@ export function balanceChart(
         datasets.push({
           type: 'line',
           label: `${line.label} (prévision)`,
-          data: toData(series.forecast, line.key) as unknown as XY[],
+          data: toData(pointsFrom(series.forecast, now), line.key) as unknown as XY[],
           borderColor: alpha(line.color, 0.75),
           backgroundColor: alpha(line.color, 0.75),
           borderDash: [6, 4],
@@ -346,7 +368,7 @@ export function balanceChart(
         datasets.push({
           type: 'line',
           label: line.limit,
-          data: toData(series.limit, line.key) as unknown as XY[],
+          data: toData(pointsFrom(series.limit, now), line.key) as unknown as XY[],
           // Points ronds espacés, plus épais que les tirets de la prévision : on ne confond pas les deux.
           borderColor: line.color,
           backgroundColor: line.color,
