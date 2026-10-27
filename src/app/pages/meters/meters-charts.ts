@@ -1,4 +1,4 @@
-import type { ChartConfiguration } from 'chart.js';
+import type { Chart, ChartConfiguration, Plugin } from 'chart.js';
 import { fr } from 'date-fns/locale';
 import type { FullAnalysis } from '../../core/calc/analysis';
 import type { BalancePoint, BalanceSeries } from '../../core/calc/balance';
@@ -132,6 +132,45 @@ export function indexChart(
   };
 }
 
+interface BalanceDatum {
+  x: number;
+  y: number | null;
+  kind: BalancePoint['kind'];
+}
+
+/** Trait vertical pointillé « Facturation » à chaque début d'année de facturation. */
+function billingLines(days: readonly number[], color: string): Plugin {
+  return {
+    id: 'billingLines',
+    afterDatasetsDraw(chart: Chart) {
+      const x = chart.scales['x'];
+      const { ctx, chartArea } = chart;
+      if (!x) {
+        return;
+      }
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.setLineDash([3, 4]);
+      ctx.lineWidth = 1;
+      ctx.font = '11px ui-sans-serif, system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      for (const day of days) {
+        const px = x.getPixelForValue(ms(day));
+        if (px < chartArea.left || px > chartArea.right) {
+          continue;
+        }
+        ctx.beginPath();
+        ctx.moveTo(px, chartArea.top);
+        ctx.lineTo(px, chartArea.bottom);
+        ctx.stroke();
+        ctx.fillText('Facturation', px, chartArea.top - 4);
+      }
+      ctx.restore();
+    },
+  };
+}
+
 /**
  * Soldes de facturation HP et HC (soutiré − injecté par période tarifaire) depuis le début de l'année de facturation :
  * mesurés aux relevés, puis prévus (pointillés) ; ils repartent de zéro à chaque début d'année.
@@ -146,6 +185,23 @@ export function balanceChart(
   return (c: ChartColors): ChartConfiguration => {
     const range = indexAxisRange(levelDays, fromDay, series.forecast.length > 0 ? forecastDays : 0, now);
     const visible = (p: BalancePoint) => p.day >= range.min && p.day <= range.max;
+    // À chaque facturation, la courbe s'arrête sur le solde facturé (point marqué), puis repart de zéro : un point
+    // vide entre les deux évite le trait vertical, qui ressemblerait à une chute de consommation.
+    const toData = (points: readonly BalancePoint[], key: 'hp' | 'hc') => {
+      const data: BalanceDatum[] = [];
+      for (const p of points.filter(visible)) {
+        if (p.kind === 'yearStart' && data.length > 0) {
+          data.push({ x: ms(p.day), y: null, kind: undefined });
+        }
+        data.push({ x: ms(p.day), y: p[key], kind: p.kind });
+      }
+      return data;
+    };
+    const radius = (base: number) => (ctx: { raw: unknown }) =>
+      (ctx.raw as BalanceDatum | undefined)?.kind === 'yearEnd' ? 6 : base;
+    const billingDays = [...series.history, ...series.forecast]
+      .filter((p) => p.kind === 'yearStart' && visible(p))
+      .map((p) => p.day);
     const lines = [
       { key: 'hp' as const, label: 'Solde heures pleines', color: c[COLOR.importPeak] as string },
       { key: 'hc' as const, label: 'Solde heures creuses', color: c[COLOR.importOff] as string },
@@ -155,21 +211,23 @@ export function balanceChart(
       datasets.push({
         type: 'line',
         label: line.label,
-        data: series.history.filter(visible).map((p) => ({ x: ms(p.day), y: p[line.key] })),
+        data: toData(series.history, line.key) as unknown as XY[],
         borderColor: line.color,
-        backgroundColor: alpha(line.color, 0.15),
-        pointRadius: 3,
-        pointHoverRadius: 5,
+        backgroundColor: line.color,
+        pointRadius: radius(3),
+        pointHoverRadius: radius(5),
         tension: 0,
       });
       if (series.forecast.length > 0 && forecastDays > 0) {
         datasets.push({
           type: 'line',
           label: `${line.label} (prévision)`,
-          data: series.forecast.filter(visible).map((p) => ({ x: ms(p.day), y: p[line.key] })),
+          data: toData(series.forecast, line.key) as unknown as XY[],
           borderColor: alpha(line.color, 0.75),
+          backgroundColor: alpha(line.color, 0.75),
           borderDash: [6, 4],
-          pointRadius: 0,
+          pointRadius: radius(0),
+          pointHoverRadius: radius(4),
           borderWidth: 1.5,
           tension: 0,
         });
@@ -178,11 +236,13 @@ export function balanceChart(
     return {
       type: 'line',
       data: { datasets },
+      plugins: [billingLines(billingDays, c.muted)],
       options: {
         responsive: true,
         maintainAspectRatio: false,
         parsing: false,
         interaction: { mode: 'nearest', axis: 'x', intersect: false },
+        layout: { padding: { top: 16 } },
         scales: {
           x: {
             type: 'time',
@@ -208,7 +268,14 @@ export function balanceChart(
           tooltip: {
             callbacks: {
               label: (item) => {
-                const y = (item.raw as XY).y;
+                const raw = item.raw as BalanceDatum;
+                const y = raw.y ?? 0;
+                if (raw.kind === 'yearEnd') {
+                  return `${item.dataset.label} facturé : ${fmt.signedKwh(y)} ${y > 0 ? '(à payer)' : y < 0 ? '(surplus perdu)' : ''}`;
+                }
+                if (raw.kind === 'yearStart') {
+                  return `${item.dataset.label} : nouvelle année de facturation`;
+                }
                 return `${item.dataset.label}: ${fmt.signedKwh(y)} ${y > 0 ? '(à payer)' : y < 0 ? '(surplus)' : ''}`;
               },
             },

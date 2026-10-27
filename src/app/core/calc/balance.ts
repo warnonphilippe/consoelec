@@ -16,6 +16,8 @@ export interface BalancePoint {
   readonly hp: number;
   /** Solde heures creuses (kWh). */
   readonly hc: number;
+  /** `yearEnd` : solde facturé à la fin d'une année ; `yearStart` : départ à zéro de l'année suivante. */
+  readonly kind?: 'yearEnd' | 'yearStart';
 }
 
 export interface BillingYear {
@@ -121,8 +123,8 @@ export function balanceSeries(
   let boundary = nextBillingStart(first, billingStart);
   for (const level of levels) {
     while (boundary <= level.day) {
-      history.push(endOfYear(billingYearStart(boundary - 1, billingStart), boundary));
-      history.push({ day: boundary, hp: 0, hc: 0 });
+      history.push({ ...endOfYear(billingYearStart(boundary - 1, billingStart), boundary), kind: 'yearEnd' });
+      history.push({ day: boundary, hp: 0, hc: 0, kind: 'yearStart' });
       boundary = nextBillingStart(boundary, billingStart);
     }
     if (level.day !== history.at(-1)?.day) {
@@ -149,8 +151,8 @@ export function balanceSeries(
     for (let day = last + step; day < until + step; day += step) {
       const target = Math.min(day, until);
       while (next <= target) {
-        projected.push(project(next - 1e-6));
-        projected.push({ day: next, hp: 0, hc: 0 });
+        projected.push({ ...project(next - 1e-6), day: next, kind: 'yearEnd' });
+        projected.push({ day: next, hp: 0, hc: 0, kind: 'yearStart' });
         next = nextBillingStart(next, billingStart);
       }
       projected.push(project(target));

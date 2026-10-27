@@ -170,7 +170,9 @@
       <p class="small muted balance-intro">
         Ce que le fournisseur compense : soutiré − injecté, séparément en heures pleines et en heures creuses, depuis
         le début de l'année de facturation (le {{ billingStartLabel() }}, modifiable dans
-        <a routerLink="/reglages">Réglages</a>). Au-dessus de zéro : à payer ; en dessous : surplus.
+        <a routerLink="/reglages">Réglages</a>). Au-dessus de zéro : à payer ; en dessous : surplus. À chaque ligne
+        « Facturation », le gros point est le solde facturé de l'année qui se termine ; la courbe repart ensuite de
+        zéro, car l'année suivante se calcule à partir des nouveaux index (le compteur, lui, n'est pas remis à zéro).
       </p>
       @if (balance().history.length > 0) {
         <app-chart [build]="balanceChart()" [height]="300" />

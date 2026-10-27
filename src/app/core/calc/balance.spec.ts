@@ -61,7 +61,8 @@ describe('balanceSeries', () => {
     const boundary = toDayNumber('2026-11-01');
     const atBoundary = s.history.filter((p) => p.day === boundary);
     expect(atBoundary).toHaveLength(2);
-    expect(atBoundary[1]).toMatchObject({ hp: 0, hc: 0 });
+    expect(atBoundary[0]!.kind).toBe('yearEnd');
+    expect(atBoundary[1]).toMatchObject({ hp: 0, hc: 0, kind: 'yearStart' });
     const last = s.history.at(-1)!;
     // Fin d'année + début de la suivante = écart total entre les deux relevés.
     expect(atBoundary[0]!.hp + last.hp).toBeCloseTo(300 - 20, 6);
@@ -95,7 +96,10 @@ describe('balanceSeries', () => {
     const s = series(readings, '2026-10-27T12:00', '2027-10-27T12:00');
     expect(s.forecast.length).toBeGreaterThan(40);
     const reset = s.forecast.filter((p) => p.day === toDayNumber('2026-11-01'));
+    expect(reset.map((p) => p.kind)).toEqual(['yearEnd', 'yearStart']);
     expect(reset.at(-1)).toMatchObject({ hp: 0, hc: 0 });
+    // Le solde facturé affiché est celui de la fin d'année prévue dans le résumé.
+    expect(reset[0]!.hp).toBeCloseTo(s.years[0]!.hp, 6);
     expect(s.years).toHaveLength(2);
     expect(s.years[0]).toMatchObject({ forecast: true, start: toDayNumber('2025-11-01') });
     expect(s.years[0]!.coveredFrom).toBe(toDayNumber('2025-11-05T20:00'));
