@@ -25,10 +25,17 @@ mac:
       arch: [arm64]
   category: public.app-category.utilities
   icon: build/icon.icns
-  # Pas de compte Apple Developer : signature ad hoc, indispensable pour qu'une
-  # app arm64 se lance. Sur un autre Mac, lever la quarantaine (voir le guide).
+  # Par défaut : signature ad hoc, indispensable pour qu'une app arm64 se lance. Sur un autre Mac, lever la
+  # quarantaine (voir le guide). release/build.sh signe plutôt avec le certificat « Apple Development » du
+  # trousseau quand il existe : une identité stable garde l'autorisation « Réseau local » d'une version à l'autre
+  # (une signature ad hoc change à chaque build et macOS la redemande).
   identity: '-'
   hardenedRuntime: false
+  extendInfo:
+    # Lecture de l'onduleur sur le réseau local et recherche Bonjour (macOS 15 demande l'autorisation).
+    NSLocalNetworkUsageDescription: Lire la production de votre onduleur solaire sur le réseau local.
+    NSBonjourServices:
+      - _http._tcp
 
 dmg:
   title: ConsoElec ${version}
