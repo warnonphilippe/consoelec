@@ -64,7 +64,7 @@ describe('mergeData', () => {
     const incoming = {
       ...withReadings([]),
       pvDaily: [
-        { date: '2026-10-25', dayKwh: 15.7, totalKwh: 32070, at: '2026-10-25T19:00' },
+        { date: '2026-10-25', dayKwh: 9.9, totalKwh: 12345, at: '2026-10-25T19:00' },
         { date: '2026-10-23', dayKwh: 9, totalKwh: 32042, at: '2026-10-23T19:00' },
         { date: '2026-10-24', dayKwh: 11, totalKwh: 32053, at: '2026-10-24T17:00' },
       ],
@@ -73,7 +73,7 @@ describe('mergeData', () => {
     expect(data.pvDaily.map((d) => [d.date, d.dayKwh])).toEqual([
       ['2026-10-23', 9],
       ['2026-10-24', 12],
-      ['2026-10-25', 15.7],
+      ['2026-10-25', 9.9],
     ]);
     expect(report.addedPvDays).toBe(2);
   });

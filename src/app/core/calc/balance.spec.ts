@@ -42,7 +42,7 @@ describe('billingYearStart', () => {
 describe('balanceSeries', () => {
   it('calcule les soldes HP et HC entre relevés de la même année', () => {
     const s = series(
-      [reading('2026-10-09T20:00', 461, 295, 1135, 2450), reading('2026-10-22T20:00', 634, 366, 1151, 2537)],
+      [reading('2026-10-09T20:00', 100, 200, 300, 400), reading('2026-10-22T20:00', 273, 271, 316, 487)],
       '2026-10-23T12:00',
       '2026-10-23T12:00',
     );
@@ -54,8 +54,8 @@ describe('balanceSeries', () => {
 
   it('remet les soldes à zéro au début de l’année de facturation, sans rien perdre', () => {
     const readings = [
-      reading('2026-10-09T20:00', 461, 295, 1135, 2450),
-      reading('2026-11-20T20:00', 761, 495, 1155, 2550),
+      reading('2026-10-09T20:00', 100, 200, 300, 400),
+      reading('2026-11-20T20:00', 400, 400, 320, 500),
     ];
     const s = series(readings, '2026-11-21T12:00', '2026-11-21T12:00');
     const boundary = toDayNumber('2026-11-01');
@@ -110,24 +110,24 @@ describe('balanceSeries', () => {
     expect(Number.isFinite(s.years[1]!.hc)).toBe(true);
   });
 
-  it('donne le mesuré de l’année à ce jour avec les relevés réels d’octobre', () => {
+  it('donne le mesuré de l’année à ce jour, au dernier relevé', () => {
     const s = series(
       [
-        reading('2026-10-09T20:00', 461, 295, 1135, 2450),
-        reading('2026-10-14T20:00', 530, 316, 1141, 2496),
-        reading('2026-10-22T20:00', 634, 366, 1151, 2537),
-        reading('2026-10-25T18:15', 706.48, 413.31, 1153.33, 2545.13),
-        reading('2026-10-27T13:45', 716.64, 422.85, 1157.98, 2554.73),
+        reading('2026-10-09T20:00', 100, 200, 300, 400),
+        reading('2026-10-14T20:00', 150, 220, 305, 440),
+        reading('2026-10-22T20:00', 240, 260, 312, 480),
+        reading('2026-10-25T18:15', 300.5, 290.25, 315, 490.5),
+        reading('2026-10-27T13:45', 310.75, 300.5, 320.25, 500.75),
       ],
       '2026-10-27T15:00',
       '2027-11-01',
     );
     const toDate = s.years[0]!.toDate!;
     expect(toDate.day).toBe(toDayNumber('2026-10-27T13:45'));
-    expect(toDate.importPeak).toBeCloseTo(255.64, 6);
-    expect(toDate.exportPeak).toBeCloseTo(22.98, 6);
-    expect(toDate.hp).toBeCloseTo(232.66, 6);
-    expect(toDate.hc).toBeCloseTo(23.12, 6);
+    expect(toDate.importPeak).toBeCloseTo(210.75, 6);
+    expect(toDate.exportPeak).toBeCloseTo(20.25, 6);
+    expect(toDate.hp).toBeCloseTo(190.5, 6);
+    expect(toDate.hc).toBeCloseTo(100.5 - 100.75, 6);
     // L'année suivante n'a pas encore de relevé.
     expect(s.years[1]!.toDate).toBeNull();
   });

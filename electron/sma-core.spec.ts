@@ -69,8 +69,8 @@ const values = (power: number | null) => ({
   result: {
     '017A-xxxxx00D': {
       '6100_40263F00': { '1': [{ val: power }] },
-      '6400_00260100': { '1': [{ val: 32070489 }] },
-      '6400_00262200': { '1': [{ val: 15727 }] },
+      '6400_00260100': { '1': [{ val: 12345678 }] },
+      '6400_00262200': { '1': [{ val: 9876 }] },
     },
   },
 });
@@ -97,8 +97,8 @@ describe('SRP de l’onduleur', () => {
   it('lit les mesures, y compris la nuit', () => {
     expect(parseMeasurements(values(2450))).toEqual({
       powerW: 2450,
-      totalWh: 32070489,
-      dayWh: 15727,
+      totalWh: 12345678,
+      dayWh: 9876,
     });
     expect(parseMeasurements(values(null)).powerW).toBeNull();
     expect(() => parseMeasurements({ result: {} })).toThrow();
@@ -114,7 +114,7 @@ describe('SRP de l’onduleur', () => {
         '017A-xxxxx00D': values(762).result['017A-xxxxx00D'],
       },
     };
-    expect(parseMeasurements(json)).toEqual({ powerW: 762, totalWh: 32070489, dayWh: 15727 });
+    expect(parseMeasurements(json)).toEqual({ powerW: 762, totalWh: 12345678, dayWh: 9876 });
   });
 
   it('traduit les erreurs de l’onduleur', () => {
@@ -287,7 +287,7 @@ describe('client local de l’onduleur (serveur HTTPS simulé)', () => {
     client.configure({ enabled: true, host: s.host, certFingerprint: null });
     const reading = await client.read();
     expect(reading.error).toBeNull();
-    expect(reading).toMatchObject({ powerW: 1830, totalWh: 32070489, dayWh: 15727 });
+    expect(reading).toMatchObject({ powerW: 1830, totalWh: 12345678, dayWh: 9876 });
     expect(reading.certFingerprint).toBe(fingerprint);
     // Deuxième lecture : la session est réutilisée.
     await client.read();
