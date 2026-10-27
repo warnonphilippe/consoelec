@@ -159,6 +159,10 @@ export interface Settings {
    * entre soutirage et injection se fait sur cette année, par période tarifaire.
    */
   billingStart: string;
+  /** Prix moyen du kWh en heures pleines, tout compris, TVA incluse (€). */
+  priceHp: number;
+  /** Prix moyen du kWh en heures creuses, tout compris, TVA incluse (€). */
+  priceHc: number;
   theme: ThemeMode;
   /** Modèle Claude utilisé par l'assistant et la lecture de photo. */
   aiModel: string;
@@ -229,6 +233,9 @@ export const DEFAULT_SETTINGS: Settings = {
   offPeakWeekends: false,
   specificYieldKwhPerKwp: 900,
   billingStart: '01-01',
+  // Moyennes wallonnes 2026 estimées (énergie, réseau, taxes, TVA) : à remplacer par celles du contrat.
+  priceHp: 0.34,
+  priceHc: 0.24,
   theme: 'system',
   aiModel: DEFAULT_AI_MODEL,
   inverter: { enabled: false, host: '', certFingerprint: null },

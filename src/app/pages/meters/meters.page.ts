@@ -5,12 +5,12 @@ import { DataStore } from '../../core/services/data-store.service';
 import { ChartComponent } from '../../shared/chart/chart.component';
 import { FORMAT_PIPES } from '../../shared/format';
 import { IconComponent } from '../../shared/icon.component';
-import { balanceSeries } from '../../core/calc/balance';
-import { balanceChart, indexChart, splitChart } from './meters-charts';
+import { indexChart, splitChart } from './meters-charts';
+import { BalanceCardComponent } from '../../shared/balance-card/balance-card.component';
 
 @Component({
   selector: 'app-meters-page',
-  imports: [RouterLink, IconComponent, ChartComponent, ...FORMAT_PIPES],
+  imports: [RouterLink, IconComponent, ChartComponent, BalanceCardComponent, ...FORMAT_PIPES],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './meters.page.html',
   styleUrl: './meters.page.css',
@@ -80,43 +80,6 @@ export default class MetersPage {
       now,
     );
   });
-
-  // --- Soldes de facturation ---
-  protected readonly balanceHistoryDays = signal<number | null>(365);
-  protected readonly balanceForecastDays = signal(365);
-  protected readonly balance = computed(() => {
-    const a = this.analysis();
-    const now = this.store.now();
-    return balanceSeries(
-      a.consumption,
-      a.weights,
-      a.base.best,
-      this.store.settings().billingStart,
-      now + Math.max(this.balanceForecastDays(), 400),
-      now,
-    );
-  });
-  protected readonly balanceChart = computed(() => {
-    const days = this.balanceHistoryDays();
-    const now = this.store.now();
-    return balanceChart(
-      this.balance(),
-      this.analysis().consumption.levels.map((l) => l.day),
-      days === null ? null : now - days,
-      this.balanceForecastDays(),
-      now,
-    );
-  });
-  /** « 1er novembre » : début de l'année de facturation, lisible. */
-  protected readonly billingStartLabel = computed(() => {
-    const [month, day] = this.store.settings().billingStart.split('-').map(Number) as [number, number];
-    const name = new Intl.DateTimeFormat('fr-BE', { month: 'long' }).format(new Date(2026, month - 1, 1));
-    return `${day === 1 ? '1er' : day} ${name}`;
-  });
-  /** Fin de l'année de facturation (veille du début de la suivante), pour l'affichage. */
-  protected lastDayOf(end: number): number {
-    return end - 1;
-  }
 
   protected readonly importSplit = computed(() => {
     const v = this.analysis().last365?.values;

@@ -35,7 +35,12 @@ import { ToastService } from '../../core/services/toast.service';
 import { FORMAT_PIPES } from '../../shared/format';
 import { IconComponent, type IconName } from '../../shared/icon.component';
 
-type NumericSetting = 'referenceAnnualKwh' | 'winterSharePct' | 'specificYieldKwhPerKwp';
+type NumericSetting =
+  | 'referenceAnnualKwh'
+  | 'winterSharePct'
+  | 'specificYieldKwhPerKwp'
+  | 'priceHp'
+  | 'priceHc';
 
 @Component({
   selector: 'app-settings-page',

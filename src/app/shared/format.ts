@@ -7,6 +7,13 @@ const decFormat = new Intl.NumberFormat(LOCALE, {
   minimumFractionDigits: 1,
   maximumFractionDigits: 1,
 });
+const euroFormat = new Intl.NumberFormat(LOCALE, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+const euroCentsFormat = new Intl.NumberFormat(LOCALE, {
+  style: 'currency',
+  currency: 'EUR',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
 const dateFormat = new Intl.DateTimeFormat(LOCALE, {
   day: '2-digit',
   month: '2-digit',
@@ -37,6 +44,9 @@ export const fmt = {
   number: (v: number | null | undefined, decimals = 0): string =>
     valid(v) ? (decimals === 1 ? decFormat.format(v) : intFormat.format(v)) : '—',
   pct: (v: number | null | undefined): string => (valid(v) ? `${intFormat.format(v)} %` : '—'),
+  /** Montant en euros (arrondi à l'euro, ou au centime avec `cents`). */
+  euro: (v: number | null | undefined, cents = false): string =>
+    valid(v) ? (cents ? euroCentsFormat : euroFormat).format(v) : '—',
   /** Numéro de jour ou chaîne ISO locale → date courte. */
   date: (v: number | string | null | undefined): string => format(v, dateFormat),
   longDate: (v: number | string | null | undefined): string => format(v, longDateFormat),
@@ -93,4 +103,11 @@ export class DayPipe implements PipeTransform {
   }
 }
 
-export const FORMAT_PIPES = [KwhPipe, SignedKwhPipe, PctPipe, NumPipe, DayPipe] as const;
+@Pipe({ name: 'euro' })
+export class EuroPipe implements PipeTransform {
+  transform(value: number | null | undefined, cents = false): string {
+    return fmt.euro(value, cents);
+  }
+}
+
+export const FORMAT_PIPES = [KwhPipe, SignedKwhPipe, PctPipe, NumPipe, DayPipe, EuroPipe] as const;

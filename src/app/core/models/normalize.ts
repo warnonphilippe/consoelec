@@ -167,6 +167,8 @@ function normalizeSettings(raw: Raw): Settings {
       num(raw['specificYieldKwhPerKwp'], DEFAULT_SETTINGS.specificYieldKwhPerKwp),
     ),
     billingStart: monthDay(raw['billingStart'], DEFAULT_SETTINGS.billingStart),
+    priceHp: clamp(num(raw['priceHp'], DEFAULT_SETTINGS.priceHp), 0, 2),
+    priceHc: clamp(num(raw['priceHc'], DEFAULT_SETTINGS.priceHc), 0, 2),
     theme:
       theme === 'light' || theme === 'dark' || theme === 'system' ? theme : DEFAULT_SETTINGS.theme,
     aiModel:

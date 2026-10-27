@@ -240,3 +240,7 @@
 .billing-day {
   width: 84px;
 }
+
+.prices .input-suffix {
+  flex: 1;
+}

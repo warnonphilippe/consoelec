@@ -1,5 +1,6 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
 import { analyze } from '../calc/analysis';
+import { balanceSeries, billingCost } from '../calc/balance';
 import { buildDemoData } from '../calc/demo-data';
 import { dateToDayNumber } from '../calc/time';
 import {
@@ -45,6 +46,30 @@ export class DataStore {
       .sort((a, b) => b.date.localeCompare(a.date)),
   );
   readonly analysis = computed(() => analyze(this.state(), this.now()));
+  /**
+   * Soldes de facturation HP / HC (compensation par période tarifaire) : mesurés aux relevés, puis prévus sur deux ans.
+   * Partagés par le tableau de bord, la barre latérale et la page Compteurs.
+   */
+  readonly billing = computed(() => {
+    const a = this.analysis();
+    const now = this.now();
+    return balanceSeries(a.consumption, a.weights, a.base.best, this.settings().billingStart, now + 800, now);
+  });
+  /** Année de facturation en cours, avec son coût estimé au prix moyen du kWh (fin d'année et à ce jour). */
+  readonly billingYear = computed(() => {
+    const year = this.billing().years[0];
+    if (!year) {
+      return null;
+    }
+    const s = this.settings();
+    const prices = { hp: s.priceHp, hc: s.priceHc };
+    return {
+      ...year,
+      cost: billingCost(year.hp, year.hc, prices),
+      costToDate: year.toDate ? billingCost(year.toDate.hp, year.toDate.hc, prices) : null,
+      prices,
+    };
+  });
 
   constructor() {
     const timer = setInterval(() => this.now.set(dateToDayNumber(new Date())), 60_000);

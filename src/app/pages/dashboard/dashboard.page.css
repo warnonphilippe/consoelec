@@ -1,5 +1,9 @@
-.kpis {
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+.billing {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.period-note {
+  margin: -4px 0 12px;
 }
 
 .kpi .kpi-value small {

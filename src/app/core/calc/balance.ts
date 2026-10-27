@@ -31,6 +31,47 @@ export interface BillingYear {
   readonly forecast: boolean;
   /** Premier jour couvert par les relevés, s'il est postérieur au début de l'année (année incomplète). */
   readonly coveredFrom: number | null;
+  /** Mesuré du début de l'année au dernier relevé (s'il tombe dans l'année) : soutirages, injections et soldes. */
+  readonly toDate: YearToDate | null;
+}
+
+export interface YearToDate {
+  /** Dernier relevé pris en compte. */
+  readonly day: number;
+  readonly importPeak: number;
+  readonly importOff: number;
+  readonly exportPeak: number;
+  readonly exportOff: number;
+  readonly hp: number;
+  readonly hc: number;
+}
+
+export interface BillingPrices {
+  /** Prix moyen du kWh en heures pleines (€). */
+  readonly hp: number;
+  /** Prix moyen du kWh en heures creuses (€). */
+  readonly hc: number;
+}
+
+export interface BillingCost {
+  /** Coût des soldes positifs (€) ; un solde négatif ne coûte rien. */
+  readonly hp: number;
+  readonly hc: number;
+  readonly total: number;
+  /** Surplus non remboursé (kWh) : soldes négatifs. */
+  readonly surplusKwh: number;
+}
+
+/** Coût estimé de soldes HP / HC au prix moyen du kWh : seuls les soldes positifs se paient. */
+export function billingCost(hp: number, hc: number, prices: BillingPrices): BillingCost {
+  const costHp = Math.max(0, hp) * prices.hp;
+  const costHc = Math.max(0, hc) * prices.hc;
+  return {
+    hp: costHp,
+    hc: costHc,
+    total: costHp + costHc,
+    surplusKwh: Math.max(0, -hp) + Math.max(0, -hc),
+  };
 }
 
 export interface BalanceSeries {
@@ -169,6 +210,8 @@ export function balanceSeries(
       break;
     }
     const value = usesForecast ? project(end - 1e-6) : endOfYear(start, end);
+    const toDateDay = Math.min(last, end);
+    const measuredYear = toDateDay > start ? totalsBetween(consumption, start, toDateDay, weights).values : null;
     years.push({
       start,
       end,
@@ -176,6 +219,18 @@ export function balanceSeries(
       hc: value.hc,
       forecast: usesForecast,
       coveredFrom: first > start ? first : null,
+      toDate:
+        measuredYear === null
+          ? null
+          : {
+              day: toDateDay,
+              importPeak: measuredYear.importPeak,
+              importOff: measuredYear.importOff,
+              exportPeak: measuredYear.exportPeak,
+              exportOff: measuredYear.exportOff,
+              hp: measuredYear.importPeak - measuredYear.exportPeak,
+              hc: measuredYear.importOff - measuredYear.exportOff,
+            },
     });
     start = end;
   }

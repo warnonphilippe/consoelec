@@ -51,7 +51,7 @@ Au premier lancement, le tableau de bord propose :
 - **Décrire ma maison** : puissance des panneaux, voiture électrique prévue…
 - **Essayer avec des données de démo** : deux ans de relevés fictifs (6 kWc, famille de 4 personnes) pour découvrir toutes les fonctions. Effacez-les ensuite dans **Réglages → Tout effacer**.
 
-La barre latérale donne accès aux pages. Elle affiche en permanence le **solde net des 12 derniers mois**, un bouton **Assistant IA**, le choix du thème et l'état de l'enregistrement.
+La barre latérale donne accès aux pages. Elle affiche en permanence la **facture estimée** de l'année de facturation, un bouton **Assistant IA**, le choix du thème et l'état de l'enregistrement.
 
 ## Comprendre le compteur intelligent
 
@@ -138,14 +138,14 @@ Rien n'est enregistré sans votre validation, et la photo n'est pas conservée. 
 
 ## Tableau de bord
 
-Le tableau de bord résume :
+Le tableau de bord est centré sur ce que vous paierez au fournisseur, pour l'**année de facturation** en cours (depuis la date du relevé annuel, réglable dans les réglages) :
 
-- le **solde net**, le **soutirage** (heures pleines et creuses) et l'**injection** des 12 derniers mois ;
-- l'**autoconsommation** et l'**autarcie** (si l'index de l'onduleur est encodé) ;
-- le **rythme des 30 derniers jours** comparé à ce qui est attendu ;
-- la **prévision** des 12 prochains mois ;
-- le **bilan mensuel** : soutirage vers le haut, injection vers le bas, empilés par tarif. Les barres pâles sont des mois incomplets ou prévus ;
-- le **solde net cumulé**.
+- la **production en direct** de l'onduleur ;
+- le **solde heures pleines** (soutiré 1.8.1 − injecté 2.8.1) et le **solde heures creuses** (soutiré 1.8.2 − injecté 2.8.2) : la valeur à ce jour, au dernier relevé, et l'estimation en fin d'année avec son coût. Un solde négatif est un surplus non remboursé ;
+- le **coût estimé de l'année** : les soldes positifs multipliés par les **prix moyens du kWh** en heures pleines et en heures creuses (**Réglages → Prix moyen du kWh**, tout compris, TVA incluse ; à recopier de votre contrat) ;
+- le **graphique des soldes**, comme sur la page Compteurs.
+
+La barre latérale affiche en permanence la **facture estimée** de l'année. C'est une estimation au prix moyen : la facture réelle détaille énergie, réseau et taxes, et les frais de réseau se paient sur tout le soutirage. L'autoconsommation est sur la page Production.
 
 ## Production
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { emptyData, type MeterReading } from '../models/app-data.model';
 import { analyze } from './analysis';
-import { balanceSeries, billingYearStart } from './balance';
+import { balanceSeries, billingCost, billingYearStart } from './balance';
 import { toDayNumber } from './time';
 
 function reading(
@@ -108,6 +108,40 @@ describe('balanceSeries', () => {
     expect(s.years[0]!.hp).toBeLessThan(300 + 40);
     expect(s.years[1]).toMatchObject({ forecast: true, coveredFrom: null, start: toDayNumber('2026-11-01') });
     expect(Number.isFinite(s.years[1]!.hc)).toBe(true);
+  });
+
+  it('donne le mesuré de l’année à ce jour avec les relevés réels d’octobre', () => {
+    const s = series(
+      [
+        reading('2026-10-09T20:00', 461, 295, 1135, 2450),
+        reading('2026-10-14T20:00', 530, 316, 1141, 2496),
+        reading('2026-10-22T20:00', 634, 366, 1151, 2537),
+        reading('2026-10-25T18:15', 706.48, 413.31, 1153.33, 2545.13),
+        reading('2026-10-27T13:45', 716.64, 422.85, 1157.98, 2554.73),
+      ],
+      '2026-10-27T15:00',
+      '2027-11-01',
+    );
+    const toDate = s.years[0]!.toDate!;
+    expect(toDate.day).toBe(toDayNumber('2026-10-27T13:45'));
+    expect(toDate.importPeak).toBeCloseTo(255.64, 6);
+    expect(toDate.exportPeak).toBeCloseTo(22.98, 6);
+    expect(toDate.hp).toBeCloseTo(232.66, 6);
+    expect(toDate.hc).toBeCloseTo(23.12, 6);
+    // L'année suivante n'a pas encore de relevé.
+    expect(s.years[1]!.toDate).toBeNull();
+  });
+
+  it('chiffre le coût des seuls soldes positifs', () => {
+    expect(billingCost(100, -50, { hp: 0.34, hc: 0.24 })).toEqual({
+      hp: 34,
+      hc: 0,
+      total: 34,
+      surplusKwh: 50,
+    });
+    const both = billingCost(10, 20, { hp: 0.3, hc: 0.2 });
+    expect(both.total).toBeCloseTo(7, 6);
+    expect(both.surplusKwh).toBe(0);
   });
 
   it('ne donne rien avec moins de deux relevés', () => {

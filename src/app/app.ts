@@ -77,17 +77,16 @@ export class App {
     { mode: 'system', icon: 'monitor', label: 'Système' },
   ];
 
-  /** Indicateur de la barre latérale : solde net des 12 derniers mois (soutirage − injection). */
+  /** Indicateur de la barre latérale : facture estimée de l'année de facturation (soldes HP / HC au prix moyen). */
   protected readonly balance = computed(() => {
-    const total = this.store.analysis().last365;
-    if (!total) {
+    const year = this.store.billingYear();
+    if (!year) {
       return null;
     }
-    const net = total.derived.net;
     return {
-      label: `${net > 0 ? '+' : net < 0 ? '−' : ''}${fmt.number(Math.abs(net))} kWh`,
-      surplus: net <= 0,
-      detail: `${fmt.number(total.derived.import)} soutirés · ${fmt.number(total.derived.export)} injectés`,
+      label: fmt.euro(year.cost.total),
+      surplus: year.cost.total <= 0,
+      detail: `HP ${fmt.signedKwh(year.hp)} · HC ${fmt.signedKwh(year.hc)}`,
     };
   });
 

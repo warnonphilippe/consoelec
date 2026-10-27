@@ -29,10 +29,11 @@
         class="mini-balance"
         routerLink="/"
         [class.surplus]="b.surplus"
-        title="Solde net sur 12 mois glissants (soutirage − injection)"
+        title="Facture estimée de l'année de facturation : soldes heures pleines et heures creuses au prix moyen du kWh"
       >
-        <app-icon name="bolt" [size]="18" />
+        <app-icon name="euro" [size]="18" />
         <div>
+          <div class="mini-balance-sub">Facture estimée</div>
           <div class="mini-balance-value">{{ b.label }}</div>
           <div class="mini-balance-sub">{{ b.detail }}</div>
         </div>

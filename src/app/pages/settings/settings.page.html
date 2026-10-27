@@ -172,6 +172,42 @@
             soldes de la page Compteurs repart de zéro à cette date.</span
           >
         </div>
+        <div class="field">
+          <label for="pricehp">Prix moyen du kWh</label>
+          <div class="row prices">
+            <div class="input-suffix">
+              <input
+                id="pricehp"
+                class="input"
+                type="number"
+                min="0"
+                max="2"
+                step="0.01"
+                aria-label="Prix moyen du kWh en heures pleines"
+                [value]="settings().priceHp"
+                (change)="setNumber('priceHp', $event, 0, 2)"
+              />
+              <span class="suffix">€ HP</span>
+            </div>
+            <div class="input-suffix">
+              <input
+                class="input"
+                type="number"
+                min="0"
+                max="2"
+                step="0.01"
+                aria-label="Prix moyen du kWh en heures creuses"
+                [value]="settings().priceHc"
+                (change)="setNumber('priceHc', $event, 0, 2)"
+              />
+              <span class="suffix">€ HC</span>
+            </div>
+          </div>
+          <span class="help"
+            >Heures pleines et heures creuses, tout compris (énergie, réseau, taxes, TVA), à recopier de votre contrat ou
+            de votre facture. Ils servent à estimer le coût des soldes au tableau de bord.</span
+          >
+        </div>
       </div>
     </div>
 
