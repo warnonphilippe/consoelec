@@ -38,7 +38,10 @@ export interface BillingYear {
   readonly settledFrom: number | null;
   /** Mesuré du début de l'année au dernier relevé (s'il tombe dans l'année) : soutirages, injections et soldes. */
   readonly toDate: YearToDate | null;
-  /** Plus haut point de chaque courbe limite sur l'année, et sa date ; `null` sans prévision. */
+  /**
+   * Plus haut point de chaque courbe limite sur l'année (le solde à ne pas dépasser à la fin de l'hiver), et sa date ;
+   * `null` sans prévision. Une période dont la limite ne monte jamais au-dessus de zéro a un plafond `null`.
+   */
   readonly ceiling: BalanceCeiling | null;
   /**
    * Marge avant de dépasser la limite, au dernier relevé (ou au début de l'année si elle est encore à venir) :
@@ -49,10 +52,18 @@ export interface BillingYear {
 }
 
 export interface BalanceCeiling {
-  readonly hp: number;
-  readonly hpDay: number;
-  readonly hc: number;
-  readonly hcDay: number;
+  readonly hp: number | null;
+  readonly hpDay: number | null;
+  readonly hc: number | null;
+  readonly hcDay: number | null;
+}
+
+/** Point d'une courbe limite : `null` pour une période sans plafond au-dessus de zéro cette année-là. */
+export interface LimitPoint {
+  readonly day: number;
+  readonly hp: number | null;
+  readonly hc: number | null;
+  readonly kind?: BalancePoint['kind'];
 }
 
 export interface BalanceMargin {
@@ -107,9 +118,11 @@ export interface BalanceSeries {
   /**
    * Courbes limites : le solde le plus haut qu'on peut avoir à chaque instant et quand même finir l'année de
    * facturation à zéro, si la suite de l'année suit le profil de la prévision (injection attendue − soutirage attendu
-   * d'ici la fin de l'année). Elles valent zéro à la fin de chaque année.
+   * d'ici la fin de l'année). Pendant l'hiver, une droite de zéro (facturation) au plafond (bascule de la prévision),
+   * puis la limite exacte jusqu'à zéro en fin d'année (voir `winterBudget`) ; `null` pour une période sans plafond
+   * au-dessus de zéro cette année-là.
    */
-  readonly limit: BalancePoint[];
+  readonly limit: LimitPoint[];
   /** Année de facturation en cours et suivante. */
   readonly years: BillingYear[];
 }
@@ -246,7 +259,7 @@ export function balanceSeries(
 
   // Année en cours et suivante : soldes à leur fin, et courbe limite de chacune.
   const years: BillingYear[] = [];
-  const limit: BalancePoint[] = [];
+  const limit: LimitPoint[] = [];
   let start = billingYearStart(now, billingStart);
   for (let i = 0; i < 2; i++) {
     const end = nextBillingStart(start, billingStart);
@@ -262,8 +275,6 @@ export function balanceSeries(
     let ceiling: BalanceCeiling | null = null;
     let margin: BalanceMargin | null = null;
     if (yearLimit.length > 0) {
-      const top = (key: 'hp' | 'hc') => yearLimit.reduce((a, b) => (b[key] > a[key] ? b : a));
-      ceiling = { hp: top('hp').hp, hpDay: top('hp').day, hc: top('hc').hc, hcDay: top('hc').day };
       if (last < end) {
         const day = Math.max(from, last);
         const allowed = remainingNet(forecast!, day, end);
@@ -271,7 +282,11 @@ export function balanceSeries(
         const hc = measuredYear && last > from ? measuredYear.importOff - measuredYear.exportOff : 0;
         margin = { day, hp: allowed.hp - hp, hc: allowed.hc - hc };
       }
-      limit.push({ ...yearLimit[0]!, kind: limit.length > 0 ? 'yearStart' : undefined }, ...yearLimit.slice(1));
+      const hp = winterBudget(yearLimit, 'hp');
+      const hc = winterBudget(yearLimit, 'hc');
+      ceiling = { hp: hp.ceiling, hpDay: hp.ceilingDay, hc: hc.ceiling, hcDay: hc.ceilingDay };
+      const points = yearLimit.map((p, i): LimitPoint => ({ ...p, hp: hp.values[i]!, hc: hc.values[i]! }));
+      limit.push({ ...points[0]!, kind: limit.length > 0 ? 'yearStart' : undefined }, ...points.slice(1));
     }
     years.push({
       start,
@@ -341,6 +356,30 @@ function limitCurve(forecast: Forecast, days: readonly number[], end: number): B
     points.push({ day: days[i]!, hp, hc });
   }
   return points.reverse();
+}
+
+/**
+ * Limite d'une période sur une année, à partir de la limite exacte (ce que la suite de l'année peut encore effacer) :
+ * - le **plafond** est son point le plus haut, le jour où la prévision bascule (fin d'hiver), car avant elle monte
+ *   et après elle descend ;
+ * - pendant l'hiver, la limite est une droite qui part de zéro à la facturation et monte jusqu'au plafond : le
+ *   total à ne pas dépasser, réparti sur l'hiver, pour que le printemps et l'été fassent redescendre le solde à zéro ;
+ * - après le plafond, elle suit la limite exacte jusqu'à zéro en fin d'année.
+ * Sans plafond au-dessus de zéro (l'été prévu ne fait pas redescendre le solde), pas de limite : valeurs `null`.
+ */
+export function winterBudget(
+  exact: readonly BalancePoint[],
+  key: 'hp' | 'hc',
+): { values: (number | null)[]; ceiling: number | null; ceilingDay: number | null } {
+  const top = exact.reduce((a, b) => (b[key] > a[key] ? b : a), exact[0]!);
+  if (top[key] <= 0) {
+    return { values: exact.map(() => null), ceiling: null, ceilingDay: null };
+  }
+  const from = exact[0]!.day;
+  const values = exact.map((p) =>
+    p.day >= top.day || top.day <= from ? p[key] : (top[key] * (p.day - from)) / (top.day - from),
+  );
+  return { values, ceiling: top[key], ceilingDay: top.day };
 }
 
 export interface HeaterAllowance {

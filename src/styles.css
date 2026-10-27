@@ -32,6 +32,9 @@
   --violet: #a78bfa;
   --violet-soft: rgba(167, 139, 250, 0.14);
   --violet-text: #c4b5fd;
+  /* Heures creuses (registres 1.8.2 / 2.8.2, horaire) : distinct du bleu des heures pleines. */
+  --hc: #818cf8;
+  --hc-soft: rgba(129, 140, 248, 0.14);
   --cyan: #22d3ee;
   --cyan-soft: rgba(34, 211, 238, 0.14);
   --cyan-text: #67e8f9;
@@ -72,6 +75,8 @@
   --violet: #7c3aed;
   --violet-soft: rgba(124, 58, 237, 0.09);
   --violet-text: #6d28d9;
+  --hc: #a21caf;
+  --hc-soft: rgba(162, 28, 175, 0.09);
   --cyan: #0891b2;
   --cyan-soft: rgba(8, 145, 178, 0.09);
   --cyan-text: #0e7490;

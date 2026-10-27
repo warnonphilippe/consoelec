@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { emptyData, type MeterReading } from '../models/app-data.model';
 import { analyze } from './analysis';
-import { balanceSeries, billingCost, billingYearStart, heaterAllowance } from './balance';
+import { balanceSeries, billingCost, billingYearStart, heaterAllowance, winterBudget } from './balance';
 import { toDayNumber } from './time';
 
 function reading(
@@ -123,7 +123,8 @@ describe('balanceSeries', () => {
     it('vaut zéro à chaque fin d’année et repart à la facturation', () => {
       const ends = s.limit.filter((p) => p.kind === 'yearEnd');
       expect(ends.map((p) => p.day)).toEqual([toDayNumber('2026-11-01'), toDayNumber('2027-11-01')]);
-      expect(ends.every((p) => p.hp === 0 && p.hc === 0)).toBe(true);
+      // Zéro, ou absente pour une période sans plafond tenable cette année-là.
+      expect(ends.every((p) => (p.hp === 0 || p.hp === null) && (p.hc === 0 || p.hc === null))).toBe(true);
       const restart = s.limit.find((p) => p.kind === 'yearStart')!;
       expect(restart.day).toBe(toDayNumber('2026-11-01'));
       expect(s.limit[0]!.day).toBe(toDayNumber('2025-11-01'));
@@ -146,6 +147,22 @@ describe('balanceSeries', () => {
       expect(ceiling!.hc).toBeGreaterThan(0);
       expect(ceiling!.hcDay).toBeGreaterThan(toDayNumber('2027-01-15'));
       expect(ceiling!.hcDay).toBeLessThan(toDayNumber('2027-05-15'));
+    });
+
+    it('monte en droite de zéro au plafond pendant l’hiver, puis suit ce que l’été peut effacer', () => {
+      const next = s.years[1]!;
+      const year = s.limit.filter((p) => p.day >= next.start);
+      const first = year.find((p) => p.kind === 'yearStart')!;
+      expect(first.hc).toBe(0);
+      const day = next.ceiling!.hcDay!;
+      const winter = year.filter((p) => p.day > next.start && p.day < day);
+      expect(winter.length).toBeGreaterThan(5);
+      for (const p of winter) {
+        expect(p.hc).toBeCloseTo((next.ceiling!.hc! * (p.day - next.start)) / (day - next.start), 6);
+      }
+      // Après le plafond, la limite ne remonte plus.
+      const after = year.filter((p) => p.day >= day && p.kind !== 'yearEnd').map((p) => p.hc!);
+      expect(after.every((v, i) => i === 0 || v <= after[i - 1]! + 1e-9)).toBe(true);
     });
 
     it('démarre au changement de compteur, et n’existe pas sans prévision', () => {
@@ -252,5 +269,25 @@ describe('heaterAllowance', () => {
     expect(summer.until).toBe(toDayNumber('2027-11-01'));
     // Moins d'une semaine : au moins une semaine pour la répartition.
     expect(heaterAllowance(100, 2, toDayNumber('2026-10-30'), toDayNumber('2026-11-01'), 4).weeks).toBe(1);
+  });
+});
+
+describe('winterBudget', () => {
+  const exact = [
+    { day: 0, hp: -300, hc: 200 },
+    { day: 50, hp: -100, hc: 600 },
+    { day: 100, hp: 200, hc: 900 },
+    { day: 200, hp: 50, hc: 300 },
+    { day: 300, hp: 0, hc: 0 },
+  ];
+
+  it('trace une droite de zéro au plafond, puis la limite exacte', () => {
+    expect(winterBudget(exact, 'hp')).toEqual({ values: [0, 100, 200, 50, 0], ceiling: 200, ceilingDay: 100 });
+    expect(winterBudget(exact, 'hc').values).toEqual([0, 450, 900, 300, 0]);
+  });
+
+  it('ne donne pas de limite sans plafond au-dessus de zéro', () => {
+    const never = exact.map((p) => ({ ...p, hp: -p.day }));
+    expect(winterBudget(never, 'hp')).toEqual({ values: [null, null, null, null, null], ceiling: null, ceilingDay: null });
   });
 });

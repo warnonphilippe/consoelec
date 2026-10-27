@@ -1,7 +1,7 @@
 import type { Chart, ChartConfiguration, Plugin } from 'chart.js';
 import { fr } from 'date-fns/locale';
 import type { FullAnalysis } from '../../core/calc/analysis';
-import type { BalancePoint, BalanceSeries } from '../../core/calc/balance';
+import type { BalancePoint, BalanceSeries, LimitPoint } from '../../core/calc/balance';
 import type { Forecast } from '../../core/calc/forecast';
 import { dayNumberToDate } from '../../core/calc/time';
 import { REGISTERS, type RegisterKey } from '../../core/models/app-data.model';
@@ -170,8 +170,8 @@ export function indexChart(
  * Points à partir de `day` seulement : la courbe démarre sur un point interpolé à cette date (prévision et limites
  * ne s'affichent pas dans le passé).
  */
-export function pointsFrom(points: readonly BalancePoint[], day: number): BalancePoint[] {
-  const kept: BalancePoint[] = [];
+export function pointsFrom<T extends LimitPoint>(points: readonly T[], day: number): T[] {
+  const kept: T[] = [];
   for (let i = 0; i < points.length; i++) {
     const p = points[i]!;
     if (p.day < day) {
@@ -180,7 +180,8 @@ export function pointsFrom(points: readonly BalancePoint[], day: number): Balanc
     const before = points[i - 1];
     if (kept.length === 0 && before && p.day > day) {
       const f = (day - before.day) / (p.day - before.day);
-      kept.push({ day, hp: before.hp + (p.hp - before.hp) * f, hc: before.hc + (p.hc - before.hc) * f });
+      const lerp = (a: number | null, b: number | null) => (a === null || b === null ? null : a + (b - a) * f);
+      kept.push({ day, hp: lerp(before.hp, p.hp), hc: lerp(before.hc, p.hc) } as T);
     }
     kept.push(p);
   }
@@ -224,7 +225,13 @@ function curveLabels(labels: readonly CurveLabel[], background: string): Plugin 
         }
         const points = chart
           .getDatasetMeta(index)
-          .data.filter((p) => p.x >= chartArea.left && p.x <= chartArea.right && Number.isFinite(p.y));
+          .data.filter(
+            (p) =>
+              !(p as unknown as { skip?: boolean }).skip &&
+              p.x >= chartArea.left &&
+              p.x <= chartArea.right &&
+              Number.isFinite(p.y),
+          );
         if (points.length === 0) {
           continue;
         }
@@ -311,10 +318,10 @@ export function balanceChart(
       series.forecast.length > 0 ? forecastDays : 0,
     );
     const range = indexAxisRange(levelDays, fromDay, shownDays, now);
-    const visible = (p: BalancePoint) => p.day >= range.min && p.day <= range.max;
+    const visible = (p: LimitPoint) => p.day >= range.min && p.day <= range.max;
     // À chaque facturation, la courbe s'arrête sur le solde facturé (point marqué), puis repart de zéro : un point
     // vide entre les deux évite le trait vertical, qui ressemblerait à une chute de consommation.
-    const toData = (points: readonly BalancePoint[], key: 'hp' | 'hc') => {
+    const toData = (points: readonly LimitPoint[], key: 'hp' | 'hc') => {
       const data: BalanceDatum[] = [];
       for (const p of points.filter(visible)) {
         if (p.kind === 'yearStart' && data.length > 0) {

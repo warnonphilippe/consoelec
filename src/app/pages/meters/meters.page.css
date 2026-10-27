@@ -23,7 +23,7 @@
   border-top-color: var(--accent);
 }
 .reg.importOff {
-  border-top-color: var(--violet);
+  border-top-color: var(--hc);
 }
 .reg.exportPeak {
   border-top-color: var(--warning);
@@ -113,7 +113,7 @@
   background: var(--accent);
 }
 .toggle.on.importOff .legend-dot {
-  background: var(--violet);
+  background: var(--hc);
 }
 .toggle.on.exportPeak .legend-dot {
   background: var(--warning);

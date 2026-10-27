@@ -189,11 +189,16 @@ Le **graphique des soldes**, sous les index cumulés, suit ces deux soldes depui
 
 #### Courbes limites et dosage du radiateur
 
-Les **courbes limites** (gros points, une par période) donnent, à chaque date, le solde le plus haut que vous pouvez atteindre tout en revenant à zéro en fin d'année de facturation, si la suite de l'année suit la prévision : consommation habituelle de la maison (calée sur vos factures annuelles) et production attendue des panneaux. Elles valent zéro le dernier jour de l'année, montent pendant l'hiver jusqu'à un **plafond** (vers la fin de l'hiver), puis le surplus du printemps et de l'été les ramène à zéro. C'est un **plafond**, pas un objectif : tant que le solde reste sous sa limite, l'année devrait finir à zéro ou en surplus, sans rien à payer dans cette période ; finir en dessous n'est pas un problème. Sur le graphique, les limites sont tracées en gros points et étiquetées « Limite HP (max.) » / « Limite HC (max.) », la prévision en tirets et étiquetée « Prévision HP » / « Prévision HC ». HP et HC ne se compensent pas entre elles : un surplus en heures creuses n'efface pas un dépassement en heures pleines.
+Les **courbes limites** (gros points, une par période) sont un **plafond** à ne pas dépasser pour revenir à zéro en fin d'année de facturation, si la suite de l'année suit la prévision : consommation habituelle de la maison (calée sur vos factures annuelles) et production attendue des panneaux.
+
+- **En hiver**, la limite est une **droite** qui part de zéro à la facturation et monte jusqu'au **plafond**, au point où la prévision commence à redescendre (fin d'hiver, souvent en mars ou en avril) : c'est le total à ne pas dépasser pendant l'hiver, réparti régulièrement, pour profiter ensuite d'une descente suffisante.
+- **Après le plafond**, elle suit ce que le printemps et l'été peuvent encore effacer, jusqu'à zéro à la facturation suivante.
+
+Rester sous la limite, c'est finir l'année à zéro ou en surplus, sans rien à payer dans cette période ; finir en dessous n'est pas un problème. Sur le graphique, les limites sont étiquetées « Limite HP (max.) » / « Limite HC (max.) » à leur plafond, la prévision en tirets « Prévision HP » / « Prévision HC ». Prévision et limites ne s'affichent qu'à partir d'aujourd'hui. HP et HC ne se compensent pas entre elles : un surplus en heures creuses n'efface pas un dépassement en heures pleines.
 
 Le résumé de chaque année donne :
 
-- le **plafond** de chaque limite et sa date. « Aucun » signifie que même une année moyenne finit avec un solde à payer dans cette période ;
+- le **plafond** de chaque limite et sa date. « Aucun » signifie que le printemps et l'été prévus ne font pas redescendre le solde de cette période : sa limite n'est pas tracée pour l'année, et chaque kWh évité réduit la facture ;
 - la **marge** : ce que vous pouvez encore consommer en plus de l'habitude d'ici la fin de l'année sans dépasser zéro (au dernier relevé, ou au début de l'année à venir). Elle vaut l'opposé du solde de fin d'année prévu ;
 - le **dosage du radiateur électrique** : la marge convertie en heures de fonctionnement à la puissance du radiateur (page **Maison**, radiateur électrique d'appoint), et répartie en heures par semaine jusqu'à la fin de la saison de chauffe. Faites-le tourner de préférence en **heures creuses** (11 h-17 h et 22 h-7 h) : c'est là que le surplus d'été est le plus grand. Ces heures s'ajoutent à l'usage habituel du radiateur, déjà compris dans la consommation de vos factures.
 

@@ -36,13 +36,13 @@
     <a routerLink="/reglages">Réglages</a>). Au-dessus de zéro : à payer ; en dessous : surplus. À chaque ligne
     « Facturation », le gros point est le solde facturé de l'année qui se termine ; la courbe repart ensuite de
     zéro, car l'année suivante se calcule à partir des nouveaux index (le compteur, lui, n'est pas remis à zéro).
-    Les <strong>courbes limites</strong> (gros points) sont un <strong>plafond</strong> : tant que le solde reste
-    en dessous, l'année finit à zéro ou en surplus, rien à payer ; s'il passe au-dessus, l'année finit avec un solde à
-    payer, si la suite de l'année suit la prévision (consommation habituelle de la maison et production attendue).
-    Finir sous la limite n'est pas un problème : ce n'est pas un objectif à atteindre. La limite monte pendant
-    l'hiver, car le surplus du printemps et de l'été effacera ce qui a été consommé, puis redescend à zéro à la
-    facturation. Les tirets sont la prévision du solde ; prévision et limites partent d'aujourd'hui. HP et HC ne se compensent pas : chaque période a sa
-    limite.
+    Les <strong>courbes limites</strong> (gros points) sont un <strong>plafond</strong> à ne pas dépasser. Pendant
+    l'hiver, c'est une droite qui part de zéro à la facturation et monte jusqu'au point où la prévision commence à
+    redescendre (fin d'hiver) : le total à ne pas dépasser, réparti sur l'hiver. Ensuite, elle suit ce que le
+    printemps et l'été peuvent effacer, jusqu'à zéro à la facturation suivante. Rester en dessous, c'est finir
+    l'année à zéro ou en surplus, si la suite suit la prévision (consommation habituelle et production attendue) ;
+    finir sous la limite n'est pas un problème. Les tirets sont la prévision du solde ; prévision et limites partent
+    d'aujourd'hui. HP et HC ne se compensent pas : chaque période a sa limite.
   </p>
   @if (store.billing().history.length > 0) {
     <app-chart [build]="balanceChart()" [height]="360" />
@@ -76,16 +76,18 @@
                 <dt>Plafond</dt>
                 <dd>
                   HP
-                  @if (c.hp > 0) {
+                  @if (c.hp !== null && c.hpDay !== null) {
                     <strong>{{ c.hp | kwh }}</strong> vers le {{ c.hpDay | day }}
                   } @else {
-                    <strong>aucun</strong> (même une année moyenne finit à payer)
+                    <strong>aucun</strong> : le printemps et l'été prévus ne font pas redescendre le solde, l'année
+                    finit à {{ y.hp | skwh }} ; chaque kWh évité en HP réduit la facture
                   }
                   <br />HC
-                  @if (c.hc > 0) {
+                  @if (c.hc !== null && c.hcDay !== null) {
                     <strong>{{ c.hc | kwh }}</strong> vers le {{ c.hcDay | day }}
                   } @else {
-                    <strong>aucun</strong> (même une année moyenne finit à payer)
+                    <strong>aucun</strong> : le printemps et l'été prévus ne font pas redescendre le solde, l'année
+                    finit à {{ y.hc | skwh }} ; chaque kWh évité en HC réduit la facture
                   }
                 </dd>
                 @if (y.margin; as m) {

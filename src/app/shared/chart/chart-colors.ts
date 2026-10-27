@@ -41,7 +41,8 @@ const LIGHT: ChartColors = {
   grid: 'rgba(15, 23, 42, 0.08)',
   surface: '#ffffff',
   importPeak: '#2563eb',
-  importOff: '#4f46e5',
+  // Fuchsia plutôt qu'indigo : sur fond blanc, l'indigo se confond avec le bleu des heures pleines.
+  importOff: '#a21caf',
   exportPeak: '#d97706',
   exportOff: '#0d9488',
   pv: '#ca8a04',

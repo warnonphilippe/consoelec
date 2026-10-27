@@ -66,8 +66,8 @@
 }
 
 .hour-cell.off {
-  background: var(--violet-soft);
-  border-color: var(--violet);
+  background: var(--hc-soft);
+  border-color: var(--hc);
 }
 
 .hour-cell.now {

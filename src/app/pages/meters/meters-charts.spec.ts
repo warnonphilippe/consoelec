@@ -59,5 +59,11 @@ describe('pointsFrom', () => {
     expect(pointsFrom(points, 20)).toEqual([points[1], points[2]]);
     expect(pointsFrom(points, 5)).toEqual(points);
     expect(pointsFrom(points, 40)).toEqual([]);
+    // Limite absente (période sans plafond tenable) : le point interpolé l'est aussi.
+    expect(pointsFrom([{ day: 10, hp: null, hc: 0 }, { day: 20, hp: null, hc: 10 }], 15)[0]).toEqual({
+      day: 15,
+      hp: null,
+      hc: 5,
+    });
   });
 });
