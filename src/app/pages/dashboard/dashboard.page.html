@@ -66,11 +66,16 @@
   @if (store.billingYear(); as y) {
     <div class="section">
       <span class="pill"
-        ><app-icon name="euro" [size]="13" /> Année de facturation du {{ y.start | day }} au
+        ><app-icon name="euro" [size]="13" /> Année de facturation du {{ y.settledFrom ?? y.start | day }} au
         {{ y.end - 1 | day }}</span
       >
     </div>
-    @if (y.coveredFrom !== null) {
+    @if (y.settledFrom !== null) {
+      <p class="small muted period-note">
+        Nouveau compteur depuis le {{ y.settledFrom | day }} : l'ancien compteur a été soldé à cette date, l'année ne
+        se compte qu'à partir du nouveau.
+      </p>
+    } @else if (y.coveredFrom !== null) {
       <p class="small muted period-note">
         Relevés depuis le {{ y.coveredFrom | day }} seulement : les montants ne couvrent que cette partie de l'année.
       </p>

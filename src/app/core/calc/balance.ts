@@ -31,6 +31,11 @@ export interface BillingYear {
   readonly forecast: boolean;
   /** Premier jour couvert par les relevés, s'il est postérieur au début de l'année (année incomplète). */
   readonly coveredFrom: number | null;
+  /**
+   * Changement de compteur pendant l'année : l'ancien compteur a été soldé à cette date (facture de clôture), l'année
+   * ne se compte qu'à partir d'elle. `null` sans changement.
+   */
+  readonly settledFrom: number | null;
   /** Mesuré du début de l'année au dernier relevé (s'il tombe dans l'année) : soutirages, injections et soldes. */
   readonly toDate: YearToDate | null;
 }
@@ -149,9 +154,15 @@ export function balanceSeries(
   }
   const first = levels[0]!.day;
   const last = levels[levels.length - 1]!.day;
+  // Un changement de compteur solde l'ancien (facture de clôture) : la période de facturation repart de là.
+  const changes = levels.filter((l) => l.reading.meterChange).map((l) => l.day);
+  const periodStart = (day: number): number => {
+    const yearStart = billingYearStart(day, billingStart);
+    const change = changes.filter((c) => c > yearStart && c <= day).at(-1);
+    return change ?? yearStart;
+  };
   const measured = (day: number): BalancePoint => {
-    const start = billingYearStart(day, billingStart);
-    const { values } = totalsBetween(consumption, start, day, weights);
+    const { values } = totalsBetween(consumption, periodStart(day), day, weights);
     return fromDeltas(day, values);
   };
   const endOfYear = (start: number, end: number): BalancePoint => {
@@ -164,9 +175,14 @@ export function balanceSeries(
   let boundary = nextBillingStart(first, billingStart);
   for (const level of levels) {
     while (boundary <= level.day) {
-      history.push({ ...endOfYear(billingYearStart(boundary - 1, billingStart), boundary), kind: 'yearEnd' });
+      history.push({ ...endOfYear(periodStart(boundary - 1e-6), boundary), kind: 'yearEnd' });
       history.push({ day: boundary, hp: 0, hc: 0, kind: 'yearStart' });
       boundary = nextBillingStart(boundary, billingStart);
+    }
+    // Changement de compteur après d'autres relevés : solde de clôture de l'ancien, puis départ à zéro.
+    if (level.reading.meterChange && level.day > first && level.day !== history.at(-1)?.day) {
+      history.push({ ...endOfYear(periodStart(level.day - 1e-6), level.day), kind: 'yearEnd' });
+      history.push({ day: level.day, hp: 0, hc: 0, kind: 'yearStart' });
     }
     if (level.day !== history.at(-1)?.day) {
       history.push(measured(level.day));
@@ -178,7 +194,7 @@ export function balanceSeries(
   const points = forecast?.points ?? [];
   const atLast = history[history.length - 1]!;
   const project = (day: number): BalancePoint => {
-    const start = billingYearStart(day, billingStart);
+    const start = periodStart(day);
     if (start <= last) {
       const d = fromDeltas(day, delta(forecastAt(points, last), forecastAt(points, day)));
       return { day, hp: atLast.hp + d.hp, hc: atLast.hc + d.hc };
@@ -209,16 +225,18 @@ export function balanceSeries(
     if (usesForecast && points.length === 0) {
       break;
     }
-    const value = usesForecast ? project(end - 1e-6) : endOfYear(start, end);
+    const from = periodStart(end - 1e-6);
+    const value = usesForecast ? project(end - 1e-6) : endOfYear(from, end);
     const toDateDay = Math.min(last, end);
-    const measuredYear = toDateDay > start ? totalsBetween(consumption, start, toDateDay, weights).values : null;
+    const measuredYear = toDateDay > from ? totalsBetween(consumption, from, toDateDay, weights).values : null;
     years.push({
       start,
       end,
       hp: value.hp,
       hc: value.hc,
       forecast: usesForecast,
-      coveredFrom: first > start ? first : null,
+      coveredFrom: first > from ? first : null,
+      settledFrom: from > start ? from : null,
       toDate:
         measuredYear === null
           ? null

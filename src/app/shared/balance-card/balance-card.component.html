@@ -44,7 +44,7 @@
         @for (y of store.billing().years; track y.start) {
           <div class="balance-year">
             <span class="kpi-label"
-              >Année du {{ y.start | day }} au {{ lastDayOf(y.end) | day }}{{ y.forecast ? ' · prévision' : '' }}</span
+              >Année du {{ y.settledFrom ?? y.start | day }} au {{ lastDayOf(y.end) | day }}{{ y.forecast ? ' · prévision' : '' }}</span
             >
             <div class="balance-values">
               <span [class.tone-warning]="y.hp > 0" [class.tone-success]="y.hp <= 0"

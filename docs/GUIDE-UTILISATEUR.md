@@ -187,6 +187,8 @@ En Wallonie, une installation photovoltaïque de 10 kVA au plus mise en service 
 
 Le **graphique des soldes**, sous les index cumulés, suit ces deux soldes depuis le début de l'année de facturation, puis les prolonge par la prévision (pointillés). Ils repartent de zéro à chaque début d'année. Au-dessus de zéro, c'est de l'énergie à payer ; en dessous, un **surplus** qui n'est pas remboursé en fin d'année. Sous le graphique, le résumé donne pour l'année en cours et la suivante les kWh à payer et le surplus perdu.
 
+Un **changement de compteur** solde l'ancien compteur (facture de clôture) : dans l'année du changement, les soldes ne se comptent qu'à partir du relevé « nouveau compteur ».
+
 Réglez la date dans **Réglages → Début de l'année de facturation** : c'est la date du relevé annuel de votre compteur intelligent, indiquée sur la facture de régularisation.
 
 Les montants sont en kWh d'énergie. Les **frais de réseau et les taxes** se calculent, eux, sur **tout** le soutirage (1.8.1 + 1.8.2), sans compensation.

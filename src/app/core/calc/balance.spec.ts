@@ -132,6 +132,32 @@ describe('balanceSeries', () => {
     expect(s.years[1]!.toDate).toBeNull();
   });
 
+  it('solde l’ancien compteur au changement de compteur : l’année repart du nouveau', () => {
+    const s = series(
+      [
+        reading('2025-11-15T20:00', 5000, 3000, 7000, 9000),
+        reading('2026-03-01T20:00', 5600, 3400, 7100, 9200),
+        reading('2026-05-01T00:00', 0, 0, 0, 0, true),
+        reading('2026-10-09T20:00', 100, 50, 300, 700),
+      ],
+      '2026-10-27T12:00',
+      '2027-11-01',
+    );
+    const year = s.years[0]!;
+    expect(year.start).toBe(toDayNumber('2025-11-01'));
+    expect(year.settledFrom).toBe(toDayNumber('2026-05-01T00:00'));
+    expect(year.coveredFrom).toBeNull();
+    // À ce jour : seulement le nouveau compteur.
+    expect(year.toDate!.hp).toBeCloseTo(100 - 300, 6);
+    expect(year.toDate!.hc).toBeCloseTo(50 - 700, 6);
+    // Solde de clôture de l'ancien compteur au changement, puis départ à zéro.
+    const atChange = s.history.filter((p) => p.day === toDayNumber('2026-05-01T00:00'));
+    expect(atChange.map((p) => p.kind)).toEqual(['yearEnd', 'yearStart']);
+    expect(atChange[0]!.hp).toBeGreaterThan(400);
+    expect(s.history.at(-1)!.hp).toBeCloseTo(-200, 6);
+    expect(s.years[1]!.settledFrom).toBeNull();
+  });
+
   it('chiffre le coût des seuls soldes positifs', () => {
     expect(billingCost(100, -50, { hp: 0.34, hc: 0.24 })).toEqual({
       hp: 34,
