@@ -154,6 +154,11 @@ export interface Settings {
   offPeakWeekends: boolean;
   /** Production annuelle par kWc installé, avant écrêtage de l'onduleur (kWh/kWc). */
   specificYieldKwhPerKwp: number;
+  /**
+   * Début de l'année de facturation (`MM-JJ`) : date du relevé annuel du compteur intelligent. La compensation
+   * entre soutirage et injection se fait sur cette année, par période tarifaire.
+   */
+  billingStart: string;
   theme: ThemeMode;
   /** Modèle Claude utilisé par l'assistant et la lecture de photo. */
   aiModel: string;
@@ -223,6 +228,7 @@ export const DEFAULT_SETTINGS: Settings = {
   offPeakHours: [...WALLONIA_2026_OFF_PEAK],
   offPeakWeekends: false,
   specificYieldKwhPerKwp: 900,
+  billingStart: '01-01',
   theme: 'system',
   aiModel: DEFAULT_AI_MODEL,
   inverter: { enabled: false, host: '', certFingerprint: null },

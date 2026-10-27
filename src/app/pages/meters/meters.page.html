@@ -135,6 +135,83 @@
       <app-chart [build]="chart()" [height]="340" />
     </div>
 
+    <div class="card">
+      <div class="card-header">
+        <h2>Graphique des soldes</h2>
+        <div class="row">
+          <div class="segmented" role="radiogroup" aria-label="Historique des soldes">
+            @for (o of historyOptions; track o.label) {
+              <button
+                type="button"
+                role="radio"
+                [attr.aria-checked]="balanceHistoryDays() === o.days"
+                [class.active]="balanceHistoryDays() === o.days"
+                (click)="balanceHistoryDays.set(o.days)"
+              >
+                {{ o.label }}
+              </button>
+            }
+          </div>
+          <div class="segmented" role="radiogroup" aria-label="Prévision des soldes">
+            @for (o of forecastOptions; track o.label) {
+              <button
+                type="button"
+                role="radio"
+                [attr.aria-checked]="balanceForecastDays() === o.days"
+                [class.active]="balanceForecastDays() === o.days"
+                (click)="balanceForecastDays.set(o.days)"
+              >
+                {{ o.label }}
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+      <p class="small muted balance-intro">
+        Ce que le fournisseur compense : soutiré − injecté, séparément en heures pleines et en heures creuses, depuis
+        le début de l'année de facturation (le {{ billingStartLabel() }}, modifiable dans
+        <a routerLink="/reglages">Réglages</a>). Au-dessus de zéro : à payer ; en dessous : surplus.
+      </p>
+      @if (balance().history.length > 0) {
+        <app-chart [build]="balanceChart()" [height]="300" />
+        @if (balance().years.length > 0) {
+          <div class="balance-years">
+            @for (y of balance().years; track y.start) {
+              <div class="balance-year">
+                <span class="kpi-label"
+                  >Année du {{ y.start | day }} au {{ lastDayOf(y.end) | day }}{{ y.forecast ? ' · prévision' : '' }}</span
+                >
+                <div class="balance-values">
+                  <span [class.tone-warning]="y.hp > 0" [class.tone-success]="y.hp <= 0"
+                    >HP {{ y.hp | skwh }}</span
+                  >
+                  <span [class.tone-warning]="y.hc > 0" [class.tone-success]="y.hc <= 0"
+                    >HC {{ y.hc | skwh }}</span
+                  >
+                </div>
+                <span class="small faint">
+                  à payer : {{ (y.hp > 0 ? y.hp : 0) + (y.hc > 0 ? y.hc : 0) | kwh }}
+                  @if (y.hp < 0 || y.hc < 0) {
+                    · surplus non remboursé : {{ (y.hp < 0 ? -y.hp : 0) + (y.hc < 0 ? -y.hc : 0) | kwh }}
+                  }
+                  @if (y.coveredFrom !== null) {
+                    <br />relevés depuis le {{ y.coveredFrom | day }} seulement
+                  }
+                </span>
+              </div>
+            }
+          </div>
+        }
+        <p class="small faint legend-note">
+          Régime de compensation wallon (installations mises en service avant 2024, jusqu'au 31 décembre 2030) : un
+          solde positif est facturé au prix de l'énergie, un solde négatif en fin d'année n'est pas remboursé. Les frais
+          de réseau et les taxes se calculent, eux, sur tout le soutirage. Montants en kWh, hors prix.
+        </p>
+      } @else {
+        <p class="small muted">Encodez au moins deux relevés pour calculer les soldes.</p>
+      }
+    </div>
+
     <div class="grid grid-2">
       <div class="card">
         <div class="card-header">

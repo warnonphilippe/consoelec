@@ -148,6 +148,30 @@
             d'index de production.</span
           >
         </div>
+        <div class="field">
+          <label for="billday">Début de l'année de facturation</label>
+          <div class="row">
+            <select
+              id="billday"
+              class="input billing-day"
+              aria-label="Jour"
+              (change)="setBillingStart($event, 'day')"
+            >
+              @for (d of billingDays; track d) {
+                <option [value]="d" [selected]="d === billingDay()">{{ d === 1 ? '1er' : d }}</option>
+              }
+            </select>
+            <select class="input" aria-label="Mois" (change)="setBillingStart($event, 'month')">
+              @for (m of billingMonths; track m.value) {
+                <option [value]="m.value" [selected]="m.value === billingMonth()">{{ m.label }}</option>
+              }
+            </select>
+          </div>
+          <span class="help"
+            >Date du relevé annuel de votre compteur intelligent (voir la facture de régularisation). Le graphique des
+            soldes de la page Compteurs repart de zéro à cette date.</span
+          >
+        </div>
       </div>
     </div>
 

@@ -1,6 +1,7 @@
 import type { ChartConfiguration } from 'chart.js';
 import { fr } from 'date-fns/locale';
 import type { FullAnalysis } from '../../core/calc/analysis';
+import type { BalancePoint, BalanceSeries } from '../../core/calc/balance';
 import type { Forecast } from '../../core/calc/forecast';
 import { dayNumberToDate } from '../../core/calc/time';
 import { REGISTERS, type RegisterKey } from '../../core/models/app-data.model';
@@ -123,6 +124,93 @@ export function indexChart(
             callbacks: {
               label: (item) =>
                 `${item.dataset.label}: ${fmt.kwh((item.raw as XY).y, 1)}`,
+            },
+          },
+        },
+      },
+    };
+  };
+}
+
+/**
+ * Soldes de facturation HP et HC (soutiré − injecté par période tarifaire) depuis le début de l'année de facturation :
+ * mesurés aux relevés, puis prévus (pointillés) ; ils repartent de zéro à chaque début d'année.
+ */
+export function balanceChart(
+  series: BalanceSeries,
+  levelDays: readonly number[],
+  fromDay: number | null,
+  forecastDays: number,
+  now: number,
+) {
+  return (c: ChartColors): ChartConfiguration => {
+    const range = indexAxisRange(levelDays, fromDay, series.forecast.length > 0 ? forecastDays : 0, now);
+    const visible = (p: BalancePoint) => p.day >= range.min && p.day <= range.max;
+    const lines = [
+      { key: 'hp' as const, label: 'Solde heures pleines', color: c[COLOR.importPeak] as string },
+      { key: 'hc' as const, label: 'Solde heures creuses', color: c[COLOR.importOff] as string },
+    ];
+    const datasets: ChartConfiguration['data']['datasets'] = [];
+    for (const line of lines) {
+      datasets.push({
+        type: 'line',
+        label: line.label,
+        data: series.history.filter(visible).map((p) => ({ x: ms(p.day), y: p[line.key] })),
+        borderColor: line.color,
+        backgroundColor: alpha(line.color, 0.15),
+        pointRadius: 3,
+        pointHoverRadius: 5,
+        tension: 0,
+      });
+      if (series.forecast.length > 0 && forecastDays > 0) {
+        datasets.push({
+          type: 'line',
+          label: `${line.label} (prévision)`,
+          data: series.forecast.filter(visible).map((p) => ({ x: ms(p.day), y: p[line.key] })),
+          borderColor: alpha(line.color, 0.75),
+          borderDash: [6, 4],
+          pointRadius: 0,
+          borderWidth: 1.5,
+          tension: 0,
+        });
+      }
+    }
+    return {
+      type: 'line',
+      data: { datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        parsing: false,
+        interaction: { mode: 'nearest', axis: 'x', intersect: false },
+        scales: {
+          x: {
+            type: 'time',
+            min: ms(range.min),
+            max: ms(range.max),
+            adapters: { date: { locale: fr } },
+            time: {
+              tooltipFormat: 'd MMMM yyyy',
+              displayFormats: { day: 'd MMM', week: 'd MMM', month: 'MMM yyyy', quarter: 'MMM yyyy' },
+            },
+            grid: { color: c.grid },
+            ticks: { color: c.muted },
+          },
+          y: {
+            // La ligne zéro sépare ce qui sera facturé (au-dessus) du surplus non remboursé (en dessous).
+            grid: { color: (ctx) => (ctx.tick.value === 0 ? c.muted : c.grid) },
+            ticks: { color: c.muted, callback: (v) => fmt.number(Number(v)) },
+            title: { display: true, text: 'Solde (kWh)', color: c.muted },
+          },
+        },
+        plugins: {
+          legend: chartLegend(c),
+          tooltip: {
+            callbacks: {
+              label: (item) => {
+                const y = (item.raw as XY).y;
+                return `${item.dataset.label}: ${fmt.signedKwh(y)} ${y > 0 ? '(à payer)' : y < 0 ? '(surplus)' : ''}`;
+              },
             },
           },
         },

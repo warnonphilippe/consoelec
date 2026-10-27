@@ -1,0 +1,181 @@
+import { totalsBetween, type ConsumptionAnalysis } from './consumption';
+import type { Forecast, ForecastPoint, IndexValues } from './forecast';
+import type { SeriesWeights } from './reference';
+import { toDayNumber, yearMonthOf } from './time';
+
+/**
+ * Soldes de facturation d'un compteur intelligent wallon en régime de compensation : sur l'année de facturation, le
+ * fournisseur compense soutirage et injection **par période tarifaire**. Solde heures pleines = soutiré HP − injecté
+ * HP ; solde heures creuses = soutiré HC − injecté HC. Un solde positif est facturé ; un solde négatif en fin d'année
+ * est un surplus non remboursé. Les soldes repartent de zéro à chaque début d'année de facturation.
+ */
+
+export interface BalancePoint {
+  readonly day: number;
+  /** Solde heures pleines (kWh). */
+  readonly hp: number;
+  /** Solde heures creuses (kWh). */
+  readonly hc: number;
+}
+
+export interface BillingYear {
+  readonly start: number;
+  /** Début de l'année suivante (exclu). */
+  readonly end: number;
+  /** Soldes à la fin de l'année (mesurés ou prévus). */
+  readonly hp: number;
+  readonly hc: number;
+  /** Une partie de l'année vient de la prévision. */
+  readonly forecast: boolean;
+  /** Premier jour couvert par les relevés, s'il est postérieur au début de l'année (année incomplète). */
+  readonly coveredFrom: number | null;
+}
+
+export interface BalanceSeries {
+  readonly history: BalancePoint[];
+  readonly forecast: BalancePoint[];
+  /** Année de facturation en cours et suivante. */
+  readonly years: BillingYear[];
+}
+
+/** Début (`MM-JJ`) de l'année de facturation qui contient `day`. */
+export function billingYearStart(day: number, billingStart: string): number {
+  const { year } = yearMonthOf(Math.floor(day));
+  const thisYear = toDayNumber(`${year}-${billingStart}`);
+  return thisYear <= day ? thisYear : toDayNumber(`${year - 1}-${billingStart}`);
+}
+
+function nextBillingStart(day: number, billingStart: string): number {
+  const start = billingYearStart(day, billingStart);
+  const { year } = yearMonthOf(start);
+  return toDayNumber(`${year + 1}-${billingStart}`);
+}
+
+/** Index prévus à un instant donné, par interpolation linéaire entre les points de la prévision. */
+function forecastAt(points: readonly ForecastPoint[], day: number): IndexValues {
+  const first = points[0]!;
+  if (day <= first.day) {
+    return first.values;
+  }
+  for (let i = 1; i < points.length; i++) {
+    const b = points[i]!;
+    if (b.day >= day) {
+      const a = points[i - 1]!;
+      const f = b.day > a.day ? (day - a.day) / (b.day - a.day) : 1;
+      const lerp = (k: keyof IndexValues) => a.values[k] + (b.values[k] - a.values[k]) * f;
+      return {
+        importPeak: lerp('importPeak'),
+        importOff: lerp('importOff'),
+        exportPeak: lerp('exportPeak'),
+        exportOff: lerp('exportOff'),
+      };
+    }
+  }
+  return points[points.length - 1]!.values;
+}
+
+const fromDeltas = (day: number, d: IndexValues): BalancePoint => ({
+  day,
+  hp: d.importPeak - d.exportPeak,
+  hc: d.importOff - d.exportOff,
+});
+
+const delta = (a: IndexValues, b: IndexValues): IndexValues => ({
+  importPeak: b.importPeak - a.importPeak,
+  importOff: b.importOff - a.importOff,
+  exportPeak: b.exportPeak - a.exportPeak,
+  exportOff: b.exportOff - a.exportOff,
+});
+
+/**
+ * Soldes HP / HC au fil du temps : aux relevés (répartition saisonnière entre deux relevés, intervalle d'un changement
+ * de compteur ignoré), puis prévus jusqu'à `until` ; à chaque début d'année, un point de fin d'année suivi d'un point
+ * à zéro. `now` situe l'année de facturation en cours.
+ */
+export function balanceSeries(
+  consumption: ConsumptionAnalysis,
+  weights: SeriesWeights,
+  forecast: Forecast | null,
+  billingStart: string,
+  until: number,
+  now: number,
+): BalanceSeries {
+  const levels = consumption.levels;
+  if (levels.length < 2) {
+    return { history: [], forecast: [], years: [] };
+  }
+  const first = levels[0]!.day;
+  const last = levels[levels.length - 1]!.day;
+  const measured = (day: number): BalancePoint => {
+    const start = billingYearStart(day, billingStart);
+    const { values } = totalsBetween(consumption, start, day, weights);
+    return fromDeltas(day, values);
+  };
+  const endOfYear = (start: number, end: number): BalancePoint => {
+    const { values } = totalsBetween(consumption, start, end, weights);
+    return fromDeltas(end, values);
+  };
+
+  // Historique : chaque relevé, et chaque passage d'année entre le premier et le dernier relevé.
+  const history: BalancePoint[] = [];
+  let boundary = nextBillingStart(first, billingStart);
+  for (const level of levels) {
+    while (boundary <= level.day) {
+      history.push(endOfYear(billingYearStart(boundary - 1, billingStart), boundary));
+      history.push({ day: boundary, hp: 0, hc: 0 });
+      boundary = nextBillingStart(boundary, billingStart);
+    }
+    if (level.day !== history.at(-1)?.day) {
+      history.push(measured(level.day));
+    }
+  }
+
+  // Prévision : solde au dernier relevé + évolution prévue des index, remis à zéro à chaque début d'année.
+  const projected: BalancePoint[] = [];
+  const points = forecast?.points ?? [];
+  const atLast = history[history.length - 1]!;
+  const project = (day: number): BalancePoint => {
+    const start = billingYearStart(day, billingStart);
+    if (start <= last) {
+      const d = fromDeltas(day, delta(forecastAt(points, last), forecastAt(points, day)));
+      return { day, hp: atLast.hp + d.hp, hc: atLast.hc + d.hc };
+    }
+    return fromDeltas(day, delta(forecastAt(points, start), forecastAt(points, day)));
+  };
+  if (points.length > 0 && until > last) {
+    projected.push(atLast);
+    let next = nextBillingStart(last, billingStart);
+    const step = 7;
+    for (let day = last + step; day < until + step; day += step) {
+      const target = Math.min(day, until);
+      while (next <= target) {
+        projected.push(project(next - 1e-6));
+        projected.push({ day: next, hp: 0, hc: 0 });
+        next = nextBillingStart(next, billingStart);
+      }
+      projected.push(project(target));
+    }
+  }
+
+  // Année en cours et suivante : soldes à leur fin.
+  const years: BillingYear[] = [];
+  let start = billingYearStart(now, billingStart);
+  for (let i = 0; i < 2; i++) {
+    const end = nextBillingStart(start, billingStart);
+    const usesForecast = end > last;
+    if (usesForecast && points.length === 0) {
+      break;
+    }
+    const value = usesForecast ? project(end - 1e-6) : endOfYear(start, end);
+    years.push({
+      start,
+      end,
+      hp: value.hp,
+      hc: value.hc,
+      forecast: usesForecast,
+      coveredFrom: first > start ? first : null,
+    });
+    start = end;
+  }
+  return { history, forecast: projected, years };
+}

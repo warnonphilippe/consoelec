@@ -171,6 +171,19 @@ Une journée sans lecture est **estimée** : l'énergie produite entre deux inde
 
 La page **Compteurs** détaille les **quatre sous-compteurs** : index estimé aujourd'hui, dernier relevé, consommation des 7 et 30 derniers jours et des 12 derniers mois, courbe d'évolution (avec prévision en pointillés), et répartition heures pleines / heures creuses.
 
+### Graphique des soldes : ce que le fournisseur facturera
+
+En Wallonie, une installation photovoltaïque de 10 kVA au plus mise en service **avant 2024** reste en **compensation** jusqu'au 31 décembre 2030, même avec un compteur intelligent. Sur l'**année de facturation**, le fournisseur compense ce que vous soutirez et ce que vous injectez, **séparément par période tarifaire** :
+
+- **solde heures pleines** = soutiré HP (1.8.1) − injecté HP (2.8.1) ;
+- **solde heures creuses** = soutiré HC (1.8.2) − injecté HC (2.8.2).
+
+Le **graphique des soldes**, sous les index cumulés, suit ces deux soldes depuis le début de l'année de facturation, puis les prolonge par la prévision (pointillés). Ils repartent de zéro à chaque début d'année. Au-dessus de zéro, c'est de l'énergie à payer ; en dessous, un **surplus** qui n'est pas remboursé en fin d'année. Sous le graphique, le résumé donne pour l'année en cours et la suivante les kWh à payer et le surplus perdu.
+
+Réglez la date dans **Réglages → Début de l'année de facturation** : c'est la date du relevé annuel de votre compteur intelligent, indiquée sur la facture de régularisation.
+
+Les montants sont en kWh d'énergie. Les **frais de réseau et les taxes** se calculent, eux, sur **tout** le soutirage (1.8.1 + 1.8.2), sans compensation.
+
 ## Statistiques
 
 ![Page Statistiques](img/statistiques.png)

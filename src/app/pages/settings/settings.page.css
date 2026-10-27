@@ -236,3 +236,7 @@
 .discover {
   align-self: flex-start;
 }
+
+.billing-day {
+  width: 84px;
+}

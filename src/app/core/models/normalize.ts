@@ -166,6 +166,7 @@ function normalizeSettings(raw: Raw): Settings {
       0,
       num(raw['specificYieldKwhPerKwp'], DEFAULT_SETTINGS.specificYieldKwhPerKwp),
     ),
+    billingStart: monthDay(raw['billingStart'], DEFAULT_SETTINGS.billingStart),
     theme:
       theme === 'light' || theme === 'dark' || theme === 'system' ? theme : DEFAULT_SETTINGS.theme,
     aiModel:
@@ -174,6 +175,21 @@ function normalizeSettings(raw: Raw): Settings {
         : (AI_MODELS[0]?.id ?? DEFAULT_SETTINGS.aiModel),
     inverter: normalizeInverter(raw['inverter']),
   };
+}
+
+/** `MM-JJ` valide (le 29 février est ramené au 28), sinon la valeur par défaut. */
+function monthDay(value: unknown, fallback: string): string {
+  const match = typeof value === 'string' ? /^(\d{2})-(\d{2})$/.exec(value) : null;
+  if (!match) {
+    return fallback;
+  }
+  const month = Number(match[1]);
+  const day = Number(match[2]);
+  const max = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
+  if (max === undefined || day < 1 || day > (month === 2 ? 29 : max)) {
+    return fallback;
+  }
+  return month === 2 && day === 29 ? '02-28' : value as string;
 }
 
 function normalizePvDaily(value: unknown): PvDay[] {

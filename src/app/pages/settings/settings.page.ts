@@ -155,6 +155,24 @@ export default class SettingsPage {
     );
   }
 
+  protected readonly billingDays = Array.from({ length: 31 }, (_, i) => i + 1);
+  protected readonly billingMonths = Array.from({ length: 12 }, (_, i) => ({
+    value: i + 1,
+    label: new Intl.DateTimeFormat('fr-BE', { month: 'long' }).format(new Date(2026, i, 1)),
+  }));
+  protected readonly billingMonth = computed(() => Number(this.settings().billingStart.slice(0, 2)));
+  protected readonly billingDay = computed(() => Number(this.settings().billingStart.slice(3, 5)));
+
+  /** Début de l'année de facturation (`MM-JJ`), jour ramené au dernier jour du mois s'il le dépasse. */
+  protected setBillingStart(event: Event, part: 'day' | 'month'): void {
+    const value = Number((event.target as HTMLSelectElement).value);
+    const month = part === 'month' ? value : this.billingMonth();
+    const lengths = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    const day = Math.min(part === 'day' ? value : this.billingDay(), lengths[month - 1]!);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    this.store.updateSettings({ billingStart: `${pad(month)}-${pad(day)}` });
+  }
+
   protected setWeekends(event: Event): void {
     this.store.updateSettings({ offPeakWeekends: (event.target as HTMLInputElement).checked });
   }
