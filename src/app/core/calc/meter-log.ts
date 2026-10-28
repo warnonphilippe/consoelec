@@ -3,12 +3,20 @@ import {
   type MeterLog,
   type MeterLogPoint,
   type MeterReading,
+  type PvDay,
   type RegisterKey,
 } from '../models/app-data.model';
-import { toLocalIso } from './time';
+import { solarFractionAt } from './production';
+import { toDayNumber, toLocalIso, yearMonthOf } from './time';
 
 /** Les minutes du journal couvrent la dernière heure. */
 const MINUTES_KEPT_MS = 60 * 60 * 1000;
+
+/**
+ * Part de la production d'une journée au-delà de laquelle l'index de l'onduleur, lu à un autre moment que le compteur,
+ * n'est plus repris comme index de production d'un relevé tiré du journal.
+ */
+const PV_MATCH_MAX_FRACTION = 0.02;
 
 export const EMPTY_METER_LOG: MeterLog = { minutes: [], hours: [], days: [] };
 
@@ -44,9 +52,12 @@ export function appendMeterLog(log: MeterLog, point: MeterLogPoint, nowMs: numbe
 
 /**
  * Relevés quotidiens tirés du journal (dernière lecture de chaque jour, le jour en cours compris), pour l'analyse.
- * Ils ne sont jamais enregistrés dans les relevés encodés.
+ * Ils ne sont jamais enregistrés dans les relevés encodés. L'index de production est celui de l'onduleur lu le même
+ * jour (`pvDaily`) quand le soleil n'a presque rien produit entre les deux lectures (lectures proches, ou dernière
+ * lecture de l'onduleur après le coucher du soleil) ; sinon il reste inconnu.
  */
-export function meterLogReadings(log: MeterLog): MeterReading[] {
+export function meterLogReadings(log: MeterLog, pvDaily: readonly PvDay[]): MeterReading[] {
+  const pvByDay = new Map(pvDaily.map((d) => [d.date, d]));
   return log.days.map((p) => ({
     id: `p1-${day(p)}`,
     date: p.at,
@@ -54,11 +65,29 @@ export function meterLogReadings(log: MeterLog): MeterReading[] {
     importOff: p.importOff,
     exportPeak: p.exportPeak,
     exportOff: p.exportOff,
-    pvTotal: null,
+    pvTotal: pvTotalAt(p.at, pvByDay.get(day(p))),
     meterChange: false,
     source: 'auto',
     note: '',
   }));
+}
+
+/** Index de l'onduleur valable à l'instant `at`, s'il a été lu le même jour sans production notable entre-temps. */
+function pvTotalAt(at: string, pv: PvDay | undefined): number | null {
+  if (pv === undefined || !Number.isFinite(pv.totalKwh)) {
+    return null;
+  }
+  const meter = toDayNumber(at);
+  const inverter = toDayNumber(pv.at);
+  if (!Number.isFinite(meter) || !Number.isFinite(inverter)) {
+    return null;
+  }
+  const start = Math.floor(meter);
+  const { month } = yearMonthOf(start);
+  const produced = Math.abs(
+    solarFractionAt(month, (meter - start) * 24) - solarFractionAt(month, (inverter - start) * 24),
+  );
+  return produced < PV_MATCH_MAX_FRACTION ? pv.totalKwh : null;
 }
 
 /** Fusion de deux journaux (import) : le local est gardé ; pour chaque jour, la lecture la plus tardive l'emporte. */

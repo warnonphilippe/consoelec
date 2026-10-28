@@ -51,13 +51,13 @@ export class DataStore {
   );
   /**
    * Relevés de l'analyse : les relevés encodés et un relevé par jour tiré du journal du lecteur P1 (le jour en cours
-   * compris, à sa dernière lecture).
+   * compris, à sa dernière lecture), avec l'index de production de l'onduleur quand il a été lu au même moment.
    */
   private readonly analyzed = computed<AppData>(() => {
     const d = this.state();
     return d.meterLog.days.length === 0
       ? d
-      : { ...d, readings: [...d.readings, ...meterLogReadings(d.meterLog)] };
+      : { ...d, readings: [...d.readings, ...meterLogReadings(d.meterLog, d.pvDaily)] };
   });
   readonly analysis = computed(() => analyze(this.analyzed(), this.now()));
   /** Intervalles entre les seuls relevés encodés (page Relevés). */

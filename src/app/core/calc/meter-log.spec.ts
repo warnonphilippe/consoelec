@@ -1,4 +1,12 @@
-import type { MeterLog, MeterLogPoint } from '../models/app-data.model';
+import {
+  emptyData,
+  type AppData,
+  type MeterLog,
+  type MeterLogPoint,
+  type MeterReading,
+  type PvDay,
+} from '../models/app-data.model';
+import { analyze } from './analysis';
 import {
   EMPTY_METER_LOG,
   appendMeterLog,
@@ -7,6 +15,7 @@ import {
   mergeMeterLogs,
   todayCurve,
 } from './meter-log';
+import { toDayNumber } from './time';
 
 const point = (at: string, importPeak = 100, exportPeak = 200): MeterLogPoint => ({
   at,
@@ -72,7 +81,7 @@ describe('journal des index du lecteur P1', () => {
 
   it('fournit un relevé quotidien pour l’analyse', () => {
     const log = feed(EMPTY_METER_LOG, '2026-10-27T23:58', 3);
-    expect(meterLogReadings(log)).toEqual([
+    expect(meterLogReadings(log, [])).toEqual([
       {
         id: 'p1-2026-10-27',
         date: '2026-10-27T23:59',
@@ -87,6 +96,68 @@ describe('journal des index du lecteur P1', () => {
       },
       expect.objectContaining({ id: 'p1-2026-10-28', date: '2026-10-28T00:00', source: 'auto' }),
     ]);
+  });
+
+  it('reprend l’index de l’onduleur lu le même jour sans production notable entre les deux lectures', () => {
+    const log: MeterLog = {
+      minutes: [],
+      hours: [],
+      days: [point('2026-10-26T23:59'), point('2026-10-27T13:45'), point('2026-10-28T13:00')],
+    };
+    const pv = (date: string, time: string, totalKwh: number): PvDay => ({
+      date,
+      dayKwh: 10,
+      totalKwh,
+      at: `${date}T${time}`,
+    });
+    const readings = meterLogReadings(log, [
+      // Dernière lecture de l'onduleur après le coucher du soleil : l'index est celui de minuit.
+      pv('2026-10-26', '22:49', 32081.276),
+      // Lectures quasi simultanées en journée.
+      pv('2026-10-27', '13:44', 32093.5),
+      // Deux heures d'écart en pleine journée : trop de production entre les deux.
+      pv('2026-10-28', '11:00', 32110),
+    ]);
+    expect(readings.map((r) => r.pvTotal)).toEqual([32081.276, 32093.5, null]);
+    expect(meterLogReadings(log, []).map((r) => r.pvTotal)).toEqual([null, null, null]);
+  });
+
+  it('alimente les prévisions : elles partent des index lus par le lecteur P1', () => {
+    const manual = (date: string, base: number, pvTotal: number): MeterReading => ({
+      id: date,
+      date,
+      importPeak: base,
+      importOff: base / 2,
+      exportPeak: base * 2,
+      exportOff: base * 3,
+      pvTotal,
+      meterChange: false,
+      source: 'manual',
+      note: '',
+    });
+    const data: AppData = {
+      ...emptyData(),
+      readings: [
+        manual('2026-08-01T20:00', 100, 1000),
+        manual('2026-09-01T20:00', 200, 1500),
+        manual('2026-10-01T20:00', 300, 1900),
+      ],
+      meterLog: {
+        minutes: [],
+        hours: [],
+        days: [
+          { at: '2026-10-27T23:59', importPeak: 390, importOff: 195, exportPeak: 780, exportOff: 1170 },
+        ],
+      },
+      pvDaily: [{ date: '2026-10-27', dayKwh: 8, totalKwh: 2200, at: '2026-10-27T21:30' }],
+    };
+    const now = toDayNumber('2026-10-28T08:00');
+    const a = analyze({ ...data, readings: [...data.readings, ...meterLogReadings(data.meterLog, data.pvDaily)] }, now);
+    const last = a.consumption.intervals.at(-1)!;
+    expect(a.lastIndices).toEqual({ importPeak: 390, importOff: 195, exportPeak: 780, exportOff: 1170 });
+    expect(a.windowEnd).toBe(toDayNumber('2026-10-27T23:59'));
+    expect(last.delta.pv).toBeCloseTo(300, 6);
+    expect(a.base.best).not.toBeNull();
   });
 
   it('fusionne les jours importés sans toucher aux minutes ni aux heures locales', () => {

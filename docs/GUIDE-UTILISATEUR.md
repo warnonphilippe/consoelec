@@ -304,7 +304,7 @@ Le compteur communicant (Iskra IE.5 d'AIEG, par exemple) a un **port P1** : une 
 
 Ensuite, tant que l'application est ouverte, ConsoElec lit le compteur **chaque minute** :
 - le tableau de bord affiche le **compteur en direct** : soutirage ou injection du moment, moyenne du quart d'heure (base du tarif capacitaire), tarif en cours et index ;
-- les index alimentent les **statistiques, soldes et prévisions** comme des relevés, sans rien encoder ;
+- les index alimentent les **statistiques, soldes et prévisions** comme des relevés, sans rien encoder. Si l'onduleur est lu aussi, son index de production du jour est repris quand il a été lu au même moment ou après le coucher du soleil : autoconsommation et autarcie restent calculées sans encoder l'index de production ;
 - la page **Compteurs** affiche la courbe du jour.
 
 Pour ne pas alourdir le fichier de données, ConsoElec garde :
