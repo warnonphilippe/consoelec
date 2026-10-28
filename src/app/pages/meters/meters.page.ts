@@ -42,7 +42,6 @@ export default class MetersPage {
     const now = this.store.now();
     return REGISTERS.map((r) => {
       const estimated = a.currentIndices?.[r.key] ?? null;
-      const t365 = a.last365?.values[r.key] ?? null;
       const t30 = a.last30?.values[r.key] ?? null;
       const t7 = a.last7?.values[r.key] ?? null;
       return {
@@ -53,7 +52,6 @@ export default class MetersPage {
         staleDays: last ? now - last.day : null,
         t7,
         t30,
-        t365,
         perDay30: t30 !== null && a.last30 ? t30 / Math.max(1, a.last30.coveredDays) : null,
       };
     });
@@ -64,9 +62,7 @@ export default class MetersPage {
     if (!e) {
       return null;
     }
-    const imp = e.importPeak + e.importOff;
-    const exp = e.exportPeak + e.exportOff;
-    return { import: imp, export: exp, net: imp - exp };
+    return { import: e.importPeak + e.importOff, export: e.exportPeak + e.exportOff };
   });
 
   protected readonly chart = computed(() => {

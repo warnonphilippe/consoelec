@@ -178,7 +178,7 @@ Une journée sans lecture est **estimée** : l'énergie produite entre deux inde
 
 ![Page Compteurs](img/compteurs.png)
 
-La page **Compteurs** détaille les **quatre sous-compteurs** : index estimé aujourd'hui, dernier relevé, consommation des 7 et 30 derniers jours et des 12 derniers mois, courbe d'évolution (avec prévision en pointillés ; avec le lecteur P1, un point par jour, puis un par heure pour la journée en cours et chaque minute de la dernière heure), et répartition heures pleines / heures creuses.
+La page **Compteurs** détaille les **quatre sous-compteurs** : index estimé aujourd'hui, dernier relevé, consommation des 7 et 30 derniers jours, courbe d'évolution (avec prévision en pointillés ; avec le lecteur P1, un point par jour, puis un par heure pour la journée en cours et chaque minute de la dernière heure), et répartition heures pleines / heures creuses.
 
 Avec le lecteur P1, la carte **Aujourd'hui** trace, pour chaque registre, les **kWh comptés depuis minuit** : un point par heure, puis un point par minute sur la dernière heure. Les totaux du jour sont rappelés sous le graphique. Si la lecture de la veille au soir manque (application fermée), la courbe part de la première lecture du jour.
 
@@ -191,7 +191,7 @@ En Wallonie, une installation photovoltaïque de 10 kVA au plus mise en service 
 
 Le **graphique des soldes**, sous les index cumulés, suit ces deux soldes depuis le début de l'année de facturation, puis les prolonge par la prévision (pointillés). Ils repartent de zéro à chaque début d'année. Au-dessus de zéro, c'est de l'énergie à payer ; en dessous, un **surplus** qui n'est pas remboursé en fin d'année. Sous le graphique, le résumé donne pour l'année en cours et la suivante les kWh à payer et le surplus perdu.
 
-#### Courbes limites et dosage du radiateur
+#### Courbes limites
 
 Les **courbes limites** (gros points, une par période) sont un **plafond** à ne pas dépasser pour revenir à zéro en fin d'année de facturation, si la suite de l'année suit la prévision : consommation habituelle de la maison (calée sur vos factures annuelles) et production attendue des panneaux.
 
@@ -200,13 +200,7 @@ Les **courbes limites** (gros points, une par période) sont un **plafond** à n
 
 Rester sous la limite, c'est finir l'année à zéro ou en surplus, sans rien à payer dans cette période ; finir en dessous n'est pas un problème. Sur le graphique, les limites sont étiquetées « Limite HP (max.) » / « Limite HC (max.) » à leur plafond, la prévision en tirets « Prévision HP » / « Prévision HC ». Prévision et limites ne s'affichent qu'à partir d'aujourd'hui. HP et HC ne se compensent pas entre elles : un surplus en heures creuses n'efface pas un dépassement en heures pleines.
 
-Le résumé de chaque année donne :
-
-- le **plafond** de chaque limite et sa date. « Aucun » signifie que le printemps et l'été prévus ne font pas redescendre le solde de cette période : sa limite n'est pas tracée pour l'année, et chaque kWh évité réduit la facture ;
-- la **marge** : ce que vous pouvez encore consommer en plus de l'habitude d'ici la fin de l'année sans dépasser zéro (au dernier relevé, ou au début de l'année à venir). Elle vaut l'opposé du solde de fin d'année prévu ;
-- le **dosage du radiateur électrique** : la marge convertie en heures de fonctionnement à la puissance du radiateur (page **Maison**, radiateur électrique d'appoint), et répartie en heures par semaine jusqu'à la fin de la saison de chauffe. Faites-le tourner de préférence en **heures creuses** (11 h-17 h et 22 h-7 h) : c'est là que le surplus d'été est le plus grand. Ces heures s'ajoutent à l'usage habituel du radiateur, déjà compris dans la consommation de vos factures.
-
-Pour suivre le dosage, encodez un relevé régulièrement (par exemple chaque semaine) : si le solde mesuré passe au-dessus de la limite, réduisez le radiateur ; s'il reste nettement en dessous, vous avez encore de la marge.
+Pour suivre l'année, gardez un œil sur le solde mesuré : s'il passe au-dessus de la limite, réduisez la consommation dans cette période (le radiateur électrique, par exemple) ; s'il reste nettement en dessous, vous avez encore de la marge.
 
 Un **changement de compteur** solde l'ancien compteur (facture de clôture) : dans l'année du changement, les soldes ne se comptent qu'à partir du relevé « nouveau compteur ».
 

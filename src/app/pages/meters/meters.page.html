@@ -21,7 +21,7 @@
     </div>
   } @else {
     @if (totals(); as t) {
-      <div class="grid grid-3 totals">
+      <div class="grid grid-2 totals">
         <div class="card kpi">
           <span class="kpi-label"
             ><app-icon name="plug" [size]="15" /> Index total de soutirage</span
@@ -33,13 +33,6 @@
           <span class="kpi-label"><app-icon name="sun" [size]="15" /> Index total d'injection</span>
           <span class="kpi-value">{{ t.export | kwh }}</span>
           <span class="kpi-sub">2.8.1 + 2.8.2 · estimé aujourd'hui</span>
-        </div>
-        <div class="card kpi">
-          <span class="kpi-label"
-            ><app-icon name="bolt" [size]="15" /> Écart depuis l'installation</span
-          >
-          <span class="kpi-value">{{ t.net | skwh }}</span>
-          <span class="kpi-sub">soutirage − injection, tous index cumulés</span>
         </div>
       </div>
     }
@@ -74,10 +67,6 @@
               <dd>
                 {{ c.t30 | kwh }} <span class="faint small">{{ c.perDay30 | num: 1 }}/j</span>
               </dd>
-            </div>
-            <div>
-              <dt>12 mois</dt>
-              <dd>{{ c.t365 | kwh }}</dd>
             </div>
           </dl>
         </div>
