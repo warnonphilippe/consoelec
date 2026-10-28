@@ -13,6 +13,7 @@ import {
   lastLogAt,
   meterLogReadings,
   mergeMeterLogs,
+  recentPoints,
   todayCurve,
 } from './meter-log';
 import { toDayNumber } from './time';
@@ -158,6 +159,20 @@ describe('journal des index du lecteur P1', () => {
     expect(a.windowEnd).toBe(toDayNumber('2026-10-27T23:59'));
     expect(last.delta.pv).toBeCloseTo(300, 6);
     expect(a.base.best).not.toBeNull();
+  });
+
+  it('donne au graphique des index une lecture par heure du jour, puis chaque minute de la dernière heure', () => {
+    const log = feed(EMPTY_METER_LOG, '2026-10-27T23:30', 24 * 60);
+    const now = ms('2026-10-28T23:29');
+    const points = recentPoints(log, now).map((p) => p.at);
+    // Heures de la veille exclues ; une lecture par heure aujourd'hui ; les minutes de la dernière heure.
+    expect(points[0]).toBe('2026-10-28T00:59');
+    expect(points.filter((at) => at.endsWith(':59'))).toHaveLength(23);
+    expect(points.filter((at) => at >= '2026-10-28T22:29')).toHaveLength(61);
+    expect(points.at(-1)).toBe('2026-10-28T23:29');
+    expect(new Set(points).size).toBe(points.length);
+    // Application rouverte le lendemain : rien du jour précédent.
+    expect(recentPoints(log, ms('2026-10-29T08:00'))).toEqual([]);
   });
 
   it('fusionne les jours importés sans toucher aux minutes ni aux heures locales', () => {

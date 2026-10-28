@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import type { TodayCurve } from '../../core/calc/meter-log';
+import { analyze } from '../../core/calc/analysis';
+import { meterLogReadings, type TodayCurve } from '../../core/calc/meter-log';
+import { dayNumberToDate, toDayNumber } from '../../core/calc/time';
+import { emptyData, type MeterLog, type MeterLogPoint } from '../../core/models/app-data.model';
 import { chartColors } from '../../shared/chart/chart-colors';
 import {
   billingHorizon,
   indexAxisRange,
+  indexChart,
   keepTooltipItem,
   pointsFrom,
   todayChart,
@@ -113,5 +117,44 @@ describe('todayChart', () => {
     const x = todayChart(early, ['importOff'], at)(chartColors('light')).options!.scales!['x']!;
     expect(x.min).toBe(new Date(2026, 9, 28).getTime());
     expect(x.max).toBe(at);
+  });
+});
+
+describe('indexChart', () => {
+  const p = (at: string, importPeak: number): MeterLogPoint => ({
+    at,
+    importPeak,
+    importOff: 0,
+    exportPeak: 0,
+    exportOff: 0,
+  });
+  const log: MeterLog = {
+    days: [p('2026-10-26T23:59', 100), p('2026-10-27T23:59', 110), p('2026-10-28T10:05', 114)],
+    hours: [p('2026-10-28T08:59', 112), p('2026-10-28T09:59', 113), p('2026-10-28T10:05', 114)],
+    minutes: [p('2026-10-28T09:59', 113), p('2026-10-28T10:04', 113.9), p('2026-10-28T10:05', 114)],
+  };
+  const now = toDayNumber('2026-10-28T10:05');
+  const analysis = analyze({ ...emptyData(), readings: meterLogReadings(log, []) }, now);
+  const ms = (iso: string): number => dayNumberToDate(toDayNumber(iso)).getTime();
+
+  it('trace un point par jour, puis chaque heure et chaque minute récente du jour en cours', () => {
+    const recent = [...log.hours, log.minutes[1]!].sort((a, b) => a.at.localeCompare(b.at));
+    const config = indexChart(analysis, null, recent, ['importPeak'], null, 0, now)(chartColors('light'));
+    const [real] = config.data.datasets;
+    expect(real!.data).toEqual([
+      { x: ms('2026-10-26T23:59'), y: 100 },
+      { x: ms('2026-10-27T23:59'), y: 110 },
+      { x: ms('2026-10-28T08:59'), y: 112 },
+      { x: ms('2026-10-28T09:59'), y: 113 },
+      { x: ms('2026-10-28T10:04'), y: 113.9 },
+      { x: ms('2026-10-28T10:05'), y: 114 },
+    ]);
+    // Marqueurs sur les relevés quotidiens (dont la dernière lecture), pas sur les lectures fines.
+    expect((real as unknown as { pointRadius: number[] }).pointRadius).toEqual([3, 3, 0, 0, 0, 3]);
+  });
+
+  it('respecte la période choisie pour les lectures fines aussi', () => {
+    const config = indexChart(analysis, null, log.hours, ['importPeak'], now - 0.003, 0, now)(chartColors('light'));
+    expect(config.data.datasets[0]!.data).toEqual([{ x: ms('2026-10-28T10:05'), y: 114 }]);
   });
 });

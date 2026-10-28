@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { RouterLink } from '@angular/router';
 import type { Forecast, ProfileKey } from '../../core/calc/forecast';
 import { evAnnualKwh } from '../../core/calc/ev';
+import { recentPoints } from '../../core/calc/meter-log';
 import { dayNumberToDate, toDayNumber } from '../../core/calc/time';
 import { REGISTERS } from '../../core/models/app-data.model';
 import { DataStore } from '../../core/services/data-store.service';
@@ -145,6 +146,7 @@ export default class ForecastPage {
     indexChart(
       this.analysis(),
       this.selected(),
+      recentPoints(this.store.data().meterLog, Date.now()),
       REGISTERS.map((r) => r.key),
       this.store.now() - 183,
       548,

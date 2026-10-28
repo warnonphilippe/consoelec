@@ -90,6 +90,23 @@ function pvTotalAt(at: string, pv: PvDay | undefined): number | null {
   return produced < PV_MATCH_MAX_FRACTION ? pv.totalKwh : null;
 }
 
+/**
+ * Lectures plus fines que le relevé quotidien, pour le graphique des index : la dernière de chaque heure du jour en
+ * cours et chaque minute de la dernière heure.
+ */
+export function recentPoints(log: MeterLog, nowMs: number): MeterLogPoint[] {
+  const today = toLocalIso(new Date(nowMs)).slice(0, 10);
+  const cutoff = toLocalIso(new Date(nowMs - MINUTES_KEPT_MS));
+  const merged = new Map<string, MeterLogPoint>();
+  for (const p of [
+    ...log.hours.filter((p) => day(p) === today),
+    ...log.minutes.filter((p) => p.at >= cutoff),
+  ]) {
+    merged.set(p.at, p);
+  }
+  return [...merged.values()].sort(byAt);
+}
+
 /** Fusion de deux journaux (import) : le local est gardé ; pour chaque jour, la lecture la plus tardive l'emporte. */
 export function mergeMeterLogs(
   local: MeterLog,

@@ -4,8 +4,8 @@ import type { FullAnalysis } from '../../core/calc/analysis';
 import type { BalancePoint, BalanceSeries, LimitPoint } from '../../core/calc/balance';
 import type { Forecast } from '../../core/calc/forecast';
 import type { TodayCurve } from '../../core/calc/meter-log';
-import { dayNumberToDate } from '../../core/calc/time';
-import { REGISTERS, type RegisterKey } from '../../core/models/app-data.model';
+import { dayNumberToDate, toDayNumber, toLocalIso } from '../../core/calc/time';
+import { REGISTERS, type MeterLogPoint, type RegisterKey } from '../../core/models/app-data.model';
 import { alpha, chartLegend, type ChartColors } from '../../shared/chart/chart-colors';
 import { fmt } from '../../shared/format';
 
@@ -72,16 +72,24 @@ export function billingHorizon(yearEnds: readonly number[], now: number, forecas
 }
 
 /** Index cumulés des registres choisis : relevés réels (points) puis projection (pointillés). */
+/**
+ * Index cumulés : les relevés de l'analyse (relevés encodés et un relevé P1 par jour) et, pour le jour en cours, les
+ * lectures plus fines du lecteur P1 (`recent` : une par heure, puis chaque minute de la dernière heure), prolongés par
+ * la prévision.
+ */
 export function indexChart(
   analysis: FullAnalysis,
   forecast: Forecast | null,
+  recent: readonly MeterLogPoint[],
   keys: readonly RegisterKey[],
   fromDay: number | null,
   forecastDays: number,
   now: number,
 ) {
   return (c: ChartColors): ChartConfiguration => {
-    const levels = analysis.consumption.levels.filter((l) => fromDay === null || l.day >= fromDay);
+    const inRange = (day: number): boolean => fromDay === null || day >= fromDay;
+    const levels = analysis.consumption.levels.filter((l) => inRange(l.day));
+    const finer = recent.map((p) => ({ day: toDayNumber(p.at), point: p })).filter((r) => inRange(r.day));
     const datasets: ChartConfiguration['data']['datasets'] = [];
     const range = indexAxisRange(
       levels.map((l) => l.day),
@@ -92,14 +100,22 @@ export function indexChart(
     for (const key of keys) {
       const color = c[COLOR[key]] as string;
       const info = REGISTERS.find((r) => r.key === key)!;
-      const real: XY[] = levels.map((l) => ({ x: ms(l.day), y: l.values[key] ?? 0 }));
+      // Les lectures fines n'ont pas de marqueur ; un relevé au même instant garde le sien.
+      const byX = new Map<number, { y: number; radius: number }>();
+      for (const r of finer) {
+        byX.set(ms(r.day), { y: r.point[key], radius: 0 });
+      }
+      for (const l of levels) {
+        byX.set(ms(l.day), { y: l.values[key] ?? 0, radius: 3 });
+      }
+      const real = [...byX.entries()].sort(([a], [b]) => a - b);
       datasets.push({
         type: 'line',
         label: info.short,
-        data: real,
+        data: real.map(([x, v]): XY => ({ x, y: v.y })),
         borderColor: color,
         backgroundColor: alpha(color, 0.15),
-        pointRadius: 3,
+        pointRadius: real.map(([, v]) => v.radius),
         pointHoverRadius: 5,
         tension: 0.15,
       });
@@ -157,6 +173,16 @@ export function indexChart(
                 items.map((i) => i.dataset.label),
               ),
             callbacks: {
+              // Une mesure est datée à la minute, une prévision au jour.
+              title: (items) => {
+                const x = items[0]?.parsed.x;
+                if (x === undefined || x === null) {
+                  return '';
+                }
+                const iso = toLocalIso(new Date(x));
+                const measured = items.some((i) => !i.dataset.label?.endsWith(FORECAST_SUFFIX));
+                return measured ? fmt.dateTime(iso) : fmt.longDate(iso);
+              },
               label: (item) =>
                 `${item.dataset.label}: ${fmt.kwh((item.raw as XY).y, 1)}`,
             },

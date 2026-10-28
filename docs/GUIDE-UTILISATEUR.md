@@ -178,7 +178,7 @@ Une journée sans lecture est **estimée** : l'énergie produite entre deux inde
 
 ![Page Compteurs](img/compteurs.png)
 
-La page **Compteurs** détaille les **quatre sous-compteurs** : index estimé aujourd'hui, dernier relevé, consommation des 7 et 30 derniers jours et des 12 derniers mois, courbe d'évolution (avec prévision en pointillés), et répartition heures pleines / heures creuses.
+La page **Compteurs** détaille les **quatre sous-compteurs** : index estimé aujourd'hui, dernier relevé, consommation des 7 et 30 derniers jours et des 12 derniers mois, courbe d'évolution (avec prévision en pointillés ; avec le lecteur P1, un point par jour, puis un par heure pour la journée en cours et chaque minute de la dernière heure), et répartition heures pleines / heures creuses.
 
 Avec le lecteur P1, la carte **Aujourd'hui** trace, pour chaque registre, les **kWh comptés depuis minuit** : un point par heure, puis un point par minute sur la dernière heure. Les totaux du jour sont rappelés sous le graphique. Si la lecture de la veille au soir manque (application fermée), la courbe part de la première lecture du jour.
 

@@ -5,7 +5,7 @@ import { DataStore } from '../../core/services/data-store.service';
 import { ChartComponent } from '../../shared/chart/chart.component';
 import { FORMAT_PIPES } from '../../shared/format';
 import { IconComponent } from '../../shared/icon.component';
-import { todayCurve } from '../../core/calc/meter-log';
+import { recentPoints, todayCurve } from '../../core/calc/meter-log';
 import { indexChart, splitChart, todayChart } from './meters-charts';
 import { BalanceCardComponent } from '../../shared/balance-card/balance-card.component';
 
@@ -75,6 +75,7 @@ export default class MetersPage {
     return indexChart(
       this.analysis(),
       this.analysis().base.best,
+      recentPoints(this.store.data().meterLog, Date.now()),
       [...this.shown()],
       days === null ? null : now - days,
       this.forecastDays(),
