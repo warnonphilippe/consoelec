@@ -193,7 +193,7 @@ Une journée sans lecture est **estimée** : l'énergie produite entre deux inde
 
 La page **Compteurs** détaille les **quatre sous-compteurs** : index estimé aujourd'hui, dernier relevé, consommation des 7 et 30 derniers jours, courbe d'évolution (avec prévision en pointillés ; avec le lecteur P1, un point par jour, puis un par heure pour la journée en cours et chaque minute de la dernière heure), et répartition heures pleines / heures creuses.
 
-Avec le lecteur P1, la carte **Aujourd'hui** trace, pour chaque registre, les **kWh comptés depuis minuit** : un point par heure, puis un point par minute sur la dernière heure. Le graphique couvre de 6 h à 22 h, comme la courbe de production de la journée (page Production), pour les comparer d'un coup d'œil. Les totaux du jour sont rappelés sous le graphique. Si la lecture de la veille au soir manque (application fermée), la courbe part de la première lecture du jour.
+Avec le lecteur P1, la carte **Aujourd'hui** trace, pour chaque registre, les **kWh comptés depuis minuit** : un point par heure, puis un point par minute sur la dernière heure. Le graphique couvre de 6 h à 22 h, comme la courbe de production de la journée (page Production), avec la même zone de tracé : l'un sous l'autre (sur le tableau de bord, par exemple), leurs heures tombent sur les mêmes verticales. Les totaux du jour sont rappelés sous le graphique. Si la lecture de la veille au soir manque (application fermée), la courbe part de la première lecture du jour.
 
 ### Graphique des soldes : ce que le fournisseur facturera
 

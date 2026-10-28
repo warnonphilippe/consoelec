@@ -4,6 +4,7 @@ import { meterLogReadings, type TodayCurve } from '../../core/calc/meter-log';
 import { dayNumberToDate, toDayNumber } from '../../core/calc/time';
 import { emptyData, type MeterLog, type MeterLogPoint } from '../../core/models/app-data.model';
 import { chartColors } from '../../shared/chart/chart-colors';
+import { dayCurveChart } from '../production/production-charts';
 import {
   billingHorizon,
   indexAxisRange,
@@ -112,17 +113,41 @@ describe('todayChart', () => {
     expect(x.ticks?.maxTicksLimit).toBe(9);
   });
 
-  it('va jusqu’à maintenant passé 22 h', () => {
-    const late = new Date(2026, 9, 28, 23, 10).getTime();
-    expect(todayChart(curve, ['importOff'], late)(chartColors('light')).options!.scales!['x']!.max).toBe(late);
-  });
-
-  it('part de minuit tant qu’il n’est pas 6 h', () => {
+  it('garde l’axe de 6 h à 22 h même tôt le matin', () => {
     const early = { ...curve, points: curve.points.slice(0, 1), lastAt: '2026-10-28T00:00' };
     const at = new Date(2026, 9, 28, 4, 15).getTime();
     const x = todayChart(early, ['importOff'], at)(chartColors('light')).options!.scales!['x']!;
-    expect(x.min).toBe(new Date(2026, 9, 28).getTime());
+    expect(x.min).toBe(new Date(2026, 9, 28, 6, 0).getTime());
     expect(x.max).toBe(new Date(2026, 9, 28, 22, 0).getTime());
+  });
+
+  it('a les mêmes axes horaires et la même largeur d’axe vertical que la courbe de production', () => {
+    const day = new Date(2026, 9, 28).getTime();
+    const colors = chartColors('light');
+    const index = todayChart(curve, ['importOff'], now)(colors).options!.scales!;
+    const power = dayCurveChart([{ at: day + 9 * 3_600_000, powerW: 1200 }], day, now)(colors).options!.scales!;
+    expect(index['x']!.min).toBe(power['x']!.min);
+    expect(index['x']!.max).toBe(power['x']!.max);
+    expect((index['x'] as { ticks: { maxTicksLimit: number } }).ticks.maxTicksLimit).toBe(
+      (power['x'] as { ticks: { maxTicksLimit: number } }).ticks.maxTicksLimit,
+    );
+    // Axe vertical de largeur fixe : la zone de tracé démarre au même endroit, quels que soient les libellés.
+    const width = (scale: object): number => {
+      const axis = { width: 0 };
+      (scale as { afterFit: (a: { width: number }) => void }).afterFit(axis);
+      return axis.width;
+    };
+    expect(width(index['y']!)).toBeGreaterThan(0);
+    expect(width(index['y']!)).toBe(width(power['y']!));
+  });
+
+  it('s’étend jusqu’à maintenant passé 22 h, pour les deux courbes', () => {
+    const day = new Date(2026, 9, 28).getTime();
+    const late = new Date(2026, 9, 28, 23, 10).getTime();
+    const colors = chartColors('light');
+    expect(todayChart(curve, ['importOff'], late)(colors).options!.scales!['x']!.max).toBe(late);
+    expect(dayCurveChart([], day, late)(colors).options!.scales!['x']!.max).toBe(late);
+    expect(dayCurveChart([], day, null)(colors).options!.scales!['x']!.max).toBe(new Date(2026, 9, 28, 22).getTime());
   });
 });
 

@@ -118,7 +118,11 @@ import { ProductionView, diffPct } from './production-view';
 export class ProductionDayCard {
   protected readonly v = inject(ProductionView);
   protected readonly chart = computed(() =>
-    dayCurveChart(this.v.dayPoints(), dayNumberToDate(this.v.day()).getTime()),
+    dayCurveChart(
+      this.v.dayPoints(),
+      dayNumberToDate(this.v.day()).getTime(),
+      this.v.isToday() ? Date.now() : null,
+    ),
   );
 
   constructor() {
