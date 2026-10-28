@@ -123,7 +123,7 @@ export class MeterRegisterCard {
           >
         </div>
         @if (chart(); as b) {
-          <app-chart [build]="b" [height]="300" />
+          <app-chart [build]="b" [height]="240" />
         }
         <dl class="reg-stats today-totals">
           @for (r of registers; track r.key) {

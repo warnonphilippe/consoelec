@@ -198,7 +198,8 @@ const localMs = (iso: string): number => new Date(`${iso}:00`).getTime();
 
 /**
  * Journée en cours, lue sur le compteur par le port P1 : kWh comptés depuis minuit (ou depuis la première lecture)
- * pour chaque registre choisi, de 6 h à maintenant (de minuit avant 6 h).
+ * pour chaque registre choisi. Même axe que la courbe de production de la journée : de 6 h (de minuit avant 6 h)
+ * à 22 h, ou jusqu'à maintenant passé 22 h, une heure sur deux.
  */
 export function todayChart(curve: TodayCurve, keys: readonly RegisterKey[], nowMs: number) {
   return (c: ChartColors): ChartConfiguration => {
@@ -216,8 +217,9 @@ export function todayChart(curve: TodayCurve, keys: readonly RegisterKey[], nowM
       };
     });
     const day = curve.lastAt.slice(0, 10);
-    const max = Math.max(nowMs, localMs(curve.lastAt));
+    const now = Math.max(nowMs, localMs(curve.lastAt));
     const sixAm = localMs(`${day}T06:00`);
+    const max = Math.max(localMs(`${day}T22:00`), now);
     return {
       type: 'line',
       data: { datasets },
@@ -229,12 +231,12 @@ export function todayChart(curve: TodayCurve, keys: readonly RegisterKey[], nowM
         scales: {
           x: {
             type: 'time',
-            min: max > sixAm ? sixAm : localMs(`${day}T00:00`),
+            min: now > sixAm ? sixAm : localMs(`${day}T00:00`),
             max,
             adapters: { date: { locale: fr } },
             time: { unit: 'hour', tooltipFormat: 'HH:mm', displayFormats: { hour: 'HH:mm' } },
             grid: { color: c.grid },
-            ticks: { color: c.muted, maxTicksLimit: 13 },
+            ticks: { color: c.muted, maxTicksLimit: 9 },
           },
           y: {
             beginAtZero: true,

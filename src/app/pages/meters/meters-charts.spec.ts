@@ -99,7 +99,7 @@ describe('todayChart', () => {
   };
   const now = new Date(2026, 9, 28, 8, 31).getTime();
 
-  it('trace une courbe par registre choisi, de 6 h à maintenant', () => {
+  it('trace une courbe par registre choisi, de 6 h à 22 h comme la courbe de production', () => {
     const config = todayChart(curve, ['importOff', 'exportPeak'], now)(chartColors('light'));
     expect(config.data.datasets.map((d) => d.label)).toEqual(['Soutirage HC', 'Injection HP']);
     expect(config.data.datasets[0]!.data).toEqual([
@@ -108,7 +108,13 @@ describe('todayChart', () => {
     ]);
     const x = config.options!.scales!['x']!;
     expect(x.min).toBe(new Date(2026, 9, 28, 6, 0).getTime());
-    expect(x.max).toBe(now);
+    expect(x.max).toBe(new Date(2026, 9, 28, 22, 0).getTime());
+    expect(x.ticks?.maxTicksLimit).toBe(9);
+  });
+
+  it('va jusqu’à maintenant passé 22 h', () => {
+    const late = new Date(2026, 9, 28, 23, 10).getTime();
+    expect(todayChart(curve, ['importOff'], late)(chartColors('light')).options!.scales!['x']!.max).toBe(late);
   });
 
   it('part de minuit tant qu’il n’est pas 6 h', () => {
@@ -116,7 +122,7 @@ describe('todayChart', () => {
     const at = new Date(2026, 9, 28, 4, 15).getTime();
     const x = todayChart(early, ['importOff'], at)(chartColors('light')).options!.scales!['x']!;
     expect(x.min).toBe(new Date(2026, 9, 28).getTime());
-    expect(x.max).toBe(at);
+    expect(x.max).toBe(new Date(2026, 9, 28, 22, 0).getTime());
   });
 });
 
