@@ -175,6 +175,50 @@ describe('normalizeData', () => {
     expect(normalizeData({ readings: [] }).settings.inverter.host).toBe('');
   });
 
+  it('valide les réglages du lecteur P1', () => {
+    const data = normalizeData({
+      settings: { p1: { enabled: true, host: ' p1meter-ABCDEF.local ' } },
+    });
+    expect(data.settings.p1).toEqual({ enabled: true, host: 'p1meter-ABCDEF.local' });
+    expect(normalizeData({ readings: [] }).settings.p1).toEqual({ enabled: false, host: '' });
+  });
+
+  it('garde les points valides du journal des index, triés et sans doublon', () => {
+    const point = { importPeak: 1, importOff: 2, exportPeak: 3, exportOff: 4 };
+    const data = normalizeData({
+      readings: [],
+      meterLog: {
+        minutes: [
+          { ...point, at: '2026-10-28T08:02' },
+          { ...point, at: '2026-10-28T08:01' },
+          { ...point, at: '2026-10-28T08:01', importPeak: 5 },
+          { ...point, at: '2026-10-28' },
+          { ...point, at: '2026-10-28T08:03', exportOff: -1 },
+        ],
+        days: 'pas une liste',
+      },
+    });
+    expect(data.meterLog.minutes.map((p) => [p.at, p.importPeak])).toEqual([
+      ['2026-10-28T08:01', 5],
+      ['2026-10-28T08:02', 1],
+    ]);
+    expect(data.meterLog.hours).toEqual([]);
+    expect(data.meterLog.days).toEqual([]);
+    expect(normalizeData({ readings: [] }).meterLog).toEqual({ minutes: [], hours: [], days: [] });
+  });
+
+  it('ne garde pas de relevé « auto » dans les relevés enregistrés', () => {
+    const base = {
+      date: '2026-10-28T08:00',
+      importPeak: 1,
+      importOff: 2,
+      exportPeak: 3,
+      exportOff: 4,
+    };
+    const data = normalizeData({ readings: [{ ...base, id: 'a', source: 'auto' }] });
+    expect(data.readings.map((r) => r.source)).toEqual(['manual']);
+  });
+
   it('garde les factures annuelles valides, une par période, et l’ancien bihoraire par défaut', () => {
     const data = normalizeData({
       annualBills: [

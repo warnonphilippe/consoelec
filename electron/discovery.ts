@@ -22,21 +22,49 @@ export function parseSmaHosts(output: string): string[] {
   return [...hosts];
 }
 
-/** Cherche les onduleurs SMA sur le réseau local (macOS : Bonjour via dns-sd). */
-export function discoverSmaInverters(): Promise<string[]> {
+/**
+ * Extrait les lecteurs P1 HomeWizard d'une recherche Bonjour (`dns-sd -B _hwenergy._tcp`) : ils s'annoncent sous
+ * le nom `p1meter-<6 caractères>`. Renvoie les noms réseau `p1meter-XXXXXX.local`.
+ */
+export function parseP1Hosts(output: string): string[] {
+  const hosts = new Set<string>();
+  for (const line of output.split('\n')) {
+    if (!/\bAdd\b/.test(line)) {
+      continue;
+    }
+    const match = /\b(p1meter-[0-9A-Za-z]{6})\b/i.exec(line);
+    if (match) {
+      hosts.add(`${match[1]!.toLowerCase()}.local`);
+    }
+  }
+  return [...hosts];
+}
+
+/** Lance une recherche Bonjour de quelques secondes et renvoie la sortie de `dns-sd` (macOS seulement). */
+function browse(serviceType: string): Promise<string> {
   if (process.platform !== 'darwin' || !existsSync(DNS_SD)) {
-    return Promise.resolve([]);
+    return Promise.resolve('');
   }
   return new Promise((resolve) => {
     let out = '';
-    const child = spawn(DNS_SD, ['-B', '_http._tcp', 'local.'], {
+    const child = spawn(DNS_SD, ['-B', serviceType, 'local.'], {
       stdio: ['ignore', 'pipe', 'ignore'],
     });
     child.stdout.on('data', (d) => (out += d));
-    child.on('error', () => resolve([]));
+    child.on('error', () => resolve(''));
     setTimeout(() => {
       child.kill();
-      resolve(parseSmaHosts(out));
+      resolve(out);
     }, BROWSE_MS);
   });
+}
+
+/** Cherche les onduleurs SMA sur le réseau local (macOS : Bonjour via dns-sd). */
+export async function discoverSmaInverters(): Promise<string[]> {
+  return parseSmaHosts(await browse('_http._tcp'));
+}
+
+/** Cherche les lecteurs P1 HomeWizard sur le réseau local (macOS : Bonjour via dns-sd). */
+export async function discoverP1Meters(): Promise<string[]> {
+  return parseP1Hosts(await browse('_hwenergy._tcp'));
 }

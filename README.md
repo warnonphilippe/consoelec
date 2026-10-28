@@ -7,6 +7,7 @@ Application de bureau (**Angular 21 + Electron**) pour suivre la consommation et
 - **Installation solaire** : panneaux, onduleur (écrêtage), radiateur d'appoint sur le surplus ; si l'index de production est encodé, autoconsommation, autarcie et consommation réelle de la maison.
 - **Prévisions** selon la saison : statistique belge, statistique recalée sur la maison (avec prudence quand les données sont courtes), historique réel ; fiabilité mesurée par rétro-test sur les mois passés. Scénario **voiture électrique** (avec / sans).
 - **Plusieurs ordinateurs** : export JSON, puis import qui fusionne. Seuls les relevés absents sont ajoutés ; rien n'est modifié ni supprimé. Export et import CSV des relevés (Excel).
+- **Compteur par le port P1** : lecteur HomeWizard Wi-Fi P1 lu chaque minute sur le réseau local (API locale) ; les index alimentent les calculs sans relevé manuel, journal compact (minutes de la dernière heure, heures du jour, un point par jour), compteur en direct et courbe du jour.
 - **Onduleur SMA** : lecture locale (WebConnect, connexion SRP) de la puissance et de la production du jour, historique quotidien, relevés pré-remplis, rendement mesuré.
 - **Clés dans le Trousseau macOS** (clé API Claude, clé de l'onduleur), lues au démarrage sans rien demander ; fichier chiffré par le système sous Windows.
 - **Assistant IA** : panneau Claude qui voit toutes les données (clé API dans le Trousseau, jamais exposée à la page).
@@ -81,6 +82,8 @@ electron/                  Process principal (TypeScript → dist-electron/)
   secrets.ts               repli hors macOS : fichier chiffré par safeStorage (DPAPI)
   vault.ts, vault-core.ts  ancien coffre chiffré par la clé SSH, seulement relu pour l'import unique
   sma-core.ts, inverter.ts client WebConnect de l'onduleur SMA : SRP 8192 bits, mesures, épinglage du certificat
+  p1-core.ts, p1.ts         lecteur P1 HomeWizard : GET /api/v1/data sur le réseau local, lecture des quatre index
+  discovery.ts             recherche Bonjour de l'onduleur SMA et du lecteur P1
   ai-core.ts               API Claude : requêtes, flux SSE, outil de lecture de photo, erreurs (pur, testé)
   ai.ts                    appels réseau depuis le process principal uniquement
   image.ts                 conversion d'image en JPEG (HEIC des iPhone via sips sur macOS)
@@ -97,6 +100,7 @@ src/app/
     forecast.ts              profils de prévision et projection des quatre index
     ev.ts                    effet d'une voiture électrique sur chaque registre
     analysis.ts              assemblage complet utilisé par l'interface
+    meter-log.ts             journal compact des index du port P1, relevés quotidiens, courbe du jour
     csv.ts, csv-import.ts    export et import CSV des relevés
   core/ai/                 contexte envoyé à Claude (instantané des données), service de conversation
   core/services/           DataStore (signals + sauvegarde auto), stockage, thème, toasts

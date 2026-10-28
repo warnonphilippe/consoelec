@@ -16,8 +16,9 @@ import type { IpcMainInvokeEvent } from 'electron';
 import { APP_HOST, APP_SCHEME, assetFileUrl, buildContentSecurityPolicy } from './app-protocol';
 import { AiService, type FetchLike } from './ai';
 import { convertToJpeg } from './image';
-import { discoverSmaInverters } from './discovery';
+import { discoverP1Meters, discoverSmaInverters } from './discovery';
 import { InverterClient } from './inverter';
+import { P1Client } from './p1';
 import { SECRET_NAMES, Secrets, fileBackend, keychainBackend } from './secret-store';
 import { EncryptedFileSecrets } from './secrets';
 import { DataFileStore } from './storage';
@@ -27,6 +28,7 @@ import {
   type ExportKind,
   type InverterConfig,
   type MeterPhoto,
+  type P1Config,
   type SecretName,
   type ThemeMode,
 } from './shared/ipc-contract';
@@ -155,6 +157,8 @@ function handle(channel: string, handler: (...args: unknown[]) => unknown): void
 }
 
 const INVERTER_POLL_MS = 60_000;
+/** Les index du compteur sont lus chaque minute par le lecteur P1. */
+const P1_POLL_MS = 60_000;
 
 function assertSecretName(value: unknown): SecretName {
   if (!SECRET_NAMES.includes(value as SecretName)) {
@@ -195,6 +199,23 @@ function assertInverterConfig(value: unknown): InverterConfig {
   return { enabled: c.enabled, host, certFingerprint: fp ?? null };
 }
 
+function assertP1Config(value: unknown): P1Config {
+  const c = value as Partial<P1Config> | null;
+  if (
+    c === null ||
+    typeof c !== 'object' ||
+    typeof c.enabled !== 'boolean' ||
+    typeof c.host !== 'string'
+  ) {
+    throw new Error('Paramètre invalide : lecteur P1');
+  }
+  const host = c.host.trim();
+  if (host.length > 0 && !/^[A-Za-z0-9.-]{1,253}$/.test(host)) {
+    throw new Error('Adresse du lecteur P1 invalide.');
+  }
+  return { enabled: c.enabled, host };
+}
+
 function registerIpc(
   store: DataFileStore,
   ai: AiService,
@@ -202,6 +223,8 @@ function registerIpc(
   secretsReady: Promise<void>,
   inverter: InverterClient,
   pollInverter: () => void,
+  p1: P1Client,
+  pollP1: () => void,
 ): void {
   handle(IPC.load, () => store.load());
   handle(IPC.save, (content) => store.save(assertString(content, 'content')));
@@ -294,6 +317,16 @@ function registerIpc(
   handle(IPC.inverterRefresh, async () => {
     const reading = await inverter.read();
     mainWindow?.webContents.send(IPC.inverterReading, reading);
+    return reading;
+  });
+  handle(IPC.p1Configure, (config) => {
+    p1.configure(assertP1Config(config));
+    pollP1();
+  });
+  handle(IPC.p1Discover, () => discoverP1Meters());
+  handle(IPC.p1Refresh, async () => {
+    const reading = await p1.read();
+    mainWindow?.webContents.send(IPC.p1Reading, reading);
     return reading;
   });
   handle(IPC.aiStatus, async () => {
@@ -428,13 +461,35 @@ function bootstrap(): void {
       }
     });
   };
+  const p1 = new P1Client();
+  let p1Timer: ReturnType<typeof setInterval> | null = null;
+  const pollP1Once = async (): Promise<void> => {
+    if (!p1.enabled || mainWindow === null) {
+      return;
+    }
+    const reading = await p1.read();
+    mainWindow?.webContents.send(IPC.p1Reading, reading);
+  };
+  const pollP1 = (): void => {
+    if (p1Timer !== null) {
+      clearInterval(p1Timer);
+      p1Timer = null;
+    }
+    if (p1.enabled) {
+      void pollP1Once();
+      p1Timer = setInterval(() => void pollP1Once(), P1_POLL_MS);
+    }
+  };
   app.on('before-quit', () => {
     if (pollTimer !== null) {
       clearInterval(pollTimer);
     }
+    if (p1Timer !== null) {
+      clearInterval(p1Timer);
+    }
     void inverter.close();
   });
-  registerIpc(store, ai, secrets, secretsReady, inverter, pollInverter);
+  registerIpc(store, ai, secrets, secretsReady, inverter, pollInverter, p1, pollP1);
 
   const openWindow = (): void => {
     mainWindow = createWindow();

@@ -4,7 +4,12 @@
  * d'où les noms de canaux recopiés ici plutôt qu'importés.
  */
 import { contextBridge, ipcRenderer } from 'electron';
-import type { AiStreamEvent, ConsoElecApi, InverterReading } from './shared/ipc-contract';
+import type {
+  AiStreamEvent,
+  ConsoElecApi,
+  InverterReading,
+  P1Reading,
+} from './shared/ipc-contract';
 
 const api: ConsoElecApi = {
   platform: process.platform,
@@ -37,6 +42,16 @@ const api: ConsoElecApi = {
       const handler = (_event: unknown, payload: InverterReading): void => listener(payload);
       ipcRenderer.on('inverter:reading', handler);
       return () => ipcRenderer.removeListener('inverter:reading', handler);
+    },
+  },
+  p1: {
+    configure: (config) => ipcRenderer.invoke('p1:configure', config),
+    refresh: () => ipcRenderer.invoke('p1:refresh'),
+    discover: () => ipcRenderer.invoke('p1:discover'),
+    onReading: (listener) => {
+      const handler = (_event: unknown, payload: P1Reading): void => listener(payload);
+      ipcRenderer.on('p1:reading', handler);
+      return () => ipcRenderer.removeListener('p1:reading', handler);
     },
   },
   ai: {

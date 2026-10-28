@@ -18,6 +18,7 @@ import { IconComponent, type IconName } from './shared/icon.component';
 import { AssistantPanelComponent } from './shared/assistant/assistant-panel.component';
 import { AiService } from './core/ai/ai.service';
 import { InverterService } from './core/services/inverter.service';
+import { P1Service } from './core/services/p1.service';
 import { SecretsService } from './core/services/secrets.service';
 
 /** Durée couverte par les relevés à partir de laquelle les statistiques et les prévisions sont proposées. */
@@ -46,6 +47,8 @@ export class App {
   private readonly secrets = inject(SecretsService);
   // Démarre la lecture de l'onduleur dès l'ouverture de l'application.
   protected readonly inverter = inject(InverterService);
+  // … et celle du compteur par le port P1.
+  private readonly p1 = inject(P1Service);
   private readonly dialog = viewChild<ElementRef<HTMLDialogElement>>('confirmDialog');
 
   /** `needs` : `readings` = assez de relevés ; `forecast` = assez de relevés ou des factures annuelles. */

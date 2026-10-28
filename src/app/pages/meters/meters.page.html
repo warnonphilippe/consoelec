@@ -84,6 +84,41 @@
       }
     </div>
 
+    @if (today(); as t) {
+      <div class="section">
+        <span class="pill"><app-icon name="bolt" [size]="13" /> Aujourd'hui</span>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h2>Index de la journée</h2>
+          <span class="small faint"
+            >Lu sur le compteur (port P1) · dernière lecture à {{ t.lastAt | day: 'time' }}</span
+          >
+        </div>
+        @if (todayChart(); as b) {
+          <app-chart [build]="b" [height]="300" />
+        }
+        <dl class="reg-stats today-totals">
+          @for (r of registers; track r.key) {
+            <div>
+              <dt>{{ r.short }}</dt>
+              <dd>{{ t.totals[r.key] | num: 3 }} <span class="faint small">kWh</span></dd>
+            </div>
+          }
+        </dl>
+        <p class="small faint">
+          {{
+            t.fromMidnight
+              ? 'Comptés depuis minuit.'
+              : 'Comptés depuis la première lecture du jour (' +
+                (t.start | day: 'time') +
+                ') : la lecture de la veille au soir manque.'
+          }}
+          Les boutons du graphique « Index cumulés » choisissent aussi les courbes affichées ici.
+        </p>
+      </div>
+    }
+
     <div class="section">
       <span class="pill"><app-icon name="trend" [size]="13" /> Évolution des index</span>
     </div>

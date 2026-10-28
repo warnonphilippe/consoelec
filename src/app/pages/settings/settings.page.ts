@@ -27,6 +27,7 @@ import {
 import type { MergeReport } from '../../core/models/merge';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { InverterService } from '../../core/services/inverter.service';
+import { P1Service } from '../../core/services/p1.service';
 import { SecretsService } from '../../core/services/secrets.service';
 import { DataStore } from '../../core/services/data-store.service';
 import { StorageService } from '../../core/services/storage.service';
@@ -57,6 +58,8 @@ export default class SettingsPage {
   protected readonly secrets = inject(SecretsService);
   protected readonly inverter = inject(InverterService);
   protected readonly inverterSettings = computed(() => this.settings().inverter);
+  protected readonly p1 = inject(P1Service);
+  protected readonly p1Settings = computed(() => this.settings().p1);
   /** Phrase de passe de la clé SSH, pour l'import unique de l'ancien coffre. */
   protected readonly vaultPass = signal('');
   protected readonly importBusy = signal(false);
@@ -251,6 +254,30 @@ export default class SettingsPage {
     await this.inverter.refresh();
   }
 
+  // --- Compteur (port P1) ---
+  protected async setP1Enabled(event: Event): Promise<void> {
+    const enabled = (event.target as HTMLInputElement).checked;
+    this.store.updateSettings({ p1: { ...this.p1Settings(), enabled } });
+    if (enabled && this.p1Settings().host === '') {
+      await this.discoverP1();
+    }
+  }
+
+  protected setP1Host(event: Event): void {
+    const host = (event.target as HTMLInputElement).value.trim();
+    this.store.updateSettings({ p1: { ...this.p1Settings(), host } });
+  }
+
+  protected async discoverP1(): Promise<void> {
+    const hosts = await this.p1.discover(true);
+    this.toast.show(
+      hosts.length === 0
+        ? 'Aucun lecteur P1 HomeWizard trouvé sur le réseau : vérifiez qu’il est connecté au même Wi-Fi que ce Mac.'
+        : `Lecteur P1 trouvé : ${hosts.join(', ')}`,
+      hosts.length === 0 ? 'warning' : 'success',
+    );
+  }
+
   // --- Clé API ---
   protected async saveKey(): Promise<void> {
     const key = this.keyDraft().trim();
@@ -383,10 +410,12 @@ export default class SettingsPage {
     }
     const report = this.store.mergeImport(pending.incoming);
     this.pendingImport.set(null);
-    const added = report.addedReadings + report.addedBills;
+    const added = report.addedReadings + report.addedBills + report.addedMeterDays;
+    const meterDays =
+      report.addedMeterDays > 0 ? `, ${report.addedMeterDays} jour(s) d'index du compteur P1` : '';
     this.toast.show(
       added > 0
-        ? `${report.addedReadings} relevé(s) et ${report.addedBills} facture(s) annuelle(s) ajouté(s) ; vos données existantes sont inchangées.`
+        ? `${report.addedReadings} relevé(s)${meterDays} et ${report.addedBills} facture(s) annuelle(s) ajouté(s) ; vos données existantes sont inchangées.`
         : 'Rien de nouveau dans ce fichier : vos données sont déjà à jour.',
       added > 0 ? 'success' : 'info',
     );

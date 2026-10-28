@@ -531,6 +531,80 @@
     }
   </div>
 
+  <div class="section" id="compteur-p1">
+    <span class="pill"><app-icon name="bolt" [size]="13" /> Compteur (port P1)</span>
+  </div>
+  <div class="card form">
+    @if (!p1.available) {
+      <div class="callout">
+        <app-icon name="info" />
+        <div>La lecture du compteur fonctionne dans l'application de bureau.</div>
+      </div>
+    } @else {
+      <p class="muted small">
+        Un lecteur <strong>HomeWizard Wi-Fi P1</strong> branché sur le port P1 du compteur donne ses
+        index sur votre réseau local. ConsoElec les lit chaque minute quand l'application est
+        ouverte : les relevés encodés à la main deviennent facultatifs. Activez d'abord l'<strong
+          >API locale</strong
+        >
+        dans l'application HomeWizard Energy.
+      </p>
+      <label class="check">
+        <input type="checkbox" [checked]="p1Settings().enabled" (change)="setP1Enabled($event)" />
+        Lire le compteur automatiquement
+      </label>
+      <div class="form-grid inverter-grid">
+        <div class="field">
+          <label for="p1host">Adresse du lecteur P1</label>
+          <input
+            id="p1host"
+            placeholder="p1meter- + 6 caractères + .local, ex. p1meter-abc123.local"
+            class="input mono"
+            spellcheck="false"
+            [value]="p1Settings().host"
+            (change)="setP1Host($event)"
+          />
+          <button
+            type="button"
+            class="btn sm discover"
+            [disabled]="p1.discovering()"
+            (click)="discoverP1()"
+          >
+            <app-icon name="refresh" [size]="14" />
+            {{ p1.discovering() ? 'Recherche…' : 'Rechercher sur le réseau' }}
+          </button>
+          <span class="help"
+            >Nom réseau du lecteur (p1meter-…, suivi de .local) ou adresse IP.</span
+          >
+        </div>
+      </div>
+      <div class="row">
+        <button
+          type="button"
+          class="btn"
+          [disabled]="p1.busy() || !p1.ready()"
+          (click)="p1.refresh()"
+        >
+          <app-icon name="refresh" [size]="15" /> Tester la connexion
+        </button>
+      </div>
+      @if (p1.live(); as r) {
+        <div class="callout" [class.success]="!r.error" [class.danger]="r.error">
+          <app-icon [name]="r.error ? 'alert' : 'check'" />
+          <div>
+            @if (r.error) {
+              {{ r.error }}
+            } @else {
+              Connexion réussie{{ r.meterModel ? ' (compteur ' + r.meterModel + ')' : '' }} : 1.8.1
+              {{ r.importPeak | num: 3 }} · 1.8.2 {{ r.importOff | num: 3 }} · 2.8.1
+              {{ r.exportPeak | num: 3 }} · 2.8.2 {{ r.exportOff | num: 3 }} kWh
+            }
+          </div>
+        </div>
+      }
+    }
+  </div>
+
   <div class="section">
     <span class="pill violet"><app-icon name="sun" [size]="13" /> Apparence</span>
   </div>
@@ -697,6 +771,14 @@
           <span class="value">{{ p.report.addedReadings }}</span>
           <span class="label">relevé{{ p.report.addedReadings > 1 ? 's' : '' }} à ajouter</span>
         </div>
+        @if (p.report.addedMeterDays > 0) {
+          <div class="import-stat added">
+            <span class="value">{{ p.report.addedMeterDays }}</span>
+            <span class="label"
+              >jour{{ p.report.addedMeterDays > 1 ? 's' : '' }} d'index du compteur P1</span
+            >
+          </div>
+        }
         @if (p.report.addedBills > 0) {
           <div class="import-stat added">
             <span class="value">{{ p.report.addedBills }}</span>
@@ -750,7 +832,12 @@
         type="button"
         class="btn primary"
         (click)="applyMerge()"
-        [disabled]="p.report.addedReadings === 0 && p.report.addedBills === 0 && !p.report.houseAdopted"
+        [disabled]="
+          p.report.addedReadings === 0 &&
+          p.report.addedBills === 0 &&
+          p.report.addedMeterDays === 0 &&
+          !p.report.houseAdopted
+        "
       >
         <app-icon name="plus" [size]="16" /> Ajouter les nouvelles données
       </button>

@@ -1,3 +1,4 @@
+import { mergeMeterLogs } from '../calc/meter-log';
 import type { AnnualBill, AppData, House, MeterReading, PvDay } from './app-data.model';
 
 export interface MergeReport {
@@ -11,6 +12,8 @@ export interface MergeReport {
   readonly addedPvDays: number;
   /** Factures annuelles du fichier ajoutées (périodes absentes localement). */
   readonly addedBills: number;
+  /** Jours d'index lus par le port P1 ajoutés ou complétés par une lecture plus tardive. */
+  readonly addedMeterDays: number;
   /** La maison du fichier a été reprise (la maison locale n’avait jamais été modifiée). */
   readonly houseAdopted: boolean;
   /** La description de la maison du fichier diffère de la locale (la locale est conservée). */
@@ -63,6 +66,7 @@ export function mergeData(
 
   const pv = mergePvDaily(local.pvDaily, incoming.pvDaily);
   const bills = mergeBills(local.annualBills, incoming.annualBills);
+  const meter = mergeMeterLogs(local.meterLog, incoming.meterLog);
   const houseAdopted = localHouseIsDefault && !sameHouse(local.house, incoming.house);
   const houseDiffers = !localHouseIsDefault && !sameHouse(local.house, incoming.house);
   return {
@@ -72,6 +76,7 @@ export function mergeData(
       readings,
       pvDaily: pv.list,
       annualBills: bills.list,
+      meterLog: meter.log,
     },
     report: {
       addedReadings: added,
@@ -79,6 +84,7 @@ export function mergeData(
       conflicts,
       addedPvDays: pv.added,
       addedBills: bills.added,
+      addedMeterDays: meter.added,
       houseAdopted,
       houseDiffers,
     },

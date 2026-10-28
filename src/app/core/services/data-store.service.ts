@@ -1,7 +1,9 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
 import { analyze } from '../calc/analysis';
 import { balanceSeries, billingCost } from '../calc/balance';
+import { analyzeConsumption } from '../calc/consumption';
 import { buildDemoData } from '../calc/demo-data';
+import { appendMeterLog, meterLogReadings } from '../calc/meter-log';
 import { dateToDayNumber } from '../calc/time';
 import {
   type AnnualBill,
@@ -9,6 +11,7 @@ import {
   emptyData,
   type AppData,
   type House,
+  type MeterLogPoint,
   type MeterReading,
   type PvDay,
   type Settings,
@@ -46,7 +49,21 @@ export class DataStore {
       .readings.slice()
       .sort((a, b) => b.date.localeCompare(a.date)),
   );
-  readonly analysis = computed(() => analyze(this.state(), this.now()));
+  /**
+   * Relevés de l'analyse : les relevés encodés et un relevé par jour tiré du journal du lecteur P1 (le jour en cours
+   * compris, à sa dernière lecture).
+   */
+  private readonly analyzed = computed<AppData>(() => {
+    const d = this.state();
+    return d.meterLog.days.length === 0
+      ? d
+      : { ...d, readings: [...d.readings, ...meterLogReadings(d.meterLog)] };
+  });
+  readonly analysis = computed(() => analyze(this.analyzed(), this.now()));
+  /** Intervalles entre les seuls relevés encodés (page Relevés). */
+  readonly manualConsumption = computed(() =>
+    analyzeConsumption(this.state().readings, this.analysis().weights),
+  );
   /**
    * Soldes de facturation HP / HC (compensation par période tarifaire) : mesurés aux relevés, puis prévus sur deux ans.
    * Partagés par le tableau de bord, la barre latérale et la page Compteurs.
@@ -108,6 +125,15 @@ export class DataStore {
   saveReading(reading: Omit<MeterReading, 'id'> & { id?: string }): void {
     const entry: MeterReading = { ...reading, id: reading.id ?? newId() };
     this.update((d) => ({ ...d, readings: upsert(d.readings, entry) }));
+  }
+
+  /** Ajoute une lecture des index du lecteur P1 au journal (compacté : dernière heure, heures du jour, jours). */
+  recordMeterPoint(point: MeterLogPoint): void {
+    const log = this.state().meterLog;
+    const next = appendMeterLog(log, point, Date.now());
+    if (next !== log) {
+      this.update((d) => ({ ...d, meterLog: next }));
+    }
   }
 
   /** Enregistre la production du jour lue sur l'onduleur (une entrée par jour, mise à jour à chaque lecture). */

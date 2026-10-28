@@ -5,9 +5,11 @@ import { dayNumberToDate } from '../../core/calc/time';
 import { pvKwp } from '../../core/models/app-data.model';
 import { DataStore } from '../../core/services/data-store.service';
 import { InverterService } from '../../core/services/inverter.service';
+import { P1Service } from '../../core/services/p1.service';
 import { ToastService } from '../../core/services/toast.service';
 import { FORMAT_PIPES } from '../../shared/format';
 import { IconComponent, type IconName } from '../../shared/icon.component';
+import { LiveMeterComponent } from '../../shared/live-meter/live-meter.component';
 import { LiveProductionComponent } from '../../shared/live-production/live-production.component';
 
 /** Période tarifaire d'un panneau de solde : ce qui est compensé ensemble sur la facture. */
@@ -22,7 +24,13 @@ interface Period {
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [RouterLink, IconComponent, LiveProductionComponent, ...FORMAT_PIPES],
+  imports: [
+    RouterLink,
+    IconComponent,
+    LiveMeterComponent,
+    LiveProductionComponent,
+    ...FORMAT_PIPES,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './dashboard.page.html',
   styleUrl: './dashboard.page.css',
@@ -30,6 +38,7 @@ interface Period {
 export default class DashboardPage {
   protected readonly store = inject(DataStore);
   protected readonly inverter = inject(InverterService);
+  protected readonly p1 = inject(P1Service);
   private readonly toast = inject(ToastService);
 
   protected readonly analysis = this.store.analysis;

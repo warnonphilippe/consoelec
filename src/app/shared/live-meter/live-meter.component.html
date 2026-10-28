@@ -1,0 +1,62 @@
+<section class="card live">
+  <div class="live-head">
+    <span class="kpi-label"><app-icon name="bolt" [size]="15" /> Compteur en direct</span>
+    <button
+      type="button"
+      class="icon-btn"
+      title="Lire maintenant"
+      aria-label="Lire le compteur maintenant"
+      [disabled]="p1.busy() || !p1.ready()"
+      (click)="p1.refresh()"
+    >
+      <app-icon name="refresh" [size]="15" />
+    </button>
+  </div>
+  @if (!p1.ready()) {
+    <p class="small muted">
+      Renseignez l’adresse du lecteur P1 dans les réglages.
+      <a routerLink="/reglages" fragment="compteur-p1">Réglages</a>
+    </p>
+  } @else if (p1.live(); as r) {
+    @if (r.error) {
+      <p class="small tone-danger"><app-icon name="alert" [size]="13" /> {{ r.error }}</p>
+    } @else {
+      <div class="live-values">
+        @if (flow(); as f) {
+          <div>
+            <span class="live-value" [class.inject]="f.injecting">{{ f.watts | num }}</span>
+            <span class="live-unit">W</span>
+            <span class="small faint">{{ f.injecting ? 'injection' : 'soutirage' }}</span>
+          </div>
+        }
+        @if (r.quarterHourAvgW !== null) {
+          <div>
+            <span class="live-value neutral">{{ r.quarterHourAvgW | num }}</span>
+            <span class="live-unit">W</span>
+            <span class="small faint">moyenne du quart d'heure</span>
+          </div>
+        }
+        @if (r.tariff !== null) {
+          <div>
+            <span class="live-value neutral"
+              ><app-icon [name]="r.tariff === 1 ? 'sun' : 'moon'" [size]="22"
+            /></span>
+            <span class="live-unit">{{
+              r.tariff === 1 ? 'heures pleines' : 'heures creuses'
+            }}</span>
+            <span class="small faint">tarif en cours</span>
+          </div>
+        }
+      </div>
+      <div class="indexes small">
+        <span><span class="faint">1.8.1 soutirage HP</span> {{ r.importPeak | num: 1 }}</span>
+        <span><span class="faint">1.8.2 soutirage HC</span> {{ r.importOff | num: 1 }}</span>
+        <span><span class="faint">2.8.1 injection HP</span> {{ r.exportPeak | num: 1 }}</span>
+        <span><span class="faint">2.8.2 injection HC</span> {{ r.exportOff | num: 1 }}</span>
+      </div>
+    }
+    <p class="small faint">Lu à {{ r.at | date: 'HH:mm' }} · rafraîchi chaque minute</p>
+  } @else {
+    <p class="small muted">Lecture en cours…</p>
+  }
+</section>

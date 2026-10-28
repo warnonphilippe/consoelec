@@ -44,16 +44,16 @@ const lookupIpv4First: LookupFunction = (hostname, options, callback) =>
   dns.lookup(hostname, { ...options, order: 'ipv4first' }, callback);
 
 /** Message lisible d'une erreur réseau (une `AggregateError` de Node n'a pas de message propre). */
-export function networkErrorMessage(error: unknown, host: string): string {
+export function networkErrorMessage(error: unknown, host: string, subject = 'Onduleur'): string {
   const errors = error instanceof AggregateError ? error.errors : [error];
   const codes = errors
     .map((e) => (e as { code?: string } | null)?.code)
     .filter((c): c is string => typeof c === 'string');
   if (codes.some((c) => /ENOTFOUND|EAI_AGAIN/.test(c))) {
-    return `Onduleur introuvable sur le réseau (${host}).`;
+    return `${subject} introuvable sur le réseau (${host}).`;
   }
   if (codes.length > 0) {
-    return `Onduleur injoignable (${host} : ${[...new Set(codes)].join(', ')}).`;
+    return `${subject} injoignable (${host} : ${[...new Set(codes)].join(', ')}).`;
   }
   const message = error instanceof Error ? error.message : String(error);
   return message || `Connexion à l'onduleur impossible (${host}).`;

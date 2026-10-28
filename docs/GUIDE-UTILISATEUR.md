@@ -111,6 +111,8 @@ Si vous chauffez parfois une pièce avec un radiateur électrique **pour consomm
 
 ![Page Relevés](img/releves.png)
 
+Si le compteur est lu par le **port P1** (voir [Lecture du compteur (port P1)](#lecture-du-compteur-port-p1)), encoder un relevé est **facultatif** : les index sont lus chaque minute. La page Relevés ne montre que les relevés encodés (à la main, sur photo ou importés), jamais les lectures automatiques ; le bouton **Pré-remplir avec les index lus sur le compteur** recopie la dernière lecture dans le formulaire.
+
 1. Ouvrez **Relevés**.
 2. Vérifiez la **date et l'heure** (aujourd'hui par défaut ; vous pouvez choisir une date passée).
 3. Saisissez les **quatre index** tels qu'affichés par le compteur (les décimales sont acceptées).
@@ -148,7 +150,7 @@ Avec des factures, la page **Prévisions** apparaît dans le menu sans attendre 
 
 Le tableau de bord est centré sur ce que vous paierez au fournisseur, pour l'**année de facturation** en cours (depuis la date du relevé annuel, réglable dans les réglages) :
 
-- la **production en direct** de l'onduleur ;
+- le **compteur en direct** (port P1) et la **production en direct** de l'onduleur ;
 - le **solde heures pleines** (soutiré 1.8.1 − injecté 2.8.1) et le **solde heures creuses** (soutiré 1.8.2 − injecté 2.8.2) : la valeur à ce jour, au dernier relevé, et l'estimation en fin d'année avec son coût. Un solde négatif est un surplus non remboursé ;
 - le **coût estimé de l'année** : les soldes positifs multipliés par les **prix moyens du kWh** en heures pleines et en heures creuses (**Réglages → Prix moyen du kWh**, tout compris, TVA incluse ; à recopier de votre contrat) ;
 
@@ -177,6 +179,8 @@ Une journée sans lecture est **estimée** : l'énergie produite entre deux inde
 ![Page Compteurs](img/compteurs.png)
 
 La page **Compteurs** détaille les **quatre sous-compteurs** : index estimé aujourd'hui, dernier relevé, consommation des 7 et 30 derniers jours et des 12 derniers mois, courbe d'évolution (avec prévision en pointillés), et répartition heures pleines / heures creuses.
+
+Avec le lecteur P1, la carte **Aujourd'hui** trace, pour chaque registre, les **kWh comptés depuis minuit** : un point par heure, puis un point par minute sur la dernière heure. Les totaux du jour sont rappelés sous le graphique. Si la lecture de la veille au soir manque (application fermée), la courbe part de la première lecture du jour.
 
 ### Graphique des soldes : ce que le fournisseur facturera
 
@@ -287,6 +291,28 @@ La clé API Claude et la clé de l'onduleur sont rangées dans le **Trousseau ma
 - **Sauvegarde** : les clés ne sont ni exportées ni synchronisées avec vos données. Sur un autre Mac, ressaisissez-les dans les réglages.
 - **Ancien coffre SSH** : les versions précédentes chiffraient les clés avec votre clé SSH (`secrets.vault`). S'il existe encore, **Réglages → Clés** propose de l'importer : saisissez une dernière fois la phrase de passe de la clé SSH, les clés passent dans le Trousseau et le coffre est supprimé.
 - **Windows** : les clés sont rangées dans un fichier chiffré par le système (`secrets.bin`).
+
+## Lecture du compteur (port P1)
+
+Le compteur communicant (Iskra IE.5 d'AIEG, par exemple) a un **port P1** : une prise RJ12 qui diffuse ses index et sa puissance. ConsoElec le lit par un lecteur **HomeWizard Wi-Fi P1** branché sur cette prise.
+
+1. Demandez l'**activation du port P1** à votre gestionnaire de réseau (il est désactivé par défaut en Belgique).
+2. Branchez le lecteur HomeWizard sur le port P1 (il clignote en blanc), puis raccordez-le à votre Wi-Fi avec l'application **HomeWizard Energy** (il passe au vert).
+3. Dans l'application HomeWizard Energy, activez l'**API locale** du lecteur (réglages du compteur P1).
+4. **Réglages → Compteur (port P1)** : cochez **Lire le compteur automatiquement**. L'adresse du lecteur (`p1meter-` + 6 caractères + `.local`) est trouvée sur le réseau ; sinon, cliquez sur **Rechercher sur le réseau** ou saisissez son adresse IP.
+5. **Tester la connexion** affiche le modèle du compteur et ses quatre index.
+
+Ensuite, tant que l'application est ouverte, ConsoElec lit le compteur **chaque minute** :
+- le tableau de bord affiche le **compteur en direct** : soutirage ou injection du moment, moyenne du quart d'heure (base du tarif capacitaire), tarif en cours et index ;
+- les index alimentent les **statistiques, soldes et prévisions** comme des relevés, sans rien encoder ;
+- la page **Compteurs** affiche la courbe du jour.
+
+Pour ne pas alourdir le fichier de données, ConsoElec garde :
+- chaque minute de la **dernière heure** ;
+- la dernière lecture de chaque **heure du jour en cours** ;
+- la dernière lecture de chaque **jour**.
+
+Les jours sont exportés et fusionnés avec le reste (voir [Partager entre plusieurs ordinateurs](#partager-entre-plusieurs-ordinateurs)). Le lecteur est interrogé directement sur le réseau local, sans passer par le cloud HomeWizard.
 
 ## Lecture de l'onduleur
 

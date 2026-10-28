@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { billingHorizon, indexAxisRange, keepTooltipItem, pointsFrom } from './meters-charts';
+import type { TodayCurve } from '../../core/calc/meter-log';
+import { chartColors } from '../../shared/chart/chart-colors';
+import {
+  billingHorizon,
+  indexAxisRange,
+  keepTooltipItem,
+  pointsFrom,
+  todayChart,
+} from './meters-charts';
 
 describe('indexAxisRange', () => {
   const now = 20_000;
@@ -65,5 +73,37 @@ describe('pointsFrom', () => {
       hp: null,
       hc: 5,
     });
+  });
+});
+
+describe('todayChart', () => {
+  const curve: TodayCurve = {
+    start: '2026-10-28T00:00',
+    fromMidnight: true,
+    points: [
+      {
+        at: '2026-10-28T00:00',
+        values: { importPeak: 0, importOff: 0, exportPeak: 0, exportOff: 0 },
+      },
+      {
+        at: '2026-10-28T08:30',
+        values: { importPeak: 0.5, importOff: 2.25, exportPeak: 1, exportOff: 0 },
+      },
+    ],
+    totals: { importPeak: 0.5, importOff: 2.25, exportPeak: 1, exportOff: 0 },
+    lastAt: '2026-10-28T08:30',
+  };
+  const now = new Date(2026, 9, 28, 8, 31).getTime();
+
+  it('trace une courbe par registre choisi, de minuit à maintenant', () => {
+    const config = todayChart(curve, ['importOff', 'exportPeak'], now)(chartColors('light'));
+    expect(config.data.datasets.map((d) => d.label)).toEqual(['Soutirage HC', 'Injection HP']);
+    expect(config.data.datasets[0]!.data).toEqual([
+      { x: new Date(2026, 9, 28, 0, 0).getTime(), y: 0 },
+      { x: new Date(2026, 9, 28, 8, 30).getTime(), y: 2.25 },
+    ]);
+    const x = config.options!.scales!['x']!;
+    expect(x.min).toBe(new Date(2026, 9, 28).getTime());
+    expect(x.max).toBe(now);
   });
 });

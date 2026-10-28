@@ -13,6 +13,10 @@ import {
   type EvMode,
   type House,
   type InverterSettings,
+  type MeterLog,
+  type MeterLogPoint,
+  type P1Settings,
+  REGISTER_KEYS,
   type MeterReading,
   type Presence,
   type PvDay,
@@ -59,6 +63,7 @@ export function normalizeData(input: unknown): AppData {
       .filter((r): r is MeterReading => r !== null),
     pvDaily: normalizePvDaily(input['pvDaily']),
     annualBills: normalizeAnnualBills(input['annualBills']),
+    meterLog: normalizeMeterLog(input['meterLog']),
     settings: isObject(input['settings']) ? normalizeSettings(input['settings']) : base.settings,
   };
 }
@@ -184,6 +189,7 @@ function normalizeSettings(raw: Raw): Settings {
         ? model
         : (AI_MODELS[0]?.id ?? DEFAULT_SETTINGS.aiModel),
     inverter: normalizeInverter(raw['inverter']),
+    p1: normalizeP1(raw['p1']),
   };
 }
 
@@ -269,6 +275,46 @@ function normalizeInverter(raw: unknown): InverterSettings {
     enabled: bool(r['enabled'], DEFAULT_SETTINGS.inverter.enabled),
     host: str(r['host'], DEFAULT_SETTINGS.inverter.host).trim(),
     certFingerprint: typeof fp === 'string' && /^[0-9A-Fa-f:]{64,95}$/.test(fp) ? fp : null,
+  };
+}
+
+function normalizeP1(raw: unknown): P1Settings {
+  const r = isObject(raw) ? raw : {};
+  return {
+    enabled: bool(r['enabled'], DEFAULT_SETTINGS.p1.enabled),
+    host: str(r['host'], DEFAULT_SETTINGS.p1.host).trim(),
+  };
+}
+
+/** Points valides (heure à la minute, quatre index positifs), triés, un seul par heure de lecture. */
+function normalizeLogPoints(raw: unknown): MeterLogPoint[] {
+  const byAt = new Map<string, MeterLogPoint>();
+  for (const item of Array.isArray(raw) ? raw : []) {
+    if (!isObject(item) || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(str(item['at'], ''))) {
+      continue;
+    }
+    const values = REGISTER_KEYS.map((k) => num(item[k], Number.NaN));
+    if (values.some((v) => !Number.isFinite(v) || v < 0)) {
+      continue;
+    }
+    const [importPeak, importOff, exportPeak, exportOff] = values as [
+      number,
+      number,
+      number,
+      number,
+    ];
+    const at = str(item['at'], '');
+    byAt.set(at, { at, importPeak, importOff, exportPeak, exportOff });
+  }
+  return [...byAt.values()].sort((a, b) => a.at.localeCompare(b.at));
+}
+
+function normalizeMeterLog(raw: unknown): MeterLog {
+  const r = isObject(raw) ? raw : {};
+  return {
+    minutes: normalizeLogPoints(r['minutes']),
+    hours: normalizeLogPoints(r['hours']),
+    days: normalizeLogPoints(r['days']),
   };
 }
 

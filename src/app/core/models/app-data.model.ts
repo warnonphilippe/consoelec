@@ -52,7 +52,11 @@ export const REGISTERS: readonly RegisterInfo[] = [
 
 export const REGISTER_KEYS: readonly RegisterKey[] = REGISTERS.map((r) => r.key);
 
-export type ReadingSource = 'manual' | 'photo' | 'csv';
+/**
+ * Origine d'un relevé. `auto` désigne les relevés quotidiens tirés du journal du lecteur P1 : ils sont recalculés pour
+ * l'analyse et ne sont jamais enregistrés dans `readings`.
+ */
+export type ReadingSource = 'manual' | 'photo' | 'csv' | 'auto';
 
 /**
  * Relevé du compteur à une date : les quatre index cumulés (kWh) et, en option,
@@ -167,6 +171,7 @@ export interface Settings {
   /** Modèle Claude utilisé par l'assistant et la lecture de photo. */
   aiModel: string;
   inverter: InverterSettings;
+  p1: P1Settings;
 }
 
 /** Production lue sur l'onduleur pour un jour donné (dernière lecture de ce jour). */
@@ -210,6 +215,33 @@ export interface InverterSettings {
   certFingerprint: string | null;
 }
 
+/** Lecture du compteur par le port P1 (lecteur HomeWizard sur le réseau local). */
+export interface P1Settings {
+  enabled: boolean;
+  /** Nom réseau (`p1meter-XXXXXX.local`) ou adresse IP du lecteur. */
+  host: string;
+}
+
+/** Index du compteur lus par le port P1 à une minute donnée (kWh). */
+export interface MeterLogPoint {
+  /** Heure locale de la lecture, `AAAA-MM-JJTHH:mm`. */
+  at: string;
+  importPeak: number;
+  importOff: number;
+  exportPeak: number;
+  exportOff: number;
+}
+
+/**
+ * Journal des index lus par le port P1, gardé de façon compacte : chaque minute de la dernière heure, la dernière
+ * lecture de chaque heure du jour en cours et la dernière lecture de chaque jour.
+ */
+export interface MeterLog {
+  minutes: MeterLogPoint[];
+  hours: MeterLogPoint[];
+  days: MeterLogPoint[];
+}
+
 export interface AppData {
   schemaVersion: 1;
   house: House;
@@ -218,6 +250,8 @@ export interface AppData {
   pvDaily: PvDay[];
   /** Factures annuelles des années passées (soldes jour / nuit). */
   annualBills: AnnualBill[];
+  /** Index lus automatiquement par le port P1. */
+  meterLog: MeterLog;
   settings: Settings;
 }
 
@@ -262,6 +296,7 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: 'system',
   aiModel: DEFAULT_AI_MODEL,
   inverter: { enabled: false, host: '', certFingerprint: null },
+  p1: { enabled: false, host: '' },
 };
 
 export const DEFAULT_EV: ElectricVehicle = {
@@ -314,10 +349,12 @@ export function emptyData(): AppData {
     readings: [],
     pvDaily: [],
     annualBills: [],
+    meterLog: { minutes: [], hours: [], days: [] },
     settings: {
       ...DEFAULT_SETTINGS,
       offPeakHours: [...DEFAULT_SETTINGS.offPeakHours],
       inverter: { ...DEFAULT_SETTINGS.inverter },
+      p1: { ...DEFAULT_SETTINGS.p1 },
     },
   };
 }

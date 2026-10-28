@@ -97,4 +97,20 @@ describe('mergeData', () => {
     expect(report.addedBills).toBe(1);
     expect(data.annualBills.map((b) => b.netPeak)).toEqual([100, 200]);
   });
+
+  it('ajoute les jours d’index du compteur P1 absents ou plus complets', () => {
+    const p = (at: string) => ({ at, importPeak: 1, importOff: 2, exportPeak: 3, exportOff: 4 });
+    const local: AppData = {
+      ...emptyData(),
+      meterLog: { minutes: [p('2026-10-28T08:00')], hours: [], days: [p('2026-10-27T12:00')] },
+    };
+    const incoming: AppData = {
+      ...emptyData(),
+      meterLog: { minutes: [], hours: [], days: [p('2026-10-26T23:59'), p('2026-10-27T23:59')] },
+    };
+    const { data, report } = mergeData(local, incoming);
+    expect(report.addedMeterDays).toBe(2);
+    expect(data.meterLog.days.map((d) => d.at)).toEqual(['2026-10-26T23:59', '2026-10-27T23:59']);
+    expect(data.meterLog.minutes).toEqual(local.meterLog.minutes);
+  });
 });

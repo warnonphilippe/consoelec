@@ -49,6 +49,14 @@
         </div>
       </div>
     </section>
+  } @else if (!analysis().hasIntervals && p1.settings().enabled) {
+    <div class="callout">
+      <app-icon name="info" />
+      <div>
+        Le compteur est lu automatiquement par le port P1 : la consommation sera calculée dès que deux jours de
+        lecture seront disponibles (demain).
+      </div>
+    </div>
   } @else if (!analysis().hasIntervals) {
     <div class="callout">
       <app-icon name="info" />
@@ -57,6 +65,10 @@
         consommation. <a routerLink="/releves">Ajouter un relevé</a>
       </div>
     </div>
+  }
+
+  @if (p1.settings().enabled) {
+    <app-live-meter />
   }
 
   @if (inverter.settings().enabled) {

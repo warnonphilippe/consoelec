@@ -17,6 +17,7 @@ import type {
 } from '../../../../electron/shared/ipc-contract';
 import { AiService } from '../../core/ai/ai.service';
 import { InverterService } from '../../core/services/inverter.service';
+import { P1Service } from '../../core/services/p1.service';
 import { ANOMALY_LABELS } from '../../core/calc/csv';
 import { type Interval } from '../../core/calc/consumption';
 import { toDayNumber, toLocalIso } from '../../core/calc/time';
@@ -69,6 +70,7 @@ export default class ReadingsPage {
   private readonly confirm = inject(ConfirmService);
   private readonly fb = inject(FormBuilder).nonNullable;
   protected readonly inverter = inject(InverterService);
+  protected readonly p1 = inject(P1Service);
   /** Index de production lu sur l'onduleur il y a moins de 2 h (kWh), proposé dans le relevé. */
   protected readonly inverterTotal = computed(() => {
     const r = this.inverter.fresh();
@@ -150,8 +152,9 @@ export default class ReadingsPage {
 
   protected readonly hasProblem = computed(() => this.preview()?.some((p) => p.problem) === true);
 
+  /** Seuls les relevés encodés (pas les index lus automatiquement par le port P1), écarts entre relevés encodés. */
   protected readonly rows = computed<ReadingRow[]>(() => {
-    const consumption = this.store.analysis().consumption;
+    const consumption = this.store.manualConsumption();
     const byTo = new Map(consumption.intervals.map((i) => [i.to.reading.id, i]));
     return consumption.levels
       .map((l) => ({ reading: l.reading, interval: byTo.get(l.reading.id) ?? null }))
@@ -183,6 +186,21 @@ export default class ReadingsPage {
       importOff: Math.round(e.importOff),
       exportPeak: Math.round(e.exportPeak),
       exportOff: Math.round(e.exportOff),
+    });
+  }
+
+  /** Reprend les quatre index et l'heure de la dernière lecture du compteur par le port P1. */
+  protected useP1(): void {
+    const r = this.p1.fresh();
+    if (r === null) {
+      return;
+    }
+    this.form.patchValue({
+      date: toLocalIso(new Date(r.at)),
+      importPeak: r.importPeak,
+      importOff: r.importOff,
+      exportPeak: r.exportPeak,
+      exportOff: r.exportOff,
     });
   }
 

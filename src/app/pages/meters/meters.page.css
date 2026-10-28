@@ -121,3 +121,10 @@
 .toggle.on.exportOff .legend-dot {
   background: var(--cyan);
 }
+
+.today-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 6px 24px;
+  margin: 12px 0 6px;
+}

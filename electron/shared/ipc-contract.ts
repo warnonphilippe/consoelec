@@ -69,6 +69,32 @@ export interface InverterReading {
   readonly certFingerprint: string | null;
 }
 
+export interface P1Config {
+  readonly enabled: boolean;
+  /** Nom ou adresse du lecteur P1 HomeWizard sur le réseau local (ex. `p1meter-1A2B3C.local`). */
+  readonly host: string;
+}
+
+/** Lecture du compteur intelligent par le port P1 (lecteur HomeWizard, API locale v1). */
+export interface P1Reading {
+  /** Horodatage de la lecture (ms). */
+  readonly at: number;
+  /** Puissance active nette (W) : positive en soutirage, négative en injection. */
+  readonly powerW: number | null;
+  /** Moyenne du quart d'heure en cours (W), base du tarif capacitaire. */
+  readonly quarterHourAvgW: number | null;
+  /** Tarif en cours : 1 = heures pleines, 2 = heures creuses. */
+  readonly tariff: 1 | 2 | null;
+  /** Index cumulés (kWh) : 1.8.1, 1.8.2, 2.8.1, 2.8.2. */
+  readonly importPeak: number | null;
+  readonly importOff: number | null;
+  readonly exportPeak: number | null;
+  readonly exportOff: number | null;
+  /** Modèle du compteur annoncé par le lecteur (ex. `ISKRA 2MIE5T-200`). */
+  readonly meterModel: string | null;
+  readonly error: string | null;
+}
+
 export interface AiMessage {
   readonly role: 'user' | 'assistant';
   readonly content: string;
@@ -157,6 +183,14 @@ export interface ConsoElecApi {
     /** Lit la courbe de puissance d'une journée (`AAAA-MM-JJ`) dans le journal des 5 minutes. */
     dayCurve(date: string): Promise<InverterDayCurve>;
   };
+  readonly p1: {
+    configure(config: P1Config): Promise<void>;
+    /** Lit tout de suite le compteur (aussi diffusé par `onReading`). */
+    refresh(): Promise<P1Reading>;
+    onReading(listener: (reading: P1Reading) => void): () => void;
+    /** Cherche les lecteurs P1 HomeWizard sur le réseau local ; renvoie leurs noms réseau. */
+    discover(): Promise<string[]>;
+  };
   readonly ai: {
     status(): Promise<AiStatus>;
     /** Petit appel de contrôle pour vérifier la clé et le modèle. */
@@ -187,6 +221,10 @@ export const IPC = {
   inverterDiscover: 'inverter:discover',
   inverterHistory: 'inverter:history',
   inverterDayCurve: 'inverter:day-curve',
+  p1Configure: 'p1:configure',
+  p1Refresh: 'p1:refresh',
+  p1Reading: 'p1:reading',
+  p1Discover: 'p1:discover',
   aiStatus: 'ai:status',
   aiTest: 'ai:test',
   aiChat: 'ai:chat',

@@ -5,7 +5,8 @@ import { DataStore } from '../../core/services/data-store.service';
 import { ChartComponent } from '../../shared/chart/chart.component';
 import { FORMAT_PIPES } from '../../shared/format';
 import { IconComponent } from '../../shared/icon.component';
-import { indexChart, splitChart } from './meters-charts';
+import { todayCurve } from '../../core/calc/meter-log';
+import { indexChart, splitChart, todayChart } from './meters-charts';
 import { BalanceCardComponent } from '../../shared/balance-card/balance-card.component';
 
 @Component({
@@ -79,6 +80,17 @@ export default class MetersPage {
       this.forecastDays(),
       now,
     );
+  });
+
+  /** Journée en cours lue sur le compteur par le port P1 (rafraîchie à chaque lecture). */
+  protected readonly today = computed(() => {
+    this.store.now();
+    return todayCurve(this.store.data().meterLog, Date.now());
+  });
+  protected readonly todayChart = computed(() => {
+    const curve = this.today();
+    this.store.now();
+    return curve ? todayChart(curve, [...this.shown()], Date.now()) : null;
   });
 
   protected readonly importSplit = computed(() => {

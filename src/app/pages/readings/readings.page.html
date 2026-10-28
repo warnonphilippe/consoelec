@@ -9,6 +9,18 @@
     </div>
   </header>
 
+  @if (p1.settings().enabled) {
+    <div class="callout">
+      <app-icon name="bolt" />
+      <div>
+        Le compteur est lu automatiquement par le port P1 chaque minute : encoder un relevé est
+        facultatif. Seuls les relevés encodés apparaissent ici ; les index lus sur le compteur sont
+        sur la page
+        <a routerLink="/compteurs">Compteurs</a>.
+      </div>
+    </div>
+  }
+
   <div class="entry-layout">
     <form class="card form entry" [formGroup]="form" (ngSubmit)="save()">
       <div class="card-header">
@@ -193,7 +205,11 @@
         >
       </label>
 
-      @if (estimates() && !editingId()) {
+      @if (p1.fresh() && !editingId()) {
+        <button type="button" class="link-btn small" (click)="useP1()">
+          Pré-remplir avec les index lus sur le compteur à {{ p1.fresh()!.at | date: 'HH:mm' }}
+        </button>
+      } @else if (estimates() && !editingId()) {
         <button type="button" class="link-btn small" (click)="useEstimate()">
           Pré-remplir avec les index estimés pour aujourd'hui
         </button>
