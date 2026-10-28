@@ -20,170 +20,34 @@
       </div>
     </div>
   } @else {
-    @if (totals(); as t) {
-      <div class="grid grid-2 totals">
-        <div class="card kpi">
-          <span class="kpi-label"
-            ><app-icon name="plug" [size]="15" /> Index total de soutirage</span
-          >
-          <span class="kpi-value">{{ t.import | kwh }}</span>
-          <span class="kpi-sub">1.8.1 + 1.8.2 · estimé aujourd'hui</span>
-        </div>
-        <div class="card kpi">
-          <span class="kpi-label"><app-icon name="sun" [size]="15" /> Index total d'injection</span>
-          <span class="kpi-value">{{ t.export | kwh }}</span>
-          <span class="kpi-sub">2.8.1 + 2.8.2 · estimé aujourd'hui</span>
-        </div>
-      </div>
-    }
+    <div class="grid grid-2 totals">
+      <app-meter-total-card kind="import" appCard="meters-total-import" />
+      <app-meter-total-card kind="export" appCard="meters-total-export" />
+    </div>
 
     <div class="grid cards4">
-      @for (c of cards(); track c.key) {
-        <div class="card reg" [class]="'card reg ' + c.key">
-          <div class="reg-head">
-            <span class="code">{{ c.code }}</span>
-            <span class="reg-label">{{ c.label }}</span>
-          </div>
-          <div class="reg-value">{{ c.estimated | kwh }}</div>
-          <div class="small faint">
-            estimé aujourd'hui
-            @if (c.staleDays !== null && c.staleDays > 1) {
-              · dernier relevé il y a {{ c.staleDays | num }} j
-            }
-          </div>
-          <dl class="reg-stats">
-            <div>
-              <dt>Dernier relevé</dt>
-              <dd>
-                {{ c.lastValue | num }} <span class="faint small">{{ c.lastDay | day }}</span>
-              </dd>
-            </div>
-            <div>
-              <dt>7 jours</dt>
-              <dd>{{ c.t7 | kwh }}</dd>
-            </div>
-            <div>
-              <dt>30 jours</dt>
-              <dd>
-                {{ c.t30 | kwh }} <span class="faint small">{{ c.perDay30 | num: 1 }}/j</span>
-              </dd>
-            </div>
-          </dl>
-        </div>
+      @for (r of registerCards; track r.key) {
+        <app-meter-register-card [register]="r.key" [appCard]="r.id" />
       }
     </div>
 
-    @if (today(); as t) {
+    @if (view.today()) {
       <div class="section">
         <span class="pill"><app-icon name="bolt" [size]="13" /> Aujourd'hui</span>
       </div>
-      <div class="card">
-        <div class="card-header">
-          <h2>Index de la journée</h2>
-          <span class="small faint"
-            >Lu sur le compteur (port P1) · dernière lecture à {{ t.lastAt | day: 'time' }}</span
-          >
-        </div>
-        @if (todayChart(); as b) {
-          <app-chart [build]="b" [height]="300" />
-        }
-        <dl class="reg-stats today-totals">
-          @for (r of registers; track r.key) {
-            <div>
-              <dt>{{ r.short }}</dt>
-              <dd>{{ t.totals[r.key] | num: 3 }} <span class="faint small">kWh</span></dd>
-            </div>
-          }
-        </dl>
-        <p class="small faint">
-          {{
-            t.fromMidnight
-              ? 'Comptés depuis minuit.'
-              : 'Comptés depuis la première lecture du jour (' +
-                (t.start | day: 'time') +
-                ') : la lecture de la veille au soir manque.'
-          }}
-          Les boutons du graphique « Index cumulés » choisissent aussi les courbes affichées ici.
-        </p>
-      </div>
+      <app-meter-today-card appCard="meters-today" />
     }
 
     <div class="section">
       <span class="pill"><app-icon name="trend" [size]="13" /> Évolution des index</span>
     </div>
-    <div class="card">
-      <div class="card-header">
-        <h2>Index cumulés</h2>
-        <div class="row">
-          <div class="segmented" role="radiogroup" aria-label="Historique">
-            @for (o of historyOptions; track o.label) {
-              <button
-                type="button"
-                role="radio"
-                [attr.aria-checked]="historyDays() === o.days"
-                [class.active]="historyDays() === o.days"
-                (click)="historyDays.set(o.days)"
-              >
-                {{ o.label }}
-              </button>
-            }
-          </div>
-          <div class="segmented" role="radiogroup" aria-label="Prévision">
-            @for (o of forecastOptions; track o.label) {
-              <button
-                type="button"
-                role="radio"
-                [attr.aria-checked]="forecastDays() === o.days"
-                [class.active]="forecastDays() === o.days"
-                (click)="forecastDays.set(o.days)"
-              >
-                {{ o.label }}
-              </button>
-            }
-          </div>
-        </div>
-      </div>
-      <div class="toggles">
-        @for (r of registers; track r.key) {
-          <button
-            type="button"
-            class="toggle"
-            [class.on]="shown().has(r.key)"
-            [class]="'toggle ' + r.key + (shown().has(r.key) ? ' on' : '')"
-            (click)="toggle(r.key)"
-          >
-            <span class="legend-dot"></span> {{ r.short }}
-          </button>
-        }
-      </div>
-      <app-chart [build]="chart()" [height]="340" />
-    </div>
+    <app-meter-index-chart-card appCard="meters-index-chart" />
 
-    <app-balance-card />
+    <app-balance-card appCard="meters-balance" />
 
     <div class="grid grid-2">
-      <div class="card">
-        <div class="card-header">
-          <h2>Soutirage : heures pleines / creuses</h2>
-          <span class="hint">12 derniers mois</span>
-        </div>
-        @if (importSplit(); as b) {
-          <app-chart [build]="b" [height]="230" />
-        } @else {
-          <p class="muted">Pas encore assez de relevés.</p>
-        }
-      </div>
-      <div class="card">
-        <div class="card-header">
-          <h2>Injection : heures pleines / creuses</h2>
-          <span class="hint">12 derniers mois</span>
-        </div>
-        @if (exportSplit(); as b) {
-          <app-chart [build]="b" [height]="230" />
-        } @else {
-          <p class="muted">Pas encore assez de relevés.</p>
-        }
-      </div>
+      <app-meter-split-card kind="import" appCard="meters-split-import" />
+      <app-meter-split-card kind="export" appCard="meters-split-export" />
     </div>
   }
 </div>

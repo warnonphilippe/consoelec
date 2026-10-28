@@ -957,3 +957,14 @@ dialog.modal .modal-foot {
 .bubble.md > :last-child {
   margin-bottom: 0;
 }
+
+/* Composant de cadre (pages de données et tableau de bord) : le cadre remplit sa cellule de grille. */
+.card-host {
+  display: grid;
+  min-width: 0;
+}
+
+/* Un cadre qui n'a rien à montrer (pas encore de données) ne prend pas de place. */
+.card-host:empty {
+  display: none;
+}

@@ -16,6 +16,12 @@ import {
   type PvDay,
   type Settings,
 } from '../models/app-data.model';
+import {
+  DEFAULT_DASHBOARD,
+  moveDashboardCard,
+  toggleDashboardCard,
+  type CardId,
+} from '../models/dashboard';
 import { mergeData, type MergeReport, type MergeResult } from '../models/merge';
 import { newId, normalizeData } from '../models/normalize';
 import { StorageService } from './storage.service';
@@ -43,6 +49,8 @@ export class DataStore {
 
   readonly house = computed(() => this.state().house);
   readonly settings = computed(() => this.state().settings);
+  /** Cadres du tableau de bord, dans l'ordre. */
+  readonly dashboard = computed(() => this.state().settings.dashboard);
   /** Relevés du plus récent au plus ancien. */
   readonly readings = computed(() =>
     this.state()
@@ -120,6 +128,21 @@ export class DataStore {
 
   updateSettings(patch: Partial<Settings>): void {
     this.update((d) => ({ ...d, settings: { ...d.settings, ...patch } }));
+  }
+
+  /** Ajoute le cadre à la fin du tableau de bord, ou l'en retire. */
+  toggleDashboardCard(id: CardId): void {
+    this.updateSettings({ dashboard: toggleDashboardCard(this.dashboard(), id) });
+  }
+
+  /** Revient au tableau de bord d'origine. */
+  resetDashboard(): void {
+    this.updateSettings({ dashboard: [...DEFAULT_DASHBOARD] });
+  }
+
+  /** Monte (−1) ou descend (+1) un cadre parmi les cadres affichés du tableau de bord. */
+  moveDashboardCard(id: CardId, delta: -1 | 1, shown: readonly CardId[]): void {
+    this.updateSettings({ dashboard: moveDashboardCard(this.dashboard(), id, delta, shown) });
   }
 
   saveReading(reading: Omit<MeterReading, 'id'> & { id?: string }): void {
@@ -224,7 +247,7 @@ export class DataStore {
   replaceWithImport(incoming: AppData): void {
     this.update((d) => ({
       ...incoming,
-      settings: { ...incoming.settings, theme: d.settings.theme, aiModel: d.settings.aiModel },
+      settings: { ...incoming.settings, ...localSettings(d.settings) },
     }));
   }
 
@@ -232,14 +255,14 @@ export class DataStore {
     const demo = buildDemoData(new Date());
     this.update((d) => ({
       ...demo,
-      settings: { ...demo.settings, theme: d.settings.theme, aiModel: d.settings.aiModel },
+      settings: { ...demo.settings, ...localSettings(d.settings) },
     }));
   }
 
   reset(): void {
     this.update((d) => ({
       ...emptyData(),
-      settings: { ...emptyData().settings, theme: d.settings.theme, aiModel: d.settings.aiModel },
+      settings: { ...emptyData().settings, ...localSettings(d.settings) },
     }));
   }
 
@@ -277,6 +300,11 @@ export class DataStore {
       this.saving.set(false);
     }
   }
+}
+
+/** Préférences propres à cet ordinateur, gardées quand les données sont remplacées. */
+function localSettings(s: Settings): Pick<Settings, 'theme' | 'aiModel' | 'dashboard'> {
+  return { theme: s.theme, aiModel: s.aiModel, dashboard: s.dashboard };
 }
 
 function upsert<T extends { id: string }>(list: T[], entry: T): T[] {

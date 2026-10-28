@@ -1,36 +1,30 @@
+import { NgComponentOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { hourRanges, isOffPeakHour } from '../../core/calc/reference';
-import { dayNumberToDate } from '../../core/calc/time';
+import { CardMenuDirective } from '../../cards/card-menu.directive';
+import { CARD_TITLES } from '../../cards/card-titles';
+import { DEFAULT_DASHBOARD } from '../../core/models/dashboard';
 import { pvKwp } from '../../core/models/app-data.model';
 import { DataStore } from '../../core/services/data-store.service';
 import { InverterService } from '../../core/services/inverter.service';
 import { P1Service } from '../../core/services/p1.service';
 import { ToastService } from '../../core/services/toast.service';
+import { ContextMenuService, type MenuItem } from '../../shared/context-menu/context-menu.service';
 import { FORMAT_PIPES } from '../../shared/format';
-import { IconComponent, type IconName } from '../../shared/icon.component';
-import { LiveMeterComponent } from '../../shared/live-meter/live-meter.component';
-import { LiveProductionComponent } from '../../shared/live-production/live-production.component';
-
-/** Période tarifaire d'un panneau de solde : ce qui est compensé ensemble sur la facture. */
-interface Period {
-  readonly key: 'hp' | 'hc';
-  readonly label: string;
-  readonly codes: string;
-  readonly icon: IconName;
-  readonly importKey: 'importPeak' | 'importOff';
-  readonly exportKey: 'exportPeak' | 'exportOff';
-}
+import { DashboardContext } from './dashboard-context';
+import { IconComponent } from '../../shared/icon.component';
 
 @Component({
   selector: 'app-dashboard-page',
   imports: [
     RouterLink,
     IconComponent,
-    LiveMeterComponent,
-    LiveProductionComponent,
+    NgComponentOutlet,
+    CardMenuDirective,
     ...FORMAT_PIPES,
   ],
+  providers: [DashboardContext],
+  host: { '(contextmenu)': 'onContextMenu($event)' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './dashboard.page.html',
   styleUrl: './dashboard.page.css',
@@ -47,52 +41,34 @@ export default class DashboardPage {
     () => this.analysis().consumption.levels.at(-1) ?? null,
   );
 
-  protected readonly periods: readonly Period[] = [
-    {
-      key: 'hp',
-      label: 'Heures pleines',
-      codes: '1.8.1 − 2.8.1',
-      icon: 'sun',
-      importKey: 'importPeak',
-      exportKey: 'exportPeak',
-    },
-    {
-      key: 'hc',
-      label: 'Heures creuses',
-      codes: '1.8.2 − 2.8.2',
-      icon: 'moon',
-      importKey: 'importOff',
-      exportKey: 'exportOff',
-    },
-  ];
+  protected readonly cards = inject(DashboardContext).cards;
+  private readonly menus = inject(ContextMenuService);
 
-  /** Horaire des heures pleines / creuses (réglages) et période en cours. */
-  protected readonly schedule = computed(() => {
-    const s = this.store.settings();
-    const date = dayNumberToDate(this.store.now());
-    const weekend = date.getDay() === 0 || date.getDay() === 6;
-    const hour = date.getHours();
-    const off = (h: number) => isOffPeakHour(h, weekend, s);
-    const current = off(hour);
-    let until: number | null = null;
-    for (let i = 1; i < 24; i++) {
-      if (off((hour + i) % 24) !== current) {
-        until = (hour + i) % 24;
-        break;
-      }
+  /**
+   * Clic droit hors des cadres : remettre un cadre propre au tableau de bord (compteur en direct, soldes…) qu'on en a
+   * retiré, ou revenir au tableau de bord d'origine.
+   */
+  protected onContextMenu(event: MouseEvent): void {
+    const layout = this.store.dashboard();
+    const items: MenuItem[] = DEFAULT_DASHBOARD.filter((id) => !layout.includes(id)).map((id) => ({
+      label: `Remettre : ${CARD_TITLES[id]}`,
+      icon: 'plus',
+      action: () => this.store.toggleDashboardCard(id),
+    }));
+    if (layout.join() !== DEFAULT_DASHBOARD.join()) {
+      items.push({
+        label: "Rétablir le tableau de bord d'origine",
+        icon: 'refresh',
+        action: () => {
+          this.store.resetDashboard();
+          this.toast.show("Tableau de bord d'origine rétabli.", 'info');
+        },
+      });
     }
-    const weekday = Array.from({ length: 24 }, (_, h) => h).filter((h) => s.offPeakHours.includes(h));
-    return {
-      current,
-      until,
-      hour,
-      weekend,
-      hours: Array.from({ length: 24 }, (_, h) => ({ h, off: off(h) })),
-      off: hourRanges(weekday),
-      peak: hourRanges(Array.from({ length: 24 }, (_, h) => h).filter((h) => !weekday.includes(h))),
-      weekends: s.offPeakWeekends,
-    };
-  });
+    if (items.length > 0) {
+      this.menus.open(event, items);
+    }
+  }
 
   protected loadDemo(): void {
     this.store.loadDemo();

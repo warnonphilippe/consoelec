@@ -1,115 +1,38 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { REGISTERS, type RegisterKey } from '../../core/models/app-data.model';
+import { CardMenuDirective } from '../../cards/card-menu.directive';
+import {
+  MeterIndexChartCard,
+  MeterRegisterCard,
+  MeterSplitCard,
+  MeterTodayCard,
+  MeterTotalCard,
+} from '../../cards/meters/meters-cards';
+import { MetersView } from '../../cards/meters/meters-view';
+import { REGISTERS } from '../../core/models/app-data.model';
 import { DataStore } from '../../core/services/data-store.service';
-import { ChartComponent } from '../../shared/chart/chart.component';
-import { FORMAT_PIPES } from '../../shared/format';
-import { IconComponent } from '../../shared/icon.component';
-import { recentPoints, todayCurve } from '../../core/calc/meter-log';
-import { indexChart, splitChart, todayChart } from './meters-charts';
 import { BalanceCardComponent } from '../../shared/balance-card/balance-card.component';
+import { IconComponent } from '../../shared/icon.component';
 
 @Component({
   selector: 'app-meters-page',
-  imports: [RouterLink, IconComponent, ChartComponent, BalanceCardComponent, ...FORMAT_PIPES],
+  imports: [
+    RouterLink,
+    IconComponent,
+    CardMenuDirective,
+    BalanceCardComponent,
+    MeterTotalCard,
+    MeterRegisterCard,
+    MeterTodayCard,
+    MeterIndexChartCard,
+    MeterSplitCard,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './meters.page.html',
   styleUrl: './meters.page.css',
 })
 export default class MetersPage {
-  protected readonly store = inject(DataStore);
-  protected readonly analysis = this.store.analysis;
-  protected readonly registers = REGISTERS;
-
-  protected readonly historyOptions = [
-    { label: '6 mois', days: 183 },
-    { label: '1 an', days: 365 },
-    { label: '2 ans', days: 730 },
-    { label: 'Tout', days: null },
-  ] as const;
-  protected readonly forecastOptions = [
-    { label: 'Sans prévision', days: 0 },
-    { label: '+ 6 mois', days: 183 },
-    { label: '+ 12 mois', days: 365 },
-  ] as const;
-  protected readonly historyDays = signal<number | null>(365);
-  protected readonly forecastDays = signal(183);
-  protected readonly shown = signal<ReadonlySet<RegisterKey>>(new Set(REGISTERS.map((r) => r.key)));
-
-  protected readonly cards = computed(() => {
-    const a = this.analysis();
-    const last = a.consumption.levels.at(-1);
-    const now = this.store.now();
-    return REGISTERS.map((r) => {
-      const estimated = a.currentIndices?.[r.key] ?? null;
-      const t30 = a.last30?.values[r.key] ?? null;
-      const t7 = a.last7?.values[r.key] ?? null;
-      return {
-        ...r,
-        lastValue: last?.values[r.key] ?? null,
-        lastDay: last?.day ?? null,
-        estimated,
-        staleDays: last ? now - last.day : null,
-        t7,
-        t30,
-        perDay30: t30 !== null && a.last30 ? t30 / Math.max(1, a.last30.coveredDays) : null,
-      };
-    });
-  });
-
-  protected readonly totals = computed(() => {
-    const e = this.analysis().currentIndices;
-    if (!e) {
-      return null;
-    }
-    return { import: e.importPeak + e.importOff, export: e.exportPeak + e.exportOff };
-  });
-
-  protected readonly chart = computed(() => {
-    const days = this.historyDays();
-    const now = this.store.now();
-    return indexChart(
-      this.analysis(),
-      this.analysis().base.best,
-      recentPoints(this.store.data().meterLog, Date.now()),
-      [...this.shown()],
-      days === null ? null : now - days,
-      this.forecastDays(),
-      now,
-    );
-  });
-
-  /** Journée en cours lue sur le compteur par le port P1 (rafraîchie à chaque lecture). */
-  protected readonly today = computed(() => {
-    this.store.now();
-    return todayCurve(this.store.data().meterLog, Date.now());
-  });
-  protected readonly todayChart = computed(() => {
-    const curve = this.today();
-    this.store.now();
-    return curve ? todayChart(curve, [...this.shown()], Date.now()) : null;
-  });
-
-  protected readonly importSplit = computed(() => {
-    const v = this.analysis().last365?.values;
-    return v ? splitChart(v.importPeak, v.importOff, 'importPeak', 'importOff') : null;
-  });
-  protected readonly exportSplit = computed(() => {
-    const v = this.analysis().last365?.values;
-    return v ? splitChart(v.exportPeak, v.exportOff, 'exportPeak', 'exportOff') : null;
-  });
-
-  protected toggle(key: RegisterKey): void {
-    this.shown.update((set) => {
-      const next = new Set(set);
-      if (next.has(key)) {
-        if (next.size > 1) {
-          next.delete(key);
-        }
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
-  }
+  protected readonly analysis = inject(DataStore).analysis;
+  protected readonly view = inject(MetersView);
+  protected readonly registerCards = REGISTERS.map((r) => ({ key: r.key, id: `meters-register-${r.key}` as const }));
 }

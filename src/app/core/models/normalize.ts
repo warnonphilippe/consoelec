@@ -26,6 +26,7 @@ import {
   type Settings,
   type SurplusHeater,
 } from './app-data.model';
+import { normalizeDashboard } from './dashboard';
 
 type Raw = Record<string, unknown>;
 
@@ -190,6 +191,7 @@ function normalizeSettings(raw: Raw): Settings {
         : (AI_MODELS[0]?.id ?? DEFAULT_SETTINGS.aiModel),
     inverter: normalizeInverter(raw['inverter']),
     p1: normalizeP1(raw['p1']),
+    dashboard: normalizeDashboard(raw['dashboard']),
   };
 }
 

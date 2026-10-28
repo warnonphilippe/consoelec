@@ -16,6 +16,7 @@ import type { ThemeMode } from './core/models/app-data.model';
 import { fmt } from './shared/format';
 import { IconComponent, type IconName } from './shared/icon.component';
 import { AssistantPanelComponent } from './shared/assistant/assistant-panel.component';
+import { ContextMenuComponent } from './shared/context-menu/context-menu.component';
 import { AiService } from './core/ai/ai.service';
 import { InverterService } from './core/services/inverter.service';
 import { P1Service } from './core/services/p1.service';
@@ -33,7 +34,14 @@ interface NavItem {
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent, AssistantPanelComponent],
+  imports: [
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
+    IconComponent,
+    AssistantPanelComponent,
+    ContextMenuComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './app.html',
   styleUrl: './app.css',

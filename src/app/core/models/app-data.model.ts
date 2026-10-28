@@ -1,4 +1,5 @@
 import type { ThemeMode } from '../../../../electron/shared/ipc-contract';
+import { DEFAULT_DASHBOARD, type CardId } from './dashboard';
 
 export type { ThemeMode };
 
@@ -172,6 +173,8 @@ export interface Settings {
   aiModel: string;
   inverter: InverterSettings;
   p1: P1Settings;
+  /** Cadres du tableau de bord, dans l'ordre (préférence locale, comme le thème). */
+  dashboard: CardId[];
 }
 
 /** Production lue sur l'onduleur pour un jour donné (dernière lecture de ce jour). */
@@ -297,6 +300,7 @@ export const DEFAULT_SETTINGS: Settings = {
   aiModel: DEFAULT_AI_MODEL,
   inverter: { enabled: false, host: '', certFingerprint: null },
   p1: { enabled: false, host: '' },
+  dashboard: [...DEFAULT_DASHBOARD],
 };
 
 export const DEFAULT_EV: ElectricVehicle = {

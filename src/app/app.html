@@ -97,6 +97,8 @@
   }
 </div>
 
+<app-context-menu />
+
 <div class="toasts" aria-live="polite">
   @for (t of toasts.toasts(); track t.id) {
     <div class="toast" [class]="'toast ' + t.kind">

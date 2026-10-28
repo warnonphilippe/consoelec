@@ -153,8 +153,21 @@ Le tableau de bord est centré sur ce que vous paierez au fournisseur, pour l'**
 - le **compteur en direct** (port P1) et la **production en direct** de l'onduleur ;
 - le **solde heures pleines** (soutiré 1.8.1 − injecté 2.8.1) et le **solde heures creuses** (soutiré 1.8.2 − injecté 2.8.2) : la valeur à ce jour, au dernier relevé, et l'estimation en fin d'année avec son coût. Un solde négatif est un surplus non remboursé ;
 - le **coût estimé de l'année** : les soldes positifs multipliés par les **prix moyens du kWh** en heures pleines et en heures creuses (**Réglages → Prix moyen du kWh**, tout compris, TVA incluse ; à recopier de votre contrat) ;
+- l'**horaire des heures pleines / creuses** et la période en cours.
+
+Ce sont les cadres d'origine : le tableau de bord se compose ensuite librement (voir plus bas).
 
 La barre latérale affiche en permanence la **facture estimée** de l'année. C'est une estimation au prix moyen : la facture réelle détaille énergie, réseau et taxes, et les frais de réseau se paient sur tout le soutirage. L'autoconsommation est sur la page Production.
+
+### Composer son tableau de bord
+
+Le tableau de bord se compose à la souris, par **clic droit** :
+
+- sur un cadre des pages **Compteurs**, **Production**, **Statistiques** ou **Prévisions** : **Ajouter au dashboard** (le cadre s'ajoute à la fin) ou **Retirer du dashboard** s'il y est déjà. Un compteur, une saison ou un chiffre clé s'ajoute seul ;
+- sur un cadre du tableau de bord : **Monter**, **Descendre** ou **Retirer du dashboard** ;
+- sur le fond du tableau de bord : **Remettre** un cadre propre au tableau de bord qu'on en a retiré (compteur en direct, soldes, coût, horaire), ou **Rétablir le tableau de bord d'origine**.
+
+Un cadre ajouté fonctionne comme sur sa page, et partage ses choix avec elle : la période des index cumulés, l'indicateur des statistiques ou le profil de prévision choisis sur le tableau de bord le sont aussi sur la page. Le compteur en direct et la production en direct n'apparaissent que si la lecture du compteur (port P1) ou de l'onduleur est activée. La composition est propre à cet ordinateur, comme le thème : un import de fichier ne la change pas.
 
 ## Production
 

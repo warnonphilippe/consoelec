@@ -67,100 +67,21 @@
     </div>
   }
 
-  @if (p1.settings().enabled) {
-    <app-live-meter />
-  }
-
-  @if (inverter.settings().enabled) {
-    <app-live-production />
-  }
-
-  @if (store.billingYear(); as y) {
-    <div class="section">
-      <span class="pill"
-        ><app-icon name="euro" [size]="13" /> Année de facturation du {{ y.settledFrom ?? y.start | day }} au
-        {{ y.end - 1 | day }}</span
-      >
-    </div>
-    @if (y.settledFrom !== null) {
-      <p class="small muted period-note">
-        Nouveau compteur depuis le {{ y.settledFrom | day }} : l'ancien compteur a été soldé à cette date, l'année ne
-        se compte qu'à partir du nouveau.
-      </p>
-    } @else if (y.coveredFrom !== null) {
-      <p class="small muted period-note">
-        Relevés depuis le {{ y.coveredFrom | day }} seulement : les montants ne couvrent que cette partie de l'année.
-      </p>
-    }
-    <div class="grid billing">
-      @for (p of periods; track p.key) {
-        @let toDate = y.toDate ? y.toDate[p.key] : null;
-        @let end = y[p.key];
-        <div class="card kpi">
-          <span class="kpi-label"
-            ><app-icon [name]="p.icon" [size]="15" /> {{ p.label }}
-            <span class="faint">· {{ p.codes }}</span></span
-          >
-          <span class="kpi-value" [class.tone-warning]="(toDate ?? 0) > 0" [class.tone-success]="(toDate ?? 0) <= 0"
-            >{{ toDate === null ? '—' : (toDate | skwh) }}</span
-          >
-          <span class="kpi-sub">
-            @if (y.toDate; as t) {
-              solde au {{ t.day | day }} : soutiré {{ t[p.importKey] | kwh }} − injecté {{ t[p.exportKey] | kwh }}
-            } @else {
-              aucun relevé cette année
-            }
-            <br />fin d'année{{ y.forecast ? ' estimée' : '' }} : <strong>{{ end | skwh }}</strong>
-            @if (end > 0) {
-              → ≈ <strong>{{ y.cost[p.key] | euro }}</strong> à payer
-            } @else if (end < 0) {
-              → surplus non remboursé
-            }
-          </span>
+  @if (cards().length > 0) {
+    <div class="dashboard-grid">
+      @for (c of cards(); track c.id) {
+        <div class="dash-item" [class.wide]="c.def.wide" [appCard]="c.id">
+          <ng-container *ngComponentOutlet="c.def.component; inputs: c.def.inputs ?? {}" />
         </div>
       }
-      <div class="card kpi">
-        <span class="kpi-label"><app-icon name="euro" [size]="15" /> Coût estimé de l'année</span>
-        <span class="kpi-value">{{ y.cost.total | euro }}</span>
-        <span class="kpi-sub">
-          @if (y.costToDate; as c) {
-            à ce jour : {{ c.total | euro }}<br />
-          }
-          @if (y.cost.surplusKwh > 0.5) {
-            surplus perdu en fin d'année : {{ y.cost.surplusKwh | kwh }}<br />
-          }
-          au prix moyen de {{ y.prices.hp | euro: true }} (HP) et {{ y.prices.hc | euro: true }} (HC) le kWh ·
-          <a routerLink="/reglages">modifier</a>
-        </span>
-      </div>
-      @let sch = schedule();
-      <div class="card kpi">
-        <span class="kpi-label"><app-icon name="clock" [size]="15" /> Horaire heures pleines / creuses</span>
-        <span class="kpi-value schedule-now" [class.tone-success]="sch.current" [class.tone-warning]="!sch.current"
-          >{{ sch.current ? 'Heures creuses' : 'Heures pleines' }}</span
-        >
-        <span class="kpi-sub">
-          maintenant{{ sch.until !== null ? ", jusqu'à " + sch.until + ' h' : '' }}
-        </span>
-        <div class="hour-strip" role="img" [attr.aria-label]="'Heures creuses : ' + sch.off.join(', ')">
-          @for (cell of sch.hours; track cell.h) {
-            <span class="hour-cell" [class.off]="cell.off" [class.now]="cell.h === sch.hour"></span>
-          }
-        </div>
-        <div class="hour-scale"><span>0 h</span><span>6 h</span><span>12 h</span><span>18 h</span><span>24 h</span></div>
-        <span class="kpi-sub">
-          <strong>HC</strong> {{ sch.off.join(', ') }}<br />
-          <strong>HP</strong> {{ sch.peak.join(', ') }}<br />
-          {{ sch.weekends ? 'en semaine ; week-ends entiers en heures creuses' : 'tous les jours, week-ends compris' }} ·
-          <a routerLink="/reglages">modifier</a>
-        </span>
+    </div>
+  } @else {
+    <div class="callout">
+      <app-icon name="info" />
+      <div>
+        Le tableau de bord est vide. Faites un clic droit sur un cadre des pages Compteurs, Production, Statistiques ou
+        Prévisions, puis choisissez « Ajouter au dashboard ». Un clic droit ici rétablit le tableau de bord d'origine.
       </div>
     </div>
-    <p class="small faint legend-note">
-      Le fournisseur compense soutirage et injection séparément en heures pleines et en heures creuses, sur l'année de
-      facturation ; seul un solde positif se paie. Estimation au prix moyen du kWh : la facture réelle détaille
-      énergie, réseau et taxes (le réseau se paie sur tout le soutirage). L'évolution des soldes au fil de l'année est sur la page
-      <a routerLink="/compteurs">Compteurs</a>.
-    </p>
   }
 </div>

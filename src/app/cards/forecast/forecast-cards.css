@@ -1,0 +1,25 @@
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px;
+}
+
+.control {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1;
+  min-width: 260px;
+}
+
+.control .label {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.note {
+  margin: 0;
+  padding: 10px 14px 14px;
+}
