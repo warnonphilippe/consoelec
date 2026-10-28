@@ -18,6 +18,9 @@ files:
 asar: true
 # Aucun module natif à recompiler pour Electron.
 npmRebuild: false
+# Avant la signature : UUID Mach-O propre à l'app, sans quoi macOS confond l'autorisation « Réseau local » de
+# toutes les apps Electron de même version (voir scripts/mac-uuid.mjs).
+afterPack: ./scripts/mac-uuid.mjs
 
 mac:
   target:
