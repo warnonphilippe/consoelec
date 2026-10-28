@@ -172,7 +172,7 @@ const localMs = (iso: string): number => new Date(`${iso}:00`).getTime();
 
 /**
  * Journée en cours, lue sur le compteur par le port P1 : kWh comptés depuis minuit (ou depuis la première lecture)
- * pour chaque registre choisi, de minuit à maintenant.
+ * pour chaque registre choisi, de 6 h à maintenant (de minuit avant 6 h).
  */
 export function todayChart(curve: TodayCurve, keys: readonly RegisterKey[], nowMs: number) {
   return (c: ChartColors): ChartConfiguration => {
@@ -189,7 +189,9 @@ export function todayChart(curve: TodayCurve, keys: readonly RegisterKey[], nowM
         borderWidth: 2,
       };
     });
-    const midnight = localMs(`${curve.lastAt.slice(0, 10)}T00:00`);
+    const day = curve.lastAt.slice(0, 10);
+    const max = Math.max(nowMs, localMs(curve.lastAt));
+    const sixAm = localMs(`${day}T06:00`);
     return {
       type: 'line',
       data: { datasets },
@@ -201,8 +203,8 @@ export function todayChart(curve: TodayCurve, keys: readonly RegisterKey[], nowM
         scales: {
           x: {
             type: 'time',
-            min: midnight,
-            max: Math.max(nowMs, localMs(curve.lastAt)),
+            min: max > sixAm ? sixAm : localMs(`${day}T00:00`),
+            max,
             adapters: { date: { locale: fr } },
             time: { unit: 'hour', tooltipFormat: 'HH:mm', displayFormats: { hour: 'HH:mm' } },
             grid: { color: c.grid },
