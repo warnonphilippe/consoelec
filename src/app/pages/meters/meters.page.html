@@ -44,6 +44,11 @@
     <app-meter-index-chart-card appCard="meters-index-chart" />
 
     <app-balance-card appCard="meters-balance" />
+    <div class="grid balances">
+      <app-meter-balance-card period="to-date" appCard="meters-balance-to-date" />
+      <app-meter-balance-card period="current-year" appCard="meters-balance-current-year" />
+      <app-meter-balance-card period="next-year" appCard="meters-balance-next-year" />
+    </div>
 
     <div class="grid grid-2">
       <app-meter-split-card kind="import" appCard="meters-split-import" />

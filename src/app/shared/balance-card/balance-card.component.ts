@@ -1,26 +1,22 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { DataStore } from '../../core/services/data-store.service';
 import { balanceChart } from '../../pages/meters/meters-charts';
 import { ChartComponent } from '../chart/chart.component';
-import { FORMAT_PIPES } from '../format';
 
 /**
  * Carte « Graphique des soldes » : soldes de facturation HP / HC de l'année (soutiré − injecté par période
- * tarifaire), mesurés puis prévus, avec les courbes limites et, en option, un résumé : soldes mesurés à ce jour, puis
- * fin de l'année en cours et de la suivante (kWh à payer et surplus).
+ * tarifaire), mesurés puis prévus, avec les courbes limites. Les soldes à ce jour et de fin d'année sont des cadres à
+ * part (`MeterBalanceCard`).
  */
 @Component({
   selector: 'app-balance-card',
-  imports: [ChartComponent, ...FORMAT_PIPES],
+  imports: [ChartComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'card-host' },
   templateUrl: './balance-card.component.html',
-  styleUrl: './balance-card.component.css',
 })
 export class BalanceCardComponent {
   protected readonly store = inject(DataStore);
-
-  /** Affiche sous le graphique le résumé des deux années de facturation. */
-  readonly summary = input(true);
 
   protected readonly historyOptions = [
     { label: '6 mois', days: 183 },
@@ -47,9 +43,4 @@ export class BalanceCardComponent {
       now,
     );
   });
-
-  /** Fin de l'année de facturation (veille du début de la suivante), pour l'affichage. */
-  protected lastDayOf(end: number): number {
-    return end - 1;
-  }
 }

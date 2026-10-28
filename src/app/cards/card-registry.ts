@@ -14,6 +14,7 @@ import {
   ForecastYearEndsCard,
 } from './forecast/forecast-cards';
 import {
+  MeterBalanceCard,
   MeterIndexChartCard,
   MeterRegisterCard,
   MeterSplitCard,
@@ -53,6 +54,9 @@ export const CARDS: Record<CardId, CardDef> = {
   'meters-today': { component: MeterTodayCard, wide: true },
   'meters-index-chart': { component: MeterIndexChartCard, wide: true },
   'meters-balance': { component: BalanceCardComponent, wide: true },
+  'meters-balance-to-date': { component: MeterBalanceCard, inputs: { period: 'to-date' } },
+  'meters-balance-current-year': { component: MeterBalanceCard, inputs: { period: 'current-year' } },
+  'meters-balance-next-year': { component: MeterBalanceCard, inputs: { period: 'next-year' } },
   'meters-split-import': { component: MeterSplitCard, inputs: { kind: 'import' } },
   'meters-split-export': { component: MeterSplitCard, inputs: { kind: 'export' } },
   'production-day': { component: ProductionDayCard, wide: true },

@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CardMenuDirective } from '../../cards/card-menu.directive';
 import {
+  MeterBalanceCard,
   MeterIndexChartCard,
   MeterRegisterCard,
   MeterSplitCard,
@@ -21,6 +22,7 @@ import { IconComponent } from '../../shared/icon.component';
     IconComponent,
     CardMenuDirective,
     BalanceCardComponent,
+    MeterBalanceCard,
     MeterTotalCard,
     MeterRegisterCard,
     MeterTodayCard,

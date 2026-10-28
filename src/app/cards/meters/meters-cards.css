@@ -114,3 +114,14 @@
   gap: 6px 24px;
   margin: 12px 0 6px;
 }
+
+.balance-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  white-space: nowrap;
+  margin: 4px 0;
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}

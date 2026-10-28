@@ -4,7 +4,7 @@ import { REGISTERS, type RegisterKey } from '../../core/models/app-data.model';
 import { DataStore } from '../../core/services/data-store.service';
 import { indexChart, splitChart, todayChart } from '../../pages/meters/meters-charts';
 import { ChartComponent } from '../../shared/chart/chart.component';
-import { FORMAT_PIPES } from '../../shared/format';
+import { FORMAT_PIPES, fmt } from '../../shared/format';
 import { IconComponent } from '../../shared/icon.component';
 import { MetersView } from './meters-view';
 
@@ -269,5 +269,73 @@ export class MeterSplitCard {
     return this.kind() === 'import'
       ? splitChart(v.importPeak, v.importOff, 'importPeak', 'importOff')
       : splitChart(v.exportPeak, v.exportOff, 'exportPeak', 'exportOff');
+  });
+}
+
+export type BalancePeriod = 'to-date' | 'current-year' | 'next-year';
+
+/**
+ * Soldes de facturation HP / HC : mesurés du début de l'année de facturation à la dernière lecture, ou prévus à la fin
+ * de l'année en cours ou de la suivante, avec les kWh à payer et le surplus.
+ */
+@Component({
+  selector: 'app-meter-balance-card',
+  imports: [...FORMAT_PIPES],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'card-host' },
+  styleUrl: './meters-cards.css',
+  template: `
+    @if (balance(); as b) {
+      <div class="card kpi">
+        <span class="kpi-label">{{ b.label }}</span>
+        <div class="balance-values">
+          <span [class.tone-warning]="b.hp > 0" [class.tone-success]="b.hp <= 0">HP {{ b.hp | skwh }}</span>
+          <span [class.tone-warning]="b.hc > 0" [class.tone-success]="b.hc <= 0">HC {{ b.hc | skwh }}</span>
+        </div>
+        <span class="kpi-sub">
+          à payer : {{ (b.hp > 0 ? b.hp : 0) + (b.hc > 0 ? b.hc : 0) | kwh }}
+          @if (b.hp < 0 || b.hc < 0) {
+            · {{ b.toDate ? 'surplus' : 'surplus non remboursé' }} :
+            {{ (b.hp < 0 ? -b.hp : 0) + (b.hc < 0 ? -b.hc : 0) | kwh }}
+          }
+          @if (b.coveredFrom !== null) {
+            <br />relevés depuis le {{ b.coveredFrom | day }} seulement
+          }
+        </span>
+      </div>
+    }
+  `,
+})
+export class MeterBalanceCard {
+  private readonly store = inject(DataStore);
+  readonly period = input.required<BalancePeriod>();
+
+  protected readonly balance = computed(() => {
+    const years = this.store.billing().years;
+    const period = this.period();
+    const y = period === 'next-year' ? years[1] : years[0];
+    if (!y) {
+      return null;
+    }
+    const from = fmt.date(y.settledFrom ?? y.start);
+    if (period === 'to-date') {
+      const d = y.toDate;
+      return d
+        ? {
+            label: `À ce jour · du ${from} au ${fmt.date(d.day)} · mesuré`,
+            hp: d.hp,
+            hc: d.hc,
+            toDate: true,
+            coveredFrom: y.coveredFrom,
+          }
+        : null;
+    }
+    return {
+      label: `Année du ${from} au ${fmt.date(y.end - 1)}${y.forecast ? ' · prévision' : ''}`,
+      hp: y.hp,
+      hc: y.hc,
+      toDate: false,
+      coveredFrom: y.coveredFrom,
+    };
   });
 }
