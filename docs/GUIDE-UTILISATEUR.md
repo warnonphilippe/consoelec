@@ -189,7 +189,7 @@ En Wallonie, une installation photovoltaïque de 10 kVA au plus mise en service 
 - **solde heures pleines** = soutiré HP (1.8.1) − injecté HP (2.8.1) ;
 - **solde heures creuses** = soutiré HC (1.8.2) − injecté HC (2.8.2).
 
-Le **graphique des soldes**, sous les index cumulés, suit ces deux soldes depuis le début de l'année de facturation, puis les prolonge par la prévision (pointillés). Ils repartent de zéro à chaque début d'année. Au-dessus de zéro, c'est de l'énergie à payer ; en dessous, un **surplus** qui n'est pas remboursé en fin d'année. Sous le graphique, le résumé donne pour l'année en cours et la suivante les kWh à payer et le surplus perdu.
+Le **graphique des soldes**, sous les index cumulés, suit ces deux soldes depuis le début de l'année de facturation, puis les prolonge par la prévision (pointillés). Ils repartent de zéro à chaque début d'année. Au-dessus de zéro, c'est de l'énergie à payer ; en dessous, un **surplus** qui n'est pas remboursé en fin d'année. Sous le graphique, trois cadres : les soldes **mesurés à ce jour** depuis le début de l'année de facturation (au dernier relevé ou à la dernière lecture du compteur), puis, pour la fin de l'année en cours et de la suivante, les kWh à payer et le surplus perdu.
 
 #### Courbes limites
 

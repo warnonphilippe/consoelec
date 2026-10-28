@@ -6,8 +6,8 @@ import { FORMAT_PIPES } from '../format';
 
 /**
  * Carte « Graphique des soldes » : soldes de facturation HP / HC de l'année (soutiré − injecté par période
- * tarifaire), mesurés puis prévus, avec les courbes limites et, en option, le résumé de l'année en cours et de la
- * suivante (kWh à payer et surplus).
+ * tarifaire), mesurés puis prévus, avec les courbes limites et, en option, un résumé : soldes mesurés à ce jour, puis
+ * fin de l'année en cours et de la suivante (kWh à payer et surplus).
  */
 @Component({
   selector: 'app-balance-card',

@@ -34,6 +34,32 @@
     <app-chart [build]="balanceChart()" [height]="360" />
     @if (summary() && store.billing().years.length > 0) {
       <div class="balance-years">
+        @if (store.billing().years[0]; as y) {
+          @if (y.toDate; as d) {
+            <div class="balance-year">
+              <span class="kpi-label"
+                >À ce jour · du {{ y.settledFrom ?? y.start | day }} au {{ d.day | day }} · mesuré</span
+              >
+              <div class="balance-values">
+                <span [class.tone-warning]="d.hp > 0" [class.tone-success]="d.hp <= 0"
+                  >HP {{ d.hp | skwh }}</span
+                >
+                <span [class.tone-warning]="d.hc > 0" [class.tone-success]="d.hc <= 0"
+                  >HC {{ d.hc | skwh }}</span
+                >
+              </div>
+              <span class="small faint">
+                à payer : {{ (d.hp > 0 ? d.hp : 0) + (d.hc > 0 ? d.hc : 0) | kwh }}
+                @if (d.hp < 0 || d.hc < 0) {
+                  · surplus : {{ (d.hp < 0 ? -d.hp : 0) + (d.hc < 0 ? -d.hc : 0) | kwh }}
+                }
+                @if (y.coveredFrom !== null) {
+                  <br />relevés depuis le {{ y.coveredFrom | day }} seulement
+                }
+              </span>
+            </div>
+          }
+        }
         @for (y of store.billing().years; track y.start) {
           <div class="balance-year">
             <span class="kpi-label"
