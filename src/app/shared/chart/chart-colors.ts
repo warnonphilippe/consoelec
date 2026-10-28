@@ -25,8 +25,9 @@ const DARK: ChartColors = {
   surface: '#1e293b',
   importPeak: '#3b82f6',
   importOff: '#818cf8',
-  exportPeak: '#f59e0b',
-  exportOff: '#2dd4bf',
+  // Injection en vert (électricité rendue au réseau) : émeraude en heures pleines, anis en heures creuses.
+  exportPeak: '#10b981',
+  exportOff: '#a3e635',
   pv: '#facc15',
   net: '#f472b6',
   reference: '#94a3b8',
@@ -43,8 +44,8 @@ const LIGHT: ChartColors = {
   importPeak: '#2563eb',
   // Fuchsia plutôt qu'indigo : sur fond blanc, l'indigo se confond avec le bleu des heures pleines.
   importOff: '#a21caf',
-  exportPeak: '#d97706',
-  exportOff: '#0d9488',
+  exportPeak: '#059669',
+  exportOff: '#65a30d',
   pv: '#ca8a04',
   net: '#db2777',
   reference: '#64748b',

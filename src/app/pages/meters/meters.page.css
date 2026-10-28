@@ -26,10 +26,10 @@
   border-top-color: var(--hc);
 }
 .reg.exportPeak {
-  border-top-color: var(--warning);
+  border-top-color: var(--success);
 }
 .reg.exportOff {
-  border-top-color: var(--cyan);
+  border-top-color: var(--inject-hc);
 }
 
 .reg-head {
@@ -116,10 +116,10 @@
   background: var(--hc);
 }
 .toggle.on.exportPeak .legend-dot {
-  background: var(--warning);
+  background: var(--success);
 }
 .toggle.on.exportOff .legend-dot {
-  background: var(--cyan);
+  background: var(--inject-hc);
 }
 
 .today-totals {
