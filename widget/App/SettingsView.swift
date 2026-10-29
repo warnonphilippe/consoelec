@@ -24,7 +24,7 @@ struct SettingsView: View {
   private let addWidget = "Clic droit sur le bureau → Modifier les widgets → ConsoElec, puis glissez le widget à l'endroit voulu."
   private let previews = AnyLayout(HStackLayout(spacing: 16))
   #else
-  private let intro = "Le widget lit votre onduleur SMA sur le Wi-Fi de la maison (connexion sécurisée SRP). Ailleurs, il garde la dernière lecture et affiche son heure. iOS le rafraîchit environ tous les quarts d'heure ; l'app ouverte lit l'onduleur chaque minute."
+  private let intro = "Le widget « Production solaire » lit votre onduleur SMA sur le Wi-Fi de la maison (connexion sécurisée SRP) ; le widget « Compteur électrique » lit le compteur par le lecteur HomeWizard P1. Ailleurs, ils gardent la dernière lecture et affichent son heure. iOS le rafraîchit environ tous les quarts d'heure ; l'app ouverte lit l'onduleur chaque minute."
   private let keychainNote = "La clé est rangée dans le Trousseau de l'iPhone, partagée seulement avec le widget."
   private let addWidget = "Écran d'accueil : appui long sur un espace vide → Modifier → Ajouter un widget → ConsoElec. Écran verrouillé : appui long → Personnaliser → widgets."
   private let previews = AnyLayout(VStackLayout(spacing: 16))

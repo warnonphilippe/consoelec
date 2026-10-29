@@ -364,6 +364,7 @@ L'app iPhone **ConsoElec** et son widget affichent la production sur l'écran d'
 1. Installez-la depuis le Mac avec `./widget/build-ios.sh`, iPhone branché en USB (voir le README). La première fois, activez le **mode développeur** (Réglages → Confidentialité et sécurité → Mode développeur) puis autorisez le développeur : Réglages → Général → VPN et gestion de l'appareil → votre identifiant Apple → **Faire confiance**.
 2. Ouvrez **ConsoElec** sur l'iPhone, connecté au Wi-Fi de la maison. Acceptez l'accès au **réseau local**, touchez **Rechercher** pour l'adresse, saisissez la **clé WPA2-PSK** et touchez **Enregistrer**. La clé reste dans le Trousseau de l'iPhone.
 3. **Tester la lecture** affiche les valeurs et l'aperçu du widget. Tant que l'app est ouverte, elle relit l'onduleur chaque minute.
+   Pour le widget **Compteur électrique**, indiquez aussi l'adresse du lecteur P1 dans la section **Compteur (port P1)** (voir le widget macOS).
 4. Ajoutez le widget :
    - écran d'accueil : appui long sur un espace vide → **Modifier** → **Ajouter un widget** → **ConsoElec** (petit ou moyen format) ;
    - écran verrouillé : appui long → **Personnaliser** → écran verrouillé → zone des widgets → **ConsoElec** (rond : puissance ; rectangulaire : puissance, production du jour et heure ; en ligne, au-dessus de l'heure).
