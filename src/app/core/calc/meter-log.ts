@@ -1,10 +1,8 @@
 import {
-  REGISTER_KEYS,
   type MeterLog,
   type MeterLogPoint,
   type MeterReading,
   type PvDay,
-  type RegisterKey,
 } from '../models/app-data.model';
 import { solarFractionAt } from './production';
 import { toDayNumber, toLocalIso, yearMonthOf } from './time';
@@ -124,57 +122,47 @@ export function mergeMeterLogs(
   return { log: { ...local, days: [...days.values()].sort(byAt) }, added };
 }
 
-export type RegisterValues = Record<RegisterKey, number>;
+/** Minutes écoulées entre deux heures locales `AAAA-MM-JJTHH:mm`. */
+const minutesBetween = (from: string, to: string): number =>
+  Math.round((toDayNumber(to) - toDayNumber(from)) * 1440);
 
-export interface TodayCurve {
-  /** Début de la courbe : minuit, ou la première lecture du jour si celle de la veille au soir manque. */
-  readonly start: string;
-  /** `true` quand la courbe part d'une lecture prise après 23 h la veille. */
-  readonly fromMidnight: boolean;
-  /** kWh cumulés depuis le début, à chaque lecture (heures du jour puis minutes de la dernière heure). */
-  readonly points: readonly { at: string; values: RegisterValues }[];
-  /** Total du jour à la dernière lecture (kWh). */
-  readonly totals: RegisterValues;
-  /** Heure de la dernière lecture. */
-  readonly lastAt: string;
+/** Une lecture plus ancienne n'est plus « en direct » : pas de moyenne récente. */
+const RECENT_MAX_AGE_MIN = 10;
+
+export interface RecentPower {
+  /** Soutirage moyen (W), heures pleines et creuses confondues. */
+  readonly importW: number;
+  /** Injection moyenne (W), heures pleines et creuses confondues. */
+  readonly exportW: number;
+  /** Lectures entre lesquelles la moyenne est prise. */
+  readonly from: string;
+  readonly to: string;
 }
 
 /**
- * Courbe du jour en cours : pour chaque registre, les kWh comptés depuis minuit (la dernière lecture de la veille,
- * si elle a été prise après 23 h, sert de point de départ), sinon depuis la première lecture du jour.
- * Renvoie `null` sans lecture aujourd'hui.
+ * Puissances moyennes de soutirage et d'injection sur les `minutes` dernières minutes, tirées de l'écart des index
+ * lus chaque minute (le compteur les donne au Wh près : ±12 W sur 5 minutes). La moyenne part de la lecture la plus
+ * récente prise au moins `minutes` minutes avant la dernière, sur la durée réellement écoulée.
+ * Renvoie `null` sans lecture récente ou sans lecture assez ancienne.
  */
-export function todayCurve(log: MeterLog, nowMs: number): TodayCurve | null {
-  const today = toLocalIso(new Date(nowMs)).slice(0, 10);
-  const merged = new Map<string, MeterLogPoint>();
-  for (const p of [...log.hours, ...log.minutes, ...log.days]) {
-    if (day(p) === today) {
-      merged.set(p.at, p);
-    }
-  }
-  const points = [...merged.values()].sort(byAt);
-  const first = points[0];
-  const last = points.at(-1);
-  if (first === undefined || last === undefined) {
+export function recentAveragePower(log: MeterLog, nowMs: number, minutes = 5): RecentPower | null {
+  const to = log.minutes.at(-1);
+  if (to === undefined) {
     return null;
   }
-  const eve = log.days.filter((p) => day(p) < today).at(-1);
-  const yesterday = toLocalIso(new Date(nowMs - 86_400_000)).slice(0, 10);
-  const fromMidnight = eve !== undefined && day(eve) === yesterday && eve.at.slice(11) >= '23:00';
-  const base = fromMidnight ? eve : first;
-  const since = (p: MeterLogPoint): RegisterValues =>
-    Object.fromEntries(
-      REGISTER_KEYS.map((k) => [k, Math.max(0, Math.round((p[k] - base[k]) * 1000) / 1000)]),
-    ) as RegisterValues;
-  const curve = points.map((p) => ({ at: p.at, values: since(p) }));
-  if (fromMidnight) {
-    curve.unshift({ at: `${today}T00:00`, values: since(base) });
+  if (minutesBetween(to.at, toLocalIso(new Date(nowMs))) > RECENT_MAX_AGE_MIN) {
+    return null;
   }
+  const from = [...log.minutes].reverse().find((p) => minutesBetween(p.at, to.at) >= minutes);
+  if (from === undefined) {
+    return null;
+  }
+  const hours = minutesBetween(from.at, to.at) / 60;
+  const watts = (kwh: number): number => Math.max(0, Math.round((kwh / hours) * 1000));
   return {
-    start: fromMidnight ? `${today}T00:00` : first.at,
-    fromMidnight,
-    points: curve,
-    totals: since(last),
-    lastAt: last.at,
+    importW: watts(to.importPeak + to.importOff - from.importPeak - from.importOff),
+    exportW: watts(to.exportPeak + to.exportOff - from.exportPeak - from.exportOff),
+    from: from.at,
+    to: to.at,
   };
 }

@@ -3,11 +3,9 @@ import { fr } from 'date-fns/locale';
 import type { FullAnalysis } from '../../core/calc/analysis';
 import type { BalancePoint, BalanceSeries, LimitPoint } from '../../core/calc/balance';
 import type { Forecast } from '../../core/calc/forecast';
-import type { TodayCurve } from '../../core/calc/meter-log';
 import { dayNumberToDate, toDayNumber, toLocalIso } from '../../core/calc/time';
 import { REGISTERS, type MeterLogPoint, type RegisterKey } from '../../core/models/app-data.model';
 import { alpha, chartLegend, type ChartColors } from '../../shared/chart/chart-colors';
-import { dayScales } from '../../shared/chart/day-axis';
 import { fmt } from '../../shared/format';
 
 const ms = (day: number): number => dayNumberToDate(day).getTime();
@@ -186,54 +184,6 @@ export function indexChart(
               },
               label: (item) =>
                 `${item.dataset.label}: ${fmt.kwh((item.raw as XY).y, 1)}`,
-            },
-          },
-        },
-      },
-    };
-  };
-}
-
-/** Heure locale `AAAA-MM-JJTHH:mm` → millisecondes. */
-const localMs = (iso: string): number => new Date(`${iso}:00`).getTime();
-
-/**
- * Journée en cours, lue sur le compteur par le port P1 : kWh comptés depuis minuit (ou depuis la première lecture)
- * pour chaque registre choisi. Mêmes axes que la courbe de production de la journée (voir `dayScales`).
- */
-export function todayChart(curve: TodayCurve, keys: readonly RegisterKey[], nowMs: number) {
-  return (c: ChartColors): ChartConfiguration => {
-    const datasets: ChartConfiguration['data']['datasets'] = keys.map((key) => {
-      const color = c[COLOR[key]] as string;
-      return {
-        type: 'line',
-        label: REGISTERS.find((r) => r.key === key)!.short,
-        data: curve.points.map((p) => ({ x: localMs(p.at), y: p.values[key] })),
-        borderColor: color,
-        backgroundColor: alpha(color, 0.15),
-        pointRadius: 0,
-        pointHoverRadius: 4,
-        borderWidth: 2,
-      };
-    });
-    const midnight = localMs(`${curve.lastAt.slice(0, 10)}T00:00`);
-    return {
-      type: 'line',
-      data: { datasets },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        parsing: false,
-        interaction: { mode: 'nearest', axis: 'x', intersect: false },
-        scales: dayScales(c, midnight, Math.max(nowMs, localMs(curve.lastAt)), {
-          title: curve.fromMidnight ? 'kWh depuis minuit' : 'kWh depuis la première lecture',
-          tick: (v) => fmt.number(v, 1),
-        }),
-        plugins: {
-          legend: chartLegend(c),
-          tooltip: {
-            callbacks: {
-              label: (item) => `${item.dataset.label}: ${fmt.number((item.raw as XY).y, 3)} kWh`,
             },
           },
         },

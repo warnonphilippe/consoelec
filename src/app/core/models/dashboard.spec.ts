@@ -27,7 +27,7 @@ describe('disposition du tableau de bord', () => {
 
   it('ajoute un cadre à la fin, ou le retire', () => {
     const layout: CardId[] = ['billing-hp', 'billing-hc'];
-    expect(toggleDashboardCard(layout, 'meters-today')).toEqual(['billing-hp', 'billing-hc', 'meters-today']);
+    expect(toggleDashboardCard(layout, 'meters-recent-power')).toEqual(['billing-hp', 'billing-hc', 'meters-recent-power']);
     expect(toggleDashboardCard(layout, 'billing-hp')).toEqual(['billing-hc']);
   });
 

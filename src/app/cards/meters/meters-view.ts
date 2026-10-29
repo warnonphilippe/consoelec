@@ -1,5 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { todayCurve } from '../../core/calc/meter-log';
+import { recentAveragePower } from '../../core/calc/meter-log';
 import { REGISTERS, type RegisterKey } from '../../core/models/app-data.model';
 import { DataStore } from '../../core/services/data-store.service';
 
@@ -24,13 +24,13 @@ export class MetersView {
   ] as const;
   readonly historyDays = signal<number | null>(365);
   readonly forecastDays = signal(183);
-  /** Courbes affichées par « Index cumulés » et « Index de la journée ». */
+  /** Courbes affichées par « Index cumulés ». */
   readonly shown = signal<ReadonlySet<RegisterKey>>(new Set(REGISTERS.map((r) => r.key)));
 
-  /** Journée en cours lue sur le compteur par le port P1 (rafraîchie à chaque lecture). */
-  readonly today = computed(() => {
+  /** Soutirage et injection moyens des 5 dernières minutes, lus par le port P1 (rafraîchis à chaque lecture). */
+  readonly recentPower = computed(() => {
     this.store.now();
-    return todayCurve(this.store.data().meterLog, Date.now());
+    return recentAveragePower(this.store.data().meterLog, Date.now());
   });
 
   toggle(key: RegisterKey): void {

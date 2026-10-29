@@ -31,11 +31,11 @@
       }
     </div>
 
-    @if (view.today()) {
+    @if (view.recentPower()) {
       <div class="section">
-        <span class="pill"><app-icon name="bolt" [size]="13" /> Aujourd'hui</span>
+        <span class="pill"><app-icon name="bolt" [size]="13" /> En direct</span>
       </div>
-      <app-meter-today-card appCard="meters-today" />
+      <app-meter-recent-power-card appCard="meters-recent-power" />
     }
 
     <div class="section">

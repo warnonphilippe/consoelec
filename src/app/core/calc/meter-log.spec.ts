@@ -13,8 +13,8 @@ import {
   lastLogAt,
   meterLogReadings,
   mergeMeterLogs,
+  recentAveragePower,
   recentPoints,
-  todayCurve,
 } from './meter-log';
 import { toDayNumber } from './time';
 
@@ -198,48 +198,48 @@ describe('journal des index du lecteur P1', () => {
   });
 });
 
-describe('courbe du jour en cours', () => {
-  it('compte depuis minuit quand la veille finit après 23 h', () => {
-    let log = feed(EMPTY_METER_LOG, '2026-10-27T23:50', 10);
-    log = feed(log, '2026-10-28T00:00', 600);
-    const curve = todayCurve(log, ms('2026-10-28T09:59'))!;
-    expect(curve.fromMidnight).toBe(true);
-    expect(curve.start).toBe('2026-10-28T00:00');
-    expect(curve.points[0]).toEqual({
-      at: '2026-10-28T00:00',
-      values: { importPeak: 0, importOff: 0, exportPeak: 0, exportOff: 0 },
+describe('puissances moyennes des dernières minutes', () => {
+  it('moyenne le soutirage sur les 5 dernières minutes', () => {
+    // 0,01 kWh par minute = 600 W.
+    const log = feed(EMPTY_METER_LOG, '2026-10-28T08:00', 20);
+    expect(recentAveragePower(log, ms('2026-10-28T08:19'))).toEqual({
+      importW: 600,
+      exportW: 0,
+      from: '2026-10-28T08:14',
+      to: '2026-10-28T08:19',
     });
-    // Minuit, les heures 00:59 … 08:59, puis les minutes 08:59 … 09:59 (08:59 et 09:59 sans doublon).
-    expect(curve.points.filter((p) => p.at === '2026-10-28T09:59')).toHaveLength(1);
-    expect(curve.points).toHaveLength(1 + 9 + 60);
-    expect(curve.lastAt).toBe('2026-10-28T09:59');
-    // De 23:59 la veille (100,09) à 09:59 (100 + 599 × 0,01) : 5,9 kWh.
-    expect(curve.totals.importPeak).toBeCloseTo(5.9, 3);
-    expect(curve.totals.importOff).toBe(0);
   });
 
-  it('part de la première lecture du jour si la veille manque', () => {
-    const log = feed(EMPTY_METER_LOG, '2026-10-28T08:00', 31);
-    const curve = todayCurve(log, ms('2026-10-28T08:30'))!;
-    expect(curve.fromMidnight).toBe(false);
-    expect(curve.start).toBe('2026-10-28T08:00');
-    expect(curve.points[0]!.values.importPeak).toBe(0);
-    expect(curve.totals.importPeak).toBeCloseTo(0.3, 3);
-  });
-
-  it('ne part pas de minuit si la dernière lecture de la veille est trop ancienne', () => {
-    let log = appendMeterLog(
-      EMPTY_METER_LOG,
-      point('2026-10-27T18:00', 90),
-      ms('2026-10-27T18:00'),
+  it('sépare soutirage et injection, heures pleines et creuses additionnées', () => {
+    let log = appendMeterLog(EMPTY_METER_LOG, point('2026-10-28T12:00', 100, 200), ms('2026-10-28T12:00'));
+    log = appendMeterLog(
+      log,
+      { at: '2026-10-28T12:05', importPeak: 100.02, importOff: 50.01, exportPeak: 200.1, exportOff: 300.05 },
+      ms('2026-10-28T12:05'),
     );
-    log = appendMeterLog(log, point('2026-10-28T08:00', 100), ms('2026-10-28T08:00'));
-    expect(todayCurve(log, ms('2026-10-28T08:00'))!.fromMidnight).toBe(false);
+    expect(recentAveragePower(log, ms('2026-10-28T12:05'))).toMatchObject({ importW: 360, exportW: 1800 });
   });
 
-  it('ne renvoie rien sans lecture aujourd’hui', () => {
-    const log = feed(EMPTY_METER_LOG, '2026-10-27T10:00', 5);
-    expect(todayCurve(log, ms('2026-10-28T08:00'))).toBeNull();
-    expect(todayCurve(EMPTY_METER_LOG, ms('2026-10-28T08:00'))).toBeNull();
+  it('prend la durée réellement écoulée quand des minutes manquent', () => {
+    let log = appendMeterLog(EMPTY_METER_LOG, point('2026-10-28T08:00', 100), ms('2026-10-28T08:00'));
+    log = appendMeterLog(log, point('2026-10-28T08:04', 100.03), ms('2026-10-28T08:04'));
+    log = appendMeterLog(log, point('2026-10-28T08:10', 100.1), ms('2026-10-28T08:10'));
+    // De 08:04 à 08:10 : 0,07 kWh en 6 minutes = 700 W.
+    expect(recentAveragePower(log, ms('2026-10-28T08:10'))).toMatchObject({
+      importW: 700,
+      from: '2026-10-28T08:04',
+    });
+  });
+
+  it('ne renvoie rien avec moins de 5 minutes de lectures', () => {
+    const log = feed(EMPTY_METER_LOG, '2026-10-28T08:00', 5);
+    expect(recentAveragePower(log, ms('2026-10-28T08:04'))).toBeNull();
+    expect(recentAveragePower(EMPTY_METER_LOG, ms('2026-10-28T08:04'))).toBeNull();
+  });
+
+  it('ne renvoie rien si la dernière lecture est trop ancienne', () => {
+    const log = feed(EMPTY_METER_LOG, '2026-10-28T08:00', 10);
+    expect(recentAveragePower(log, ms('2026-10-28T08:19'))).not.toBeNull();
+    expect(recentAveragePower(log, ms('2026-10-28T08:20'))).toBeNull();
   });
 });

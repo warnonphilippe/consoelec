@@ -14,7 +14,7 @@ export const CARD_TITLES: Record<CardId, string> = {
   'meters-register-importOff': 'Soutirage heures creuses (1.8.2)',
   'meters-register-exportPeak': 'Injection heures pleines (2.8.1)',
   'meters-register-exportOff': 'Injection heures creuses (2.8.2)',
-  'meters-today': 'Index de la journée',
+  'meters-recent-power': 'Moyennes des 5 dernières minutes',
   'meters-index-chart': 'Index cumulés',
   'meters-balance': 'Graphique des soldes',
   'meters-balance-to-date': 'Soldes à ce jour',

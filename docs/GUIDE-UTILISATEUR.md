@@ -193,7 +193,7 @@ Une journée sans lecture est **estimée** : l'énergie produite entre deux inde
 
 La page **Compteurs** détaille les **quatre sous-compteurs** : index estimé aujourd'hui, dernier relevé, consommation des 7 et 30 derniers jours, courbe d'évolution (avec prévision en pointillés ; avec le lecteur P1, un point par jour, puis un par heure pour la journée en cours et chaque minute de la dernière heure), et répartition heures pleines / heures creuses.
 
-Avec le lecteur P1, la carte **Aujourd'hui** trace, pour chaque registre, les **kWh comptés depuis minuit** : un point par heure, puis un point par minute sur la dernière heure. Le graphique couvre de 6 h à 22 h, comme la courbe de production de la journée (page Production), avec la même zone de tracé : l'un sous l'autre (sur le tableau de bord, par exemple), leurs heures tombent sur les mêmes verticales. Les totaux du jour sont rappelés sous le graphique. Si la lecture de la veille au soir manque (application fermée), la courbe part de la première lecture du jour.
+Avec le lecteur P1, la carte **Moyennes des 5 dernières minutes** (section « En direct ») donne le **soutirage moyen** et l'**injection moyenne**, en watts, heures pleines et creuses confondues. Elles sont tirées de l'écart des index lus chaque minute, sur la durée réellement écoulée (le compteur donne ses index au Wh près : environ ±12 W sur 5 minutes). Contrairement à la puissance instantanée du compteur en direct, elles lissent les pointes brèves (bouilloire, démarrage d'un appareil). La carte n'apparaît qu'après 5 minutes de lectures, et disparaît quand la dernière lecture date de plus de 10 minutes.
 
 ### Graphique des soldes : ce que le fournisseur facturera
 

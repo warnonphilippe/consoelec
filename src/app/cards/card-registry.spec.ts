@@ -20,7 +20,7 @@ describe('registre des cadres', () => {
 
 @Component({
   imports: [CardMenuDirective],
-  template: `<div appCard="meters-today"><input /></div>`,
+  template: `<div appCard="meters-recent-power"><input /></div>`,
 })
 class Host {}
 
@@ -41,12 +41,12 @@ describe('menu d’un cadre', () => {
     expect(rightClick(card).defaultPrevented).toBe(true);
     expect(menus.menu()?.items.map((i) => i.label)).toEqual(['Ajouter au dashboard']);
     menus.menu()!.items[0]!.action();
-    expect(store.dashboard().at(-1)).toBe('meters-today');
+    expect(store.dashboard().at(-1)).toBe('meters-recent-power');
 
     rightClick(card);
     expect(menus.menu()?.items.map((i) => i.label)).toEqual(['Retirer du dashboard']);
     menus.menu()!.items[0]!.action();
-    expect(store.dashboard()).not.toContain('meters-today');
+    expect(store.dashboard()).not.toContain('meters-recent-power');
   });
 
   it('laisse le menu habituel dans un champ de saisie', () => {

@@ -16,9 +16,9 @@ import {
 import {
   MeterBalanceCard,
   MeterIndexChartCard,
+  MeterRecentPowerCard,
   MeterRegisterCard,
   MeterSplitCard,
-  MeterTodayCard,
   MeterTotalCard,
 } from './meters/meters-cards';
 import { ProductionDayCard, ProductionHistoryCard, ProductionKpiCard } from './production/production-cards';
@@ -51,7 +51,7 @@ export const CARDS: Record<CardId, CardDef> = {
   'meters-register-importOff': { component: MeterRegisterCard, inputs: { register: 'importOff' } },
   'meters-register-exportPeak': { component: MeterRegisterCard, inputs: { register: 'exportPeak' } },
   'meters-register-exportOff': { component: MeterRegisterCard, inputs: { register: 'exportOff' } },
-  'meters-today': { component: MeterTodayCard, wide: true },
+  'meters-recent-power': { component: MeterRecentPowerCard },
   'meters-index-chart': { component: MeterIndexChartCard, wide: true },
   'meters-balance': { component: BalanceCardComponent, wide: true },
   'meters-balance-to-date': { component: MeterBalanceCard, inputs: { period: 'to-date' } },

@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input } from '@an
 import { recentPoints } from '../../core/calc/meter-log';
 import { REGISTERS, type RegisterKey } from '../../core/models/app-data.model';
 import { DataStore } from '../../core/services/data-store.service';
-import { indexChart, splitChart, todayChart } from '../../pages/meters/meters-charts';
+import { indexChart, splitChart } from '../../pages/meters/meters-charts';
 import { ChartComponent } from '../../shared/chart/chart.component';
 import { FORMAT_PIPES, fmt } from '../../shared/format';
 import { IconComponent } from '../../shared/icon.component';
@@ -106,61 +106,40 @@ export class MeterRegisterCard {
   });
 }
 
-/** Journée en cours lue sur le compteur par le port P1 : kWh comptés depuis minuit pour chaque registre. */
+/** Soutirage et injection moyens des 5 dernières minutes, tirés des index lus chaque minute par le port P1. */
 @Component({
-  selector: 'app-meter-today-card',
-  imports: [ChartComponent, ...FORMAT_PIPES],
+  selector: 'app-meter-recent-power-card',
+  imports: [IconComponent, ...FORMAT_PIPES],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'card-host' },
   styleUrl: './meters-cards.css',
   template: `
-    @if (view.today(); as t) {
-      <div class="card">
-        <div class="card-header">
-          <h2>Index de la journée</h2>
-          <span class="small faint"
-            >Lu sur le compteur (port P1) · dernière lecture à {{ t.lastAt | day: 'time' }}</span
-          >
+    <div class="card kpi">
+      <span class="kpi-label">Moyennes des 5 dernières minutes</span>
+      @if (view.recentPower(); as p) {
+        <div class="recent-values">
+          <div>
+            <span class="small muted"><app-icon name="plug" [size]="14" /> Soutirage moyen</span>
+            <span class="recent-value">{{ p.importW | num }} <span class="recent-unit">W</span></span>
+          </div>
+          <div>
+            <span class="small muted"><app-icon name="sun" [size]="14" /> Injection moyenne</span>
+            <span class="recent-value inject">{{ p.exportW | num }} <span class="recent-unit">W</span></span>
+          </div>
         </div>
-        @if (chart(); as b) {
-          <app-chart [build]="b" [height]="240" />
-        }
-        <dl class="reg-stats today-totals">
-          @for (r of registers; track r.key) {
-            <div>
-              <dt>{{ r.short }}</dt>
-              <dd>{{ t.totals[r.key] | num: 3 }} <span class="faint small">kWh</span></dd>
-            </div>
-          }
-        </dl>
-        <p class="small faint">
-          {{
-            t.fromMidnight
-              ? 'Comptés depuis minuit.'
-              : 'Comptés depuis la première lecture du jour (' +
-                (t.start | day: 'time') +
-                ') : la lecture de la veille au soir manque.'
-          }}
-          Les boutons du graphique « Index cumulés » choisissent aussi les courbes affichées ici.
-        </p>
-      </div>
-    } @else {
-      <div class="card">
-        <div class="card-header"><h2>Index de la journée</h2></div>
-        <p class="muted small">Pas encore de lecture du compteur aujourd'hui (port P1).</p>
-      </div>
-    }
+        <span class="kpi-sub">de {{ time(p.from) }} à {{ time(p.to) }} · lu sur le compteur (port P1)</span>
+      } @else {
+        <p class="muted small">Pas encore 5 minutes de lectures récentes du compteur (port P1).</p>
+      }
+    </div>
   `,
 })
-export class MeterTodayCard {
-  private readonly store = inject(DataStore);
+export class MeterRecentPowerCard {
   protected readonly view = inject(MetersView);
-  protected readonly registers = REGISTERS;
-  protected readonly chart = computed(() => {
-    const curve = this.view.today();
-    this.store.now();
-    return curve ? todayChart(curve, [...this.view.shown()], Date.now()) : null;
-  });
+  /** `AAAA-MM-JJTHH:mm` → `HH:mm`. */
+  protected time(at: string): string {
+    return at.slice(11, 16);
+  }
 }
 
 /** Index cumulés : relevés, lectures du jour et prévision, avec le choix de la période et des courbes. */

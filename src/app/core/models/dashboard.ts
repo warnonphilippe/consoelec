@@ -15,7 +15,7 @@ export const DASHBOARD_CARD_IDS = [
   'meters-register-importOff',
   'meters-register-exportPeak',
   'meters-register-exportOff',
-  'meters-today',
+  'meters-recent-power',
   'meters-index-chart',
   'meters-balance',
   'meters-balance-to-date',

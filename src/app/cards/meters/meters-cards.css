@@ -108,11 +108,33 @@
   background: var(--inject-hc);
 }
 
-.today-totals {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 6px 24px;
-  margin: 12px 0 6px;
+.recent-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 40px;
+  margin: 6px 0 4px;
+}
+
+.recent-values > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.recent-value {
+  font-size: 26px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.recent-value.inject {
+  color: var(--success-text);
+}
+
+.recent-unit {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
 }
 
 .balance-values {

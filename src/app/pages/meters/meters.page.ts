@@ -4,9 +4,9 @@ import { CardMenuDirective } from '../../cards/card-menu.directive';
 import {
   MeterBalanceCard,
   MeterIndexChartCard,
+  MeterRecentPowerCard,
   MeterRegisterCard,
   MeterSplitCard,
-  MeterTodayCard,
   MeterTotalCard,
 } from '../../cards/meters/meters-cards';
 import { MetersView } from '../../cards/meters/meters-view';
@@ -25,8 +25,8 @@ import { IconComponent } from '../../shared/icon.component';
     MeterBalanceCard,
     MeterTotalCard,
     MeterRegisterCard,
-    MeterTodayCard,
-    MeterIndexChartCard,
+    MeterRecentPowerCard,
+      MeterIndexChartCard,
     MeterSplitCard,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
