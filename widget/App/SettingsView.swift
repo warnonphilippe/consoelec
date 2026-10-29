@@ -3,7 +3,12 @@ import SwiftUI
 import WidgetKit
 
 struct SettingsView: View {
-  @StateObject private var discovery = InverterDiscovery()
+  @StateObject private var discovery = BonjourDiscovery.inverters()
+  @StateObject private var p1Discovery = BonjourDiscovery.p1Meters()
+  @State private var p1Host = WidgetConfig.store.p1Host
+  @State private var meterTesting = false
+  @State private var meterOutcome: MeterReader.Outcome?
+  @State private var meterMessage: String?
   @State private var host = WidgetConfig.store.host
   @State private var keyDraft = ""
   @State private var hasKey = InverterKeychain.read(accessGroup: WidgetConfig.keychainGroup) != nil
@@ -14,7 +19,7 @@ struct SettingsView: View {
   @Environment(\.scenePhase) private var scenePhase
 
   #if os(macOS)
-  private let intro = "Le widget lit votre onduleur SMA sur le réseau local (connexion sécurisée SRP) et affiche la production. macOS le rafraîchit environ toutes les 5 à 15 minutes."
+  private let intro = "Le widget « Production solaire » lit votre onduleur SMA sur le réseau local (connexion sécurisée SRP) ; le widget « Compteur électrique » lit le compteur par le lecteur HomeWizard P1. macOS les rafraîchit environ toutes les 5 à 15 minutes."
   private let keychainNote = "La clé est rangée dans le Trousseau macOS, partagée seulement avec le widget."
   private let addWidget = "Clic droit sur le bureau → Modifier les widgets → ConsoElec, puis glissez le widget à l'endroit voulu."
   private let previews = AnyLayout(HStackLayout(spacing: 16))
@@ -71,6 +76,34 @@ struct SettingsView: View {
           Text(message).font(.callout)
         }
       }
+      Section("Compteur (port P1)") {
+        HStack {
+          TextField("Adresse du lecteur (p1meter-XXXXXX.local ou IP)", text: $p1Host)
+            .textFieldStyle(.roundedBorder)
+            .onSubmit(saveP1Host)
+          Button(p1Discovery.searching ? "Recherche…" : "Rechercher") { Task { await searchP1() } }
+            .disabled(p1Discovery.searching)
+        }
+        Text("Activez l'API locale du lecteur dans l'application HomeWizard Energy. Le widget affiche le soutirage et l'injection moyens depuis la lecture précédente (au moins 5 minutes) ; tant que cette app est ouverte, il lit le compteur chaque minute.")
+          .font(.caption).foregroundStyle(.secondary)
+        Button(meterTesting ? "Lecture…" : "Tester la lecture") { Task { await testMeter() } }
+          .disabled(meterTesting || p1Host.isEmpty)
+        if let meterMessage {
+          Text(meterMessage).font(.callout)
+        }
+      }
+      if let meterOutcome {
+        Section("Aperçu du compteur") {
+          previews {
+            MeterView(outcome: meterOutcome, compact: true)
+              .frame(width: 170, height: 170)
+              .background(.quaternary, in: RoundedRectangle(cornerRadius: 20))
+            MeterView(outcome: meterOutcome, compact: false)
+              .frame(width: 330, height: 170)
+              .background(.quaternary, in: RoundedRectangle(cornerRadius: 20))
+          }
+        }
+      }
       if let outcome {
         Section("Aperçu") {
           previews {
@@ -96,9 +129,14 @@ struct SettingsView: View {
     .textInputAutocapitalization(.never)
     #endif
     // Tant que l'app est au premier plan, lecture à l'ouverture puis chaque minute.
+    // Adresse du lecteur P1 cherchée d'office tant qu'elle est vide.
+    .task {
+      if p1Host.isEmpty { await searchP1(quiet: true) }
+    }
     .task(id: scenePhase) {
       while scenePhase == .active && !Task.isCancelled {
         if hasKey && !host.isEmpty && !testing { await test() }
+        if !p1Host.isEmpty && !meterTesting { await testMeter() }
         try? await Task.sleep(for: .seconds(60))
       }
     }
@@ -113,6 +151,37 @@ struct SettingsView: View {
       fingerprint = nil
     }
     WidgetCenter.shared.reloadAllTimelines()
+  }
+
+  private func saveP1Host() {
+    let trimmed = p1Host.trimmingCharacters(in: .whitespacesAndNewlines)
+    let store = WidgetConfig.store
+    if trimmed != store.p1Host {
+      store.p1Host = trimmed
+      store.meterHistory = MeterHistory()
+    }
+    WidgetCenter.shared.reloadAllTimelines()
+  }
+
+  private func searchP1(quiet: Bool = false) async {
+    let found = await p1Discovery.search()
+    if let first = found.first {
+      p1Host = first
+      saveP1Host()
+      await testMeter()
+    } else if !quiet {
+      meterMessage = "Aucun lecteur P1 HomeWizard trouvé sur le réseau."
+    }
+  }
+
+  private func testMeter() async {
+    saveP1Host()
+    meterTesting = true
+    defer { meterTesting = false }
+    let result = await MeterReader.refresh(store: WidgetConfig.store)
+    meterOutcome = result
+    meterMessage = result.error ?? "Lecture réussie."
+    WidgetCenter.shared.reloadTimelines(ofKind: "ConsoElecMeter")
   }
 
   private func saveKey() {

@@ -113,6 +113,13 @@ struct AccessoryRectangularView: View {
 #endif
 
 @main
+struct ConsoElecWidgets: WidgetBundle {
+  var body: some Widget {
+    ProductionWidget()
+    MeterWidget()
+  }
+}
+
 struct ProductionWidget: Widget {
   #if os(iOS)
   static let families: [WidgetFamily] = [.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular, .accessoryInline]

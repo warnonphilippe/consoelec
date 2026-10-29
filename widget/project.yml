@@ -41,8 +41,9 @@ targets:
         CFBundleDisplayName: ConsoElec Widget
         ConsoElecAppGroup: $(TeamIdentifierPrefix)group.io.github.warnonphilippe.consoelec
         ConsoElecKeychainGroup: $(AppIdentifierPrefix)io.github.warnonphilippe.consoelec.shared
-        NSLocalNetworkUsageDescription: Lire la production de votre onduleur solaire sur le réseau local.
-        NSBonjourServices: [_http._tcp]
+        NSLocalNetworkUsageDescription: Lire la production de votre onduleur solaire et votre compteur électrique (lecteur P1) sur le réseau local.
+        NSAppTransportSecurity: { NSAllowsLocalNetworking: true }
+        NSBonjourServices: [_http._tcp, _hwenergy._tcp]
     entitlements:
       path: App/App.entitlements
       properties:
@@ -69,7 +70,8 @@ targets:
         CFBundleDisplayName: ConsoElec
         ConsoElecAppGroup: $(TeamIdentifierPrefix)group.io.github.warnonphilippe.consoelec
         ConsoElecKeychainGroup: $(AppIdentifierPrefix)io.github.warnonphilippe.consoelec.shared
-        NSLocalNetworkUsageDescription: Lire la production de votre onduleur solaire sur le réseau local.
+        NSLocalNetworkUsageDescription: Lire la production de votre onduleur solaire et votre compteur électrique (lecteur P1) sur le réseau local.
+        NSAppTransportSecurity: { NSAllowsLocalNetworking: true }
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     entitlements:
@@ -105,8 +107,9 @@ targets:
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         ConsoElecAppGroup: group.io.github.warnonphilippe.consoelec
         ConsoElecKeychainGroup: $(AppIdentifierPrefix)io.github.warnonphilippe.consoelec.shared
-        NSLocalNetworkUsageDescription: Lire la production de votre onduleur solaire sur le Wi-Fi de la maison.
-        NSBonjourServices: [_http._tcp]
+        NSLocalNetworkUsageDescription: Lire la production de votre onduleur solaire et votre compteur électrique (lecteur P1) sur le Wi-Fi de la maison.
+        NSAppTransportSecurity: { NSAllowsLocalNetworking: true }
+        NSBonjourServices: [_http._tcp, _hwenergy._tcp]
     entitlements:
       path: iOS/App.entitlements
       properties:
@@ -134,7 +137,8 @@ targets:
         CFBundleDisplayName: ConsoElec
         ConsoElecAppGroup: group.io.github.warnonphilippe.consoelec
         ConsoElecKeychainGroup: $(AppIdentifierPrefix)io.github.warnonphilippe.consoelec.shared
-        NSLocalNetworkUsageDescription: Lire la production de votre onduleur solaire sur le Wi-Fi de la maison.
+        NSLocalNetworkUsageDescription: Lire la production de votre onduleur solaire et votre compteur électrique (lecteur P1) sur le Wi-Fi de la maison.
+        NSAppTransportSecurity: { NSAllowsLocalNetworking: true }
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     entitlements:

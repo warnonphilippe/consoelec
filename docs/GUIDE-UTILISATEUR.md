@@ -349,6 +349,14 @@ Le certificat de l'onduleur est **épinglé** à la première connexion : si un 
 
 Le widget se met à jour toutes les 5 à 15 minutes : c'est macOS qui fixe le rythme. Si l'onduleur ne répond pas (la nuit, Wi-Fi coupé), il garde la dernière lecture et affiche son heure. Comme ConsoElec, il épingle le certificat de l'onduleur à la première connexion.
 
+Un second widget, **Compteur électrique**, affiche le **soutirage moyen** et l'**injection moyenne** lus sur le compteur par le lecteur HomeWizard P1 :
+
+1. Dans l'app ConsoElec Widget, section **Compteur (port P1)** : l'adresse du lecteur (`p1meter-` + 6 caractères + `.local`) est cherchée sur le réseau à l'ouverture ; sinon, cliquez sur **Rechercher** ou saisissez son adresse IP. L'**API locale** du lecteur doit être activée dans l'application HomeWizard Energy.
+2. **Tester la lecture** affiche l'aperçu du widget.
+3. Ajoutez-le comme le widget de production : **Modifier les widgets** → **ConsoElec** → **Compteur électrique** (petit format : moyennes ; moyen : en plus, la puissance instantanée et la moyenne du quart d'heure).
+
+La moyenne est prise entre la lecture du moment et la précédente d'au moins 5 minutes : comme macOS rafraîchit le widget toutes les 5 à 15 minutes, elle couvre souvent un peu plus de 5 minutes, et le widget indique la durée réelle (« moyenne sur 7 min »). Tant que l'app ConsoElec Widget est ouverte, elle lit le compteur chaque minute et la moyenne porte sur 5 minutes. Juste après l'installation, ou après plus de 30 minutes sans lecture, le widget montre d'abord la puissance instantanée.
+
 ## Widget iPhone
 
 L'app iPhone **ConsoElec** et son widget affichent la production sur l'écran d'accueil ou l'écran verrouillé.

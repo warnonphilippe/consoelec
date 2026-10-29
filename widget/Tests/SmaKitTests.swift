@@ -52,4 +52,42 @@ final class SmaKitTests: XCTestCase {
     XCTAssertEqual(f.split(separator: ":").count, 32)
     XCTAssertEqual(f, f.uppercased())
   }
+
+  func testP1ReadingAddsPeakAndOffPeakIndices() throws {
+    let json = #"{"total_power_import_t1_kwh": 1234.5, "total_power_import_t2_kwh": 2000.25, "total_power_export_t1_kwh": 3000, "total_power_export_t2_kwh": 500.5, "active_power_w": -812, "active_power_average_w": 120}"#
+    let r = try MeterReading.parse(Data(json.utf8), at: Date(timeIntervalSince1970: 0))
+    XCTAssertEqual(r.importKwh, 3234.75)
+    XCTAssertEqual(r.exportKwh, 3500.5)
+    XCTAssertEqual(r.powerW, -812)
+    XCTAssertEqual(r.quarterHourAvgW, 120)
+    XCTAssertThrowsError(try MeterReading.parse(Data(#"{"active_power_w": 10}"#.utf8), at: Date()))
+  }
+
+  func testMeterAverageOverLastMinutes() {
+    let t0 = Date(timeIntervalSince1970: 1_000_000)
+    let at = { (minutes: Double) in t0.addingTimeInterval(minutes * 60) }
+    var history = MeterHistory()
+    history.add(MeterReading(at: at(0), importKwh: 100, exportKwh: 200))
+    history.add(MeterReading(at: at(3), importKwh: 100.03, exportKwh: 200))
+    XCTAssertNil(history.average(), "moins de 5 minutes de lectures")
+    // De 0 à 5 min : 0,05 kWh soutirés = 600 W, 0,1 kWh injectés = 1 200 W.
+    history.add(MeterReading(at: at(5), importKwh: 100.05, exportKwh: 200.1))
+    XCTAssertEqual(history.average(), MeterAverage(importW: 600, exportW: 1200, from: at(0), to: at(5)))
+    // La lecture la plus récente d'au moins 5 min est prise : de 3 à 8 min.
+    history.add(MeterReading(at: at(8), importKwh: 100.08, exportKwh: 200.1))
+    XCTAssertEqual(history.average()?.from, at(3))
+    XCTAssertEqual(history.average()?.minutes, 5)
+    XCTAssertEqual(history.average()?.importW, 600)
+  }
+
+  func testMeterAverageNeedsAReadingAtMost30MinutesOld() {
+    let t0 = Date(timeIntervalSince1970: 1_000_000)
+    var history = MeterHistory()
+    history.add(MeterReading(at: t0, importKwh: 100, exportKwh: 200))
+    history.add(MeterReading(at: t0.addingTimeInterval(31 * 60), importKwh: 101, exportKwh: 200))
+    XCTAssertNil(history.average())
+    // Au-delà d'une heure, les lectures sont oubliées.
+    history.add(MeterReading(at: t0.addingTimeInterval(61 * 60), importKwh: 102, exportKwh: 200))
+    XCTAssertEqual(history.readings.count, 2)
+  }
 }

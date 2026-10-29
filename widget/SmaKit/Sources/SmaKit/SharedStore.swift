@@ -1,8 +1,9 @@
 import Foundation
 import Security
 
-/// Données partagées entre l'app de réglage et le widget (groupe d'apps) : adresse, certificat épinglé,
-/// dernière lecture réussie et courbe de la journée. La clé de l'onduleur est dans le Trousseau, pas ici.
+/// Données partagées entre l'app de réglage et les widgets (groupe d'apps) : adresse, certificat épinglé,
+/// dernière lecture réussie et courbe de la journée de l'onduleur ; adresse et lectures récentes du lecteur P1.
+/// La clé de l'onduleur est dans le Trousseau, pas ici.
 public final class SharedStore: @unchecked Sendable {
   public static let appGroupSuffix = "group.io.github.warnonphilippe.consoelec"
 
@@ -30,6 +31,18 @@ public final class SharedStore: @unchecked Sendable {
   public var curve: DayCurve {
     get { defaults.data(forKey: "curve").flatMap { try? JSONDecoder().decode(DayCurve.self, from: $0) } ?? DayCurve() }
     set { defaults.set(try? JSONEncoder().encode(newValue), forKey: "curve") }
+  }
+
+  /// Adresse du lecteur HomeWizard P1 (`p1meter-XXXXXX.local` ou IP).
+  public var p1Host: String {
+    get { defaults.string(forKey: "p1Host") ?? "" }
+    set { defaults.set(newValue, forKey: "p1Host") }
+  }
+
+  /// Lectures du compteur de la dernière heure.
+  public var meterHistory: MeterHistory {
+    get { defaults.data(forKey: "meterHistory").flatMap { try? JSONDecoder().decode(MeterHistory.self, from: $0) } ?? MeterHistory() }
+    set { defaults.set(try? JSONEncoder().encode(newValue), forKey: "meterHistory") }
   }
 }
 

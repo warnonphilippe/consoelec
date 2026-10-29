@@ -1,28 +1,45 @@
 import Foundation
 import Network
 
-/// Cherche les onduleurs SMA sur le réseau local : ils s'annoncent en Bonjour (`_http._tcp`) sous le nom
-/// « Website for SMA-Inverter: SMA<numéro de série> ».
+/// Cherche des appareils sur le réseau local par Bonjour et en déduit leur nom réseau.
+/// - onduleurs SMA : `_http._tcp`, « Website for SMA-Inverter: SMA<numéro de série> » → `SMA<n°>.local` ;
+/// - lecteurs P1 HomeWizard : `_hwenergy._tcp`, `p1meter-<6 caractères>` → `p1meter-xxxxxx.local`.
 @MainActor
-final class InverterDiscovery: ObservableObject {
+final class BonjourDiscovery: ObservableObject {
   @Published private(set) var hosts: [String] = []
   @Published private(set) var searching = false
   private var browser: NWBrowser?
+  private let serviceType: String
+  private let hostFromName: @Sendable (String) -> String?
 
-  nonisolated static func host(fromServiceName name: String) -> String? {
+  init(serviceType: String, hostFromName: @escaping @Sendable (String) -> String?) {
+    self.serviceType = serviceType
+    self.hostFromName = hostFromName
+  }
+
+  static func inverters() -> BonjourDiscovery { BonjourDiscovery(serviceType: "_http._tcp", hostFromName: inverterHost) }
+  static func p1Meters() -> BonjourDiscovery { BonjourDiscovery(serviceType: "_hwenergy._tcp", hostFromName: p1Host) }
+
+  nonisolated static func inverterHost(fromServiceName name: String) -> String? {
     guard let range = name.range(of: #"SMA\d{6,}"#, options: .regularExpression) else { return nil }
     return "\(name[range].uppercased()).local"
+  }
+
+  nonisolated static func p1Host(fromServiceName name: String) -> String? {
+    guard let range = name.range(of: #"p1meter-[0-9A-Za-z]{6}"#, options: [.regularExpression, .caseInsensitive]) else { return nil }
+    return "\(name[range].lowercased()).local"
   }
 
   func search(seconds: Double = 4) async -> [String] {
     browser?.cancel()
     hosts = []
     searching = true
-    let browser = NWBrowser(for: .bonjour(type: "_http._tcp", domain: "local."), using: .tcp)
+    let browser = NWBrowser(for: .bonjour(type: serviceType, domain: "local."), using: .tcp)
     self.browser = browser
+    let hostFromName = self.hostFromName
     browser.browseResultsChangedHandler = { [weak self] results, _ in
       let found = results.compactMap { result -> String? in
-        if case let .service(name, _, _, _) = result.endpoint { return InverterDiscovery.host(fromServiceName: name) }
+        if case let .service(name, _, _, _) = result.endpoint { return hostFromName(name) }
         return nil
       }
       Task { @MainActor in self?.hosts = Array(Set(found)).sorted() }
