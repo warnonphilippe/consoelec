@@ -47,6 +47,14 @@ Les scripts lancent `npm ci` si les dépendances manquent ou sont périmées, pu
 
 Les paquets ne sont pas signés. Sur macOS, lever la quarantaine avec `xattr -dr com.apple.quarantine /Applications/ConsoElec.app`. Sur Windows, SmartScreen demande « Exécuter quand même ».
 
+## Vidéo de présentation
+
+```bash
+npm run video   # docs/video/consoelec-presentation.mp4 (≈ 2 min, voix off et sous-titres)
+```
+
+Playwright pilote l'interface dans Google Chrome avec des données de démo et des lectures Wi-Fi simulées (compteur P1, onduleur), un jour d'été vers 13 h. Il faut macOS (voix off par `say`) et ffmpeg (`brew install ffmpeg`) ; `ng serve` est lancé s'il ne tourne pas déjà. Le scénario (textes, gestes) est dans [`scripts/video/scenes.mjs`](scripts/video/scenes.mjs).
+
 ## Widgets macOS et iPhone
 
 Le dossier [`widget/`](widget) contient un vrai widget WidgetKit, « ConsoElec Widget », qui lit l'onduleur SMA lui-même (même ConsoElec fermée) et affiche la puissance instantanée, la production du jour, la courbe de la journée et l'index total.
