@@ -64,3 +64,9 @@ Thumbs.db
 /widget/App/App.entitlements
 /widget/Extension/Extension.entitlements
 /widget/iOS
+
+# Build Angular copié à la racine
+/index.html
+
+# Vidéo de présentation (npm run video)
+/docs/video/*.mp4
