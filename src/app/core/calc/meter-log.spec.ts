@@ -15,6 +15,7 @@ import {
   mergeMeterLogs,
   recentAveragePower,
   recentPoints,
+  todayEnergy,
 } from './meter-log';
 import { toDayNumber } from './time';
 
@@ -241,5 +242,48 @@ describe('puissances moyennes des dernières minutes', () => {
     const log = feed(EMPTY_METER_LOG, '2026-10-28T08:00', 10);
     expect(recentAveragePower(log, ms('2026-10-28T08:19'))).not.toBeNull();
     expect(recentAveragePower(log, ms('2026-10-28T08:20'))).toBeNull();
+  });
+});
+
+describe('totaux du jour', () => {
+  it('compte depuis minuit quand le lecteur tournait la veille au soir', () => {
+    // De 23:50 à 00:10 : 0,01 kWh par minute.
+    const log = feed(EMPTY_METER_LOG, '2026-10-27T23:50', 21);
+    expect(todayEnergy(log, ms('2026-10-28T00:10'))).toEqual({
+      importKwh: expect.closeTo(0.11, 6),
+      exportKwh: 0,
+      from: '2026-10-27T23:59',
+      to: '2026-10-28T00:10',
+      sinceMidnight: true,
+    });
+  });
+
+  it('part de la première lecture du jour sans lecture de la veille proche de minuit', () => {
+    let log = feed(EMPTY_METER_LOG, '2026-10-27T20:00', 5);
+    log = feed(log, '2026-10-28T07:30', 20);
+    expect(todayEnergy(log, ms('2026-10-28T07:49'))).toMatchObject({
+      importKwh: expect.closeTo(0.19, 6),
+      from: '2026-10-28T07:30',
+      to: '2026-10-28T07:49',
+      sinceMidnight: false,
+    });
+  });
+
+  it('sépare soutirage et injection, heures pleines et creuses additionnées', () => {
+    let log = appendMeterLog(EMPTY_METER_LOG, point('2026-10-28T09:00', 100, 200), ms('2026-10-28T09:00'));
+    log = appendMeterLog(
+      log,
+      { at: '2026-10-28T14:00', importPeak: 101, importOff: 50.5, exportPeak: 203, exportOff: 300 },
+      ms('2026-10-28T14:00'),
+    );
+    expect(todayEnergy(log, ms('2026-10-28T14:00'))).toMatchObject({ importKwh: 1.5, exportKwh: 3 });
+  });
+
+  it('ne renvoie rien sans deux lectures du jour', () => {
+    expect(todayEnergy(EMPTY_METER_LOG, ms('2026-10-28T08:00'))).toBeNull();
+    const yesterday = feed(EMPTY_METER_LOG, '2026-10-27T23:00', 10);
+    expect(todayEnergy(yesterday, ms('2026-10-28T08:00'))).toBeNull();
+    const one = appendMeterLog(EMPTY_METER_LOG, point('2026-10-28T08:00'), ms('2026-10-28T08:00'));
+    expect(todayEnergy(one, ms('2026-10-28T08:00'))).toBeNull();
   });
 });

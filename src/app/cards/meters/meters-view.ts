@@ -1,5 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { recentAveragePower } from '../../core/calc/meter-log';
+import { recentAveragePower, todayEnergy } from '../../core/calc/meter-log';
 import { REGISTERS, type RegisterKey } from '../../core/models/app-data.model';
 import { DataStore } from '../../core/services/data-store.service';
 
@@ -31,6 +31,11 @@ export class MetersView {
   readonly recentPower = computed(() => {
     this.store.now();
     return recentAveragePower(this.store.data().meterLog, Date.now());
+  });
+  /** Soutirage et injection du jour en cours, lus par le port P1 (rafraîchis à chaque lecture). */
+  readonly todayEnergy = computed(() => {
+    this.store.now();
+    return todayEnergy(this.store.data().meterLog, Date.now());
   });
 
   toggle(key: RegisterKey): void {

@@ -139,6 +139,52 @@ export interface RecentPower {
   readonly to: string;
 }
 
+/** Une lecture de la veille aussi proche de minuit tient lieu d'index de minuit. */
+const MIDNIGHT_MAX_GAP_MIN = 15;
+
+export interface TodayEnergy {
+  /** Soutirage du jour (kWh), heures pleines et creuses confondues. */
+  readonly importKwh: number;
+  /** Injection du jour (kWh), heures pleines et creuses confondues. */
+  readonly exportKwh: number;
+  /** Lectures entre lesquelles le total est pris. */
+  readonly from: string;
+  readonly to: string;
+  /** La première lecture est celle de minuit (ou de la veille, juste avant) : le total couvre toute la journée. */
+  readonly sinceMidnight: boolean;
+}
+
+/**
+ * Soutirage et injection du jour en cours, tirés de l'écart des index entre minuit et la dernière lecture. Sans
+ * lecture de la veille proche de minuit (lecteur éteint), le total part de la plus ancienne lecture du jour.
+ * Renvoie `null` sans au moins deux lectures utilisables.
+ */
+export function todayEnergy(log: MeterLog, nowMs: number): TodayEnergy | null {
+  const now = toLocalIso(new Date(nowMs));
+  const today = now.slice(0, 10);
+  const to = log.days.at(-1);
+  if (to === undefined || day(to) !== today) {
+    return null;
+  }
+  const eve = log.days.at(-2);
+  const midnight = `${today}T00:00`;
+  const sinceMidnight = eve !== undefined && minutesBetween(eve.at, midnight) <= MIDNIGHT_MAX_GAP_MIN;
+  const from = sinceMidnight
+    ? eve
+    : [...log.hours, ...log.minutes].filter((p) => day(p) === today).sort(byAt)[0];
+  if (from === undefined || from.at >= to.at) {
+    return null;
+  }
+  const kwh = (v: number): number => Math.max(0, v);
+  return {
+    importKwh: kwh(to.importPeak + to.importOff - from.importPeak - from.importOff),
+    exportKwh: kwh(to.exportPeak + to.exportOff - from.exportPeak - from.exportOff),
+    from: from.at,
+    to: to.at,
+    sinceMidnight,
+  };
+}
+
 /**
  * Puissances moyennes de soutirage et d'injection sur les `minutes` dernières minutes, tirées de l'écart des index
  * lus chaque minute (le compteur les donne au Wh près : ±12 W sur 5 minutes). La moyenne part de la lecture la plus

@@ -31,11 +31,14 @@
       }
     </div>
 
-    @if (view.recentPower()) {
+    @if (view.recentPower() || view.todayEnergy()) {
       <div class="section">
         <span class="pill"><app-icon name="bolt" [size]="13" /> En direct</span>
       </div>
-      <app-meter-recent-power-card appCard="meters-recent-power" />
+      <div class="grid grid-2">
+        <app-meter-recent-power-card appCard="meters-recent-power" />
+        <app-meter-today-energy-card appCard="meters-today-energy" />
+      </div>
     }
 
     <div class="section">

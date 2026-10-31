@@ -142,6 +142,45 @@ export class MeterRecentPowerCard {
   }
 }
 
+/** Soutirage et injection du jour en cours, tirés des index lus chaque minute par le port P1. */
+@Component({
+  selector: 'app-meter-today-energy-card',
+  imports: [IconComponent, ...FORMAT_PIPES],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'card-host' },
+  styleUrl: './meters-cards.css',
+  template: `
+    <div class="card kpi">
+      <span class="kpi-label">Totaux du jour</span>
+      @if (view.todayEnergy(); as e) {
+        <div class="recent-values">
+          <div>
+            <span class="small muted"><app-icon name="plug" [size]="14" /> Soutirage</span>
+            <span class="recent-value">{{ e.importKwh | num: 1 }} <span class="recent-unit">kWh</span></span>
+          </div>
+          <div>
+            <span class="small muted"><app-icon name="sun" [size]="14" /> Injection</span>
+            <span class="recent-value inject">{{ e.exportKwh | num: 1 }} <span class="recent-unit">kWh</span></span>
+          </div>
+        </div>
+        <span class="kpi-sub"
+          >{{ e.sinceMidnight ? 'de minuit' : 'de ' + time(e.from) }} à {{ time(e.to) }} · lu sur le compteur (port
+          P1)</span
+        >
+      } @else {
+        <p class="muted small">Pas encore deux lectures du compteur aujourd'hui (port P1).</p>
+      }
+    </div>
+  `,
+})
+export class MeterTodayEnergyCard {
+  protected readonly view = inject(MetersView);
+  /** `AAAA-MM-JJTHH:mm` → `HH:mm`. */
+  protected time(at: string): string {
+    return at.slice(11, 16);
+  }
+}
+
 /** Index cumulés : relevés, lectures du jour et prévision, avec le choix de la période et des courbes. */
 @Component({
   selector: 'app-meter-index-chart-card',

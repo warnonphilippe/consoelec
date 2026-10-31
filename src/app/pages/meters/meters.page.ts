@@ -7,6 +7,7 @@ import {
   MeterRecentPowerCard,
   MeterRegisterCard,
   MeterSplitCard,
+  MeterTodayEnergyCard,
   MeterTotalCard,
 } from '../../cards/meters/meters-cards';
 import { MetersView } from '../../cards/meters/meters-view';
@@ -26,6 +27,7 @@ import { IconComponent } from '../../shared/icon.component';
     MeterTotalCard,
     MeterRegisterCard,
     MeterRecentPowerCard,
+    MeterTodayEnergyCard,
       MeterIndexChartCard,
     MeterSplitCard,
   ],
