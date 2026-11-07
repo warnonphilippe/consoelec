@@ -34,6 +34,12 @@ import { StorageService } from '../../core/services/storage.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { ToastService } from '../../core/services/toast.service';
 import { FORMAT_PIPES } from '../../shared/format';
+import {
+  INVERTER_BRANDS,
+  effectivePort,
+  inverterBrand,
+  isInverterBrand,
+} from '../../../../electron/shared/inverter-brands';
 import { IconComponent, type IconName } from '../../shared/icon.component';
 
 type NumericSetting =
@@ -209,6 +215,60 @@ export default class SettingsPage {
   }
 
   // --- Onduleur ---
+  protected readonly inverterBrands = INVERTER_BRANDS;
+  /** Port habituel de la marque, compte tenu de la clé Solarman. */
+  protected readonly defaultInverterPort = computed(() => {
+    const s = this.inverterSettings();
+    return String(effectivePort(inverterBrand(s.brand), null, s.loggerSerial));
+  });
+
+  protected setInverterBrand(event: Event): void {
+    const brand = (event.target as HTMLSelectElement).value;
+    if (!isInverterBrand(brand) || brand === this.inverterSettings().brand) {
+      return;
+    }
+    // Autre marque : autre appareil, autres réglages. Le secret enregistré est gardé (retour à la marque précédente) :
+    // une marque qui en demande un autre le signale à la connexion.
+    this.store.updateSettings({
+      inverter: {
+        ...this.inverterSettings(),
+        brand,
+        host: '',
+        certFingerprint: null,
+        port: null,
+        unitId: null,
+        loggerSerial: null,
+      },
+    });
+    this.inverter.live.set(null);
+    if (inverterBrand(brand).discovery === 'bonjour') {
+      void this.inverter.discover();
+    }
+  }
+
+  protected setInverterNumber(event: Event, key: 'port' | 'unitId', max: number): void {
+    const input = event.target as HTMLInputElement;
+    const text = input.value.trim();
+    const value = text === '' ? null : Number(text);
+    if (value !== null && (!Number.isInteger(value) || value < 0 || value > max)) {
+      this.toast.show(`Valeur invalide : un entier de 0 à ${max}, ou vide pour la valeur habituelle.`, 'error');
+      input.value = String(this.inverterSettings()[key] ?? '');
+      return;
+    }
+    this.store.updateSettings({ inverter: { ...this.inverterSettings(), [key]: value } });
+  }
+
+  protected setInverterSerial(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const text = input.value.replace(/\s/g, '');
+    if (text !== '' && !/^\d{1,10}$/.test(text)) {
+      this.toast.show('Numéro de série de la clé : jusqu’à 10 chiffres, sur son étiquette.', 'error');
+      input.value = this.inverterSettings().loggerSerial ?? '';
+      return;
+    }
+    this.store.updateSettings({ inverter: { ...this.inverterSettings(), loggerSerial: text || null } });
+  }
+
   protected setInverterEnabled(event: Event): void {
     this.store.updateSettings({
       inverter: { ...this.inverterSettings(), enabled: (event.target as HTMLInputElement).checked },
@@ -224,14 +284,16 @@ export default class SettingsPage {
   }
 
   protected async savePsk(): Promise<void> {
-    const value = this.pskDraft().replace(/[\s-]/g, '');
+    const draft = this.pskDraft();
+    // Clé de plaque SMA : espaces et tirets de la plaque retirés ; jeton Enphase : gardé tel quel.
+    const value = this.inverter.brand().id === 'sma' ? draft.replace(/[\s-]/g, '') : draft.trim();
     if (value === '') {
       return;
     }
     try {
       await this.secrets.setSecret('inverterPsk', value);
       this.pskDraft.set('');
-      this.toast.show('Clé de l’onduleur enregistrée dans le Trousseau.');
+      this.toast.show(`${this.inverter.brand().secret?.label ?? 'Clé'} : enregistré dans le Trousseau.`);
       if (this.inverterSettings().enabled) {
         await this.inverter.refresh();
       }
@@ -244,7 +306,7 @@ export default class SettingsPage {
     const hosts = await this.inverter.discover(true);
     this.toast.show(
       hosts.length === 0
-        ? 'Aucun onduleur SMA trouvé sur le réseau : vérifiez qu’il est connecté au même réseau que ce Mac.'
+        ? `Aucun onduleur ${this.inverter.brand().label} trouvé sur le réseau : vérifiez qu’il est connecté au même réseau que ce Mac et que la lecture locale est activée.`
         : `Onduleur trouvé : ${hosts.join(', ')}`,
       hosts.length === 0 ? 'warning' : 'success',
     );

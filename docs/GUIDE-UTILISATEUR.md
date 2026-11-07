@@ -343,20 +343,36 @@ Les index de l'export remplacent les quarts d'heure estimés ; réimporter le m�
 
 ## Lecture de l'onduleur
 
-ConsoElec peut lire directement un onduleur **SMA** (comme le Sunny Tripower STP5.0-3AV-40) sur votre réseau local, via son interface web (WebConnect) et la même connexion sécurisée que celle-ci.
+ConsoElec lit directement l'onduleur sur votre réseau local, sans passer par le cloud du fabricant. Marques prises en charge :
 
-1. L'onduleur doit être raccordé à votre Wi-Fi ou à votre box.
-2. **Réglages → Onduleur** : cochez **Lire l'onduleur automatiquement**, vérifiez l'adresse (`SMA` + numéro de série + `.local`, ou son adresse IP) et saisissez la **clé WPA2-PSK** imprimée sur la plaque. Sur ce modèle, c'est elle qui ouvre le profil « Utilisateur ».
+| Marque | Modèles | Protocole | Port, identifiant | À activer |
+|---|---|---|---|---|
+| **SMA** | Sunny Boy, Sunny Tripower, Sunny Boy Storage | WebConnect (HTTPS) | 443 | rien ; clé WPA2-PSK de la plaque (ou mot de passe « Utilisateur » sur les anciens) |
+| **Fronius** | Primo, Symo, Galvo, Eco, GEN24, Tauro | Solar API (HTTP) | 80 | Solar API (d'usine ; à activer sur un GEN24) |
+| **SolarEdge** | onduleurs mono et triphasés, Home Hub | Modbus TCP SunSpec | 1502 (502 anciens), 1 | Modbus TCP dans SetApp (installateur) |
+| **Huawei** | SUN2000 avec SDongle ou Wi-Fi intégré | Modbus TCP | 502, 1 (6607 et 0 par le Wi-Fi intégré) | Modbus TCP « sans restriction » dans FusionSolar |
+| **Sungrow** | SG (réseau), SH (hybride), avec WiNet-S | Modbus TCP | 502, 1 | rien |
+| **Solis** | S5, S6, mini | clé Solarman (8899) ou Modbus TCP (502) | 1 | numéro de série de la clé Solarman |
+| **GoodWe** | hybrides ET, EH, BT, BH ; réseau DT, D-NS, XS, SDT | Modbus sur UDP | 8899, 247 (hybride) ou 127 (réseau) | rien |
+| **Enphase** | micro-onduleurs IQ, IQ Gateway | API locale (HTTPS) | 443 | jeton propriétaire (entrez.enphaseenergy.com) |
+| **Kostal** | Plenticore plus, Plenticore G3, Piko IQ / MP | Modbus TCP SunSpec | 1502, 71 | Modbus / SunSpec dans l'interface web |
+| **Deye**, **Sofar** | Deye SUN-…K-G et micro-onduleurs, Sofar KTL-X | clé Solarman | 8899, 1 | numéro de série de la clé |
+| **Autre SunSpec** | SMA, Fronius, ABB/FIMER, Delta… en Modbus | Modbus TCP SunSpec | 502, 1 | Modbus TCP SunSpec |
+
+1. L'onduleur (ou sa clé Wi-Fi, sa passerelle) doit être raccordé à votre Wi-Fi ou à votre box. Pour une marque lue par son adresse IP, réservez cette adresse dans la box pour qu'elle ne change pas.
+2. **Réglages → Onduleur** : choisissez la **marque**, cochez **Lire l'onduleur automatiquement**, puis **Rechercher sur le réseau** ou saisissez l'adresse. Le port et l'identifiant Modbus restent vides pour les valeurs habituelles de la marque. Selon la marque, saisissez la **clé de la plaque** (SMA), le **jeton** (Enphase) ou le **numéro de série de la clé Wi-Fi** (Solis, Deye, Sofar).
 3. **Tester la connexion** affiche la puissance, la production du jour et l'index total.
 
 Ensuite, tant que l'application est ouverte :
 - le tableau de bord et la page **Production** affichent la **production en direct**, rafraîchie chaque minute ;
-- le **journal de l'onduleur** complète l'historique de production (voir [Production](#production)) ;
-- la **production du jour** est enregistrée dans vos données (une ligne par jour, exportée et fusionnée avec le reste) ;
+- le **journal de l'onduleur** complète l'historique de production (voir [Production](#production)) — **SMA uniquement** : les autres marques ne donnent pas de journal en local, l'historique se construit avec les journées où ConsoElec est ouvert, et la courbe des journées passées n'est pas disponible ;
+- la **production du jour** est enregistrée dans vos données (une ligne par jour, exportée et fusionnée avec le reste). Les onduleurs SunSpec (SolarEdge, Kostal, autre SunSpec) ne donnent que l'index total : la production du jour en est déduite, depuis la dernière lecture de la veille, ou depuis l'ouverture de ConsoElec le premier jour ;
 - le champ « production solaire totale » d'un nouveau relevé est **pré-rempli** avec l'index de l'onduleur ;
 - la page Maison affiche le **rendement mesuré** (kWh/kWc/an) à côté du réglage, après deux semaines de lectures.
 
-Le certificat de l'onduleur est **épinglé** à la première connexion : si un autre appareil répond à la même adresse, la connexion est refusée. Après un remplacement de l'onduleur, utilisez **Oublier le certificat épinglé**.
+Le certificat d'un onduleur SMA ou d'une passerelle Enphase est **épinglé** à la première connexion : si un autre appareil répond à la même adresse, la connexion est refusée. Après un remplacement, utilisez **Oublier le certificat épinglé**. ConsoElec ne fait que lire : il n'écrit jamais de réglage dans l'onduleur.
+
+Marque absente (Growatt, onduleur sans accès local) : laissez la lecture désactivée et encodez l'index de production dans vos relevés. Le widget macOS ne lit que les onduleurs SMA.
 
 ## Widget macOS
 
@@ -439,4 +455,4 @@ L'enregistrement est automatique ; la version précédente est conservée en `.b
 
 **L'assistant ou la lecture de photo ne fonctionnent pas.** Ils nécessitent l'application de bureau, une clé API valide (Réglages → Tester la connexion) et une connexion internet.
 
-**La lecture de l'onduleur échoue.** Vérifiez que le Mac et l'onduleur sont sur le même réseau, l'adresse dans les réglages et la clé WPA2-PSK (16 caractères, majuscules et minuscules). La nuit, la puissance est vide mais la production du jour et l'index total restent lisibles.
+**La lecture de l'onduleur échoue.** Vérifiez que le Mac et l'onduleur sont sur le même réseau, la marque et l'adresse dans les réglages, et selon la marque la clé WPA2-PSK (SMA, 16 caractères, majuscules et minuscules), le jeton (Enphase) ou le numéro de série de la clé Wi-Fi (Solis, Deye, Sofar). « Refuse la connexion sur le port » : l'accès local (Modbus TCP, Solar API) n'est pas activé ou le port n'est pas le bon. « Registres absents » : la marque ou le modèle choisi ne correspond pas à l'appareil. « La passerelle ne joint pas l'onduleur » : l'identifiant Modbus n'est pas le bon. La nuit, la puissance est vide mais la production du jour et l'index total restent lisibles.

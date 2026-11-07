@@ -35,7 +35,7 @@ const api: ConsoElecApi = {
   inverter: {
     configure: (config) => ipcRenderer.invoke('inverter:configure', config),
     refresh: () => ipcRenderer.invoke('inverter:refresh'),
-    discover: () => ipcRenderer.invoke('inverter:discover'),
+    discover: (brand) => ipcRenderer.invoke('inverter:discover', brand),
     history: () => ipcRenderer.invoke('inverter:history'),
     dayCurve: (date) => ipcRenderer.invoke('inverter:day-curve', date),
     onReading: (listener) => {

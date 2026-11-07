@@ -422,10 +422,10 @@
       </div>
     } @else {
       <p class="muted small">
-        ConsoElec lit l'onduleur sur votre réseau local (interface SMA WebConnect, connexion
-        sécurisée SRP) toutes les minutes quand l'application est ouverte : puissance instantanée,
-        production du jour et index total. La production du jour est enregistrée dans vos données et
-        l'index total pré-remplit vos relevés.
+        ConsoElec lit l'onduleur sur votre réseau local, sans passer par le cloud du fabricant,
+        toutes les minutes quand l'application est ouverte : puissance instantanée, production du
+        jour et index total. La production du jour est enregistrée dans vos données et l'index total
+        pré-remplit vos relevés.
       </p>
       <label class="check">
         <input
@@ -437,61 +437,137 @@
       </label>
       <div class="form-grid inverter-grid">
         <div class="field">
+          <label for="invbrand">Marque de l'onduleur</label>
+          <select id="invbrand" class="input" (change)="setInverterBrand($event)">
+            @for (b of inverterBrands; track b.id) {
+              <option [value]="b.id" [selected]="b.id === inverterSettings().brand">
+                {{ b.label }}
+              </option>
+            }
+          </select>
+          <span class="help">{{ inverter.brand().models }}.</span>
+        </div>
+        <div class="callout">
+          <app-icon name="info" />
+          <div>
+            <strong>À activer sur l'onduleur :</strong> {{ inverter.brand().setup }}
+            @if (!inverter.brand().logs) {
+              <br />Cet onduleur ne garde pas de journal lisible : ConsoElec enregistre la
+              production de chaque journée où il est ouvert, et la courbe des journées passées n'est
+              pas disponible.
+            }
+          </div>
+        </div>
+        <div class="field">
           <label for="invhost">Adresse de l'onduleur</label>
           <input
             id="invhost"
-            placeholder="SMA + numéro de série + .local, ex. SMA3012345678.local"
+            [placeholder]="inverter.brand().hostPlaceholder"
             class="input mono"
             spellcheck="false"
             [value]="inverterSettings().host"
             (change)="setInverterHost($event)"
           />
-          <button
-            type="button"
-            class="btn sm discover"
-            [disabled]="inverter.discovering()"
-            (click)="discoverInverter()"
-          >
-            <app-icon name="refresh" [size]="14" />
-            {{ inverter.discovering() ? 'Recherche…' : 'Rechercher sur le réseau' }}
-          </button>
-          <span class="help"
-            >Nom réseau (SMA + numéro de série, suivi de .local) ou adresse IP.</span
-          >
-        </div>
-        <div class="field">
-          <label for="invpsk">Clé WPA2-PSK de la plaque</label>
-          <div class="key-row">
-            <input
-              id="invpsk"
-              class="input mono"
-              type="password"
-              autocomplete="off"
-              spellcheck="false"
-              [placeholder]="
-                secrets.has('inverterPsk')
-                  ? 'Clé enregistrée — saisir pour remplacer'
-                  : '16 caractères'
-              "
-              [value]="pskDraft()"
-              (input)="pskDraft.set($any($event.target).value)"
-              (keydown.enter)="savePsk()"
-            />
+          @if (inverter.brand().discovery !== 'none') {
             <button
               type="button"
-              class="btn primary"
-              [disabled]="pskDraft().trim() === ''"
-              (click)="savePsk()"
+              class="btn sm discover"
+              [disabled]="inverter.discovering()"
+              (click)="discoverInverter()"
             >
-              Enregistrer
+              <app-icon name="refresh" [size]="14" />
+              {{ inverter.discovering() ? 'Recherche…' : 'Rechercher sur le réseau' }}
             </button>
-          </div>
-          <span class="help"
-            >Rangée dans le Trousseau. Votre onduleur utilise cette clé pour la connexion «
-            Utilisateur ».</span
-          >
-
+          }
+          <span class="help">
+            @if (inverter.brand().id === 'sma') {
+              Nom réseau (SMA + numéro de série, suivi de .local) ou adresse IP.
+            } @else {
+              Adresse IP (réservez-la dans votre box pour qu'elle ne change pas) ou nom réseau.
+            }
+          </span>
         </div>
+        <div class="inverter-options">
+          <div class="field">
+            <label for="invport">Port</label>
+            <input
+              id="invport"
+              class="input mono"
+              inputmode="numeric"
+              [placeholder]="defaultInverterPort()"
+              [value]="inverterSettings().port ?? ''"
+              (change)="setInverterNumber($event, 'port', 65535)"
+            />
+          </div>
+          @if (inverter.brand().defaultUnitId !== null) {
+            <div class="field">
+              <label for="invunit">Identifiant Modbus</label>
+              <input
+                id="invunit"
+                class="input mono"
+                inputmode="numeric"
+                placeholder="{{ inverter.brand().defaultUnitId }}"
+                [value]="inverterSettings().unitId ?? ''"
+                (change)="setInverterNumber($event, 'unitId', 255)"
+              />
+            </div>
+          }
+          @if (inverter.brand().loggerSerial) {
+            <div class="field">
+              <label for="invserial">N° de série de la clé Wi-Fi</label>
+              <input
+                id="invserial"
+                class="input mono"
+                inputmode="numeric"
+                placeholder="10 chiffres"
+                [value]="inverterSettings().loggerSerial ?? ''"
+                (change)="setInverterSerial($event)"
+              />
+            </div>
+          }
+        </div>
+        <span class="small faint options-help"
+          >@if (inverter.brand().defaultUnitId !== null) {
+            Laissez vides le port et l'identifiant pour les valeurs habituelles de la marque.
+          } @else {
+            Laissez le port vide pour celui de la marque.
+          }
+          @if (inverter.brand().loggerSerial) {
+            Avec le numéro de série de la clé Solarman, ConsoElec la lit sur le port 8899 ; sans
+            lui, il lit l'onduleur en Modbus TCP.
+          }
+        </span>
+        @if (inverter.brand().secret; as secret) {
+          <div class="field">
+            <label for="invpsk">{{ secret.label }}</label>
+            <div class="key-row">
+              <input
+                id="invpsk"
+                class="input mono"
+                type="password"
+                autocomplete="off"
+                spellcheck="false"
+                [placeholder]="
+                  secrets.has('inverterPsk')
+                    ? 'Enregistré — saisir pour remplacer'
+                    : secret.placeholder
+                "
+                [value]="pskDraft()"
+                (input)="pskDraft.set($any($event.target).value)"
+                (keydown.enter)="savePsk()"
+              />
+              <button
+                type="button"
+                class="btn primary"
+                [disabled]="pskDraft().trim() === ''"
+                (click)="savePsk()"
+              >
+                Enregistrer
+              </button>
+            </div>
+            <span class="help">{{ secret.help }}</span>
+          </div>
+        }
       </div>
       <div class="row">
         <button
@@ -502,7 +578,7 @@
         >
           <app-icon name="refresh" [size]="15" /> Tester la connexion
         </button>
-        @if (inverterSettings().certFingerprint) {
+        @if (inverterSettings().certFingerprint && inverter.brand().pinsCertificate) {
           <button type="button" class="btn ghost" (click)="inverter.resetPin()">
             Oublier le certificat épinglé
           </button>
@@ -524,10 +600,16 @@
         </div>
       }
       @if (inverterSettings().certFingerprint; as fp) {
-        <p class="small faint">
-          Certificat épinglé : <code class="fp">{{ fp }}</code>
-        </p>
+        @if (inverter.brand().pinsCertificate) {
+          <p class="small faint">
+            Certificat épinglé : <code class="fp">{{ fp }}</code>
+          </p>
+        }
       }
+      <p class="small faint">
+        Marque absente de la liste (Growatt, onduleur sans accès local…) : désactivez la lecture et
+        encodez l'index de production de l'onduleur dans vos relevés.
+      </p>
     }
   </div>
 

@@ -24,7 +24,8 @@
     "test": "ng test --watch=false && npm run test:electron",
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p electron/tsconfig.json --noEmit",
     "test:electron": "vitest run --config vitest.electron.config.ts",
-    "video": "node scripts/video/record.mjs"
+    "video": "node scripts/video/record.mjs",
+    "emulate": "node scripts/emulators/run.mjs"
   },
   "devDependencies": {
     "@angular/build": "^21.2.27",

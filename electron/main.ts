@@ -17,6 +17,7 @@ import { APP_HOST, APP_SCHEME, assetFileUrl, buildContentSecurityPolicy } from '
 import { AiService, type FetchLike } from './ai';
 import { convertToJpeg } from './image';
 import {
+  discoverEnphaseGateways,
   discoverP1Meters,
   discoverSmaInverters,
   p1Identity,
@@ -24,16 +25,24 @@ import {
   smaSerial,
 } from './discovery';
 import { HostRecovery } from './host-recovery';
-import { InverterClient } from './inverter';
+import { InverterHub } from './inverters/hub';
+import { scanInverters } from './inverters/scan';
 import { P1Client } from './p1';
 import { SECRET_NAMES, Secrets, fileBackend, keychainBackend } from './secret-store';
 import { EncryptedFileSecrets } from './secrets';
 import { DataFileStore } from './storage';
 import {
+  DEFAULT_INVERTER_BRAND,
+  inverterBrand,
+  isInverterBrand,
+  type InverterBrand,
+} from './shared/inverter-brands';
+import {
   IPC,
   type AiChatRequest,
   type ExportKind,
   type InverterConfig,
+  type InverterFound,
   type InverterReading,
   type MeterPhoto,
   type P1Config,
@@ -205,7 +214,57 @@ function assertInverterConfig(value: unknown): InverterConfig {
   ) {
     throw new Error('Empreinte de certificat invalide.');
   }
-  return { enabled: c.enabled, host, certFingerprint: fp ?? null };
+  const brand = c.brand ?? DEFAULT_INVERTER_BRAND;
+  if (!isInverterBrand(brand)) {
+    throw new Error("Marque d'onduleur inconnue.");
+  }
+  const intOrNull = (value: unknown, max: number, what: string): number | null => {
+    if (value === null || value === undefined) {
+      return null;
+    }
+    if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > max) {
+      throw new Error(`${what} invalide.`);
+    }
+    return value;
+  };
+  const serial = c.loggerSerial;
+  if (serial !== null && serial !== undefined && (typeof serial !== 'string' || !/^\d{1,10}$/.test(serial))) {
+    throw new Error('Numéro de série de la clé Wi-Fi invalide.');
+  }
+  return {
+    enabled: c.enabled,
+    brand,
+    host,
+    certFingerprint: fp ?? null,
+    port: intOrNull(c.port, 65535, 'Port'),
+    unitId: intOrNull(c.unitId, 255, 'Identifiant Modbus'),
+    loggerSerial: serial ?? null,
+  };
+}
+
+function assertBrand(value: unknown): InverterBrand {
+  if (value === undefined || value === null) {
+    return DEFAULT_INVERTER_BRAND;
+  }
+  if (!isInverterBrand(value)) {
+    throw new Error("Marque d'onduleur inconnue.");
+  }
+  return value;
+}
+
+/**
+ * Cherche les onduleurs de la marque sur le réseau local. `port` : port réglé pour cette marque (essais avec un
+ * émulateur, port non standard), sinon celui de la marque.
+ */
+async function discoverInverters(brand: InverterBrand, port: number | null): Promise<InverterFound[]> {
+  const info = inverterBrand(brand);
+  if (info.protocol === 'sma') {
+    return (await discoverSmaInverters()).map((host) => ({ host }));
+  }
+  if (info.protocol === 'enphase') {
+    return (await discoverEnphaseGateways()).map((host) => ({ host }));
+  }
+  return info.discovery === 'scan' ? scanInverters(brand, { port }) : [];
 }
 
 function assertP1Config(value: unknown): P1Config {
@@ -230,7 +289,7 @@ function registerIpc(
   ai: AiService,
   secrets: Secrets,
   secretsReady: Promise<void>,
-  inverter: InverterClient,
+  inverter: InverterHub,
   pollInverter: () => void,
   p1: P1Client,
   pollP1: () => void,
@@ -297,7 +356,7 @@ function registerIpc(
     return secrets.status();
   });
   handle(IPC.secretsSet, async (name, value) => {
-    if (value !== null && (typeof value !== 'string' || value.length > 400)) {
+    if (value !== null && (typeof value !== 'string' || value.length > 4000)) {
       throw new Error('Paramètre invalide : valeur');
     }
     const secretName = assertSecretName(name);
@@ -320,7 +379,11 @@ function registerIpc(
     inverter.configure(assertInverterConfig(config));
     pollInverter();
   });
-  handle(IPC.inverterDiscover, () => discoverSmaInverters());
+  handle(IPC.inverterDiscover, (value) => {
+    const brand = assertBrand(value);
+    const current = inverter.settings;
+    return discoverInverters(brand, (current.brand ?? DEFAULT_INVERTER_BRAND) === brand ? (current.port ?? null) : null);
+  });
   handle(IPC.inverterHistory, () => inverter.history());
   handle(IPC.inverterDayCurve, (date) => inverter.dayCurve(assertIsoDate(date)));
   handle(IPC.inverterRefresh, async () => {
@@ -449,7 +512,10 @@ function bootstrap(): void {
     ((url, init) => net.fetch(url, init)) as FetchLike,
     DEV_API_URL,
   );
-  const inverter = new InverterClient(() => secrets.get('inverterPsk'));
+  const inverter = new InverterHub(() => secrets.get('inverterPsk'));
+  /** Le secret de l'onduleur est présent, ou la marque n'en demande pas. */
+  const inverterSecretReady = (): boolean =>
+    !inverter.brand.secretRequired || secrets.has('inverterPsk');
   let pollTimer: ReturnType<typeof setInterval> | null = null;
   // Onduleur introuvable sous son nom : on le cherche sur le réseau. Sans numéro de série reconnu, le seul onduleur
   // trouvé est essayé : le certificat épinglé refuse tout autre appareil.
@@ -463,12 +529,16 @@ function bootstrap(): void {
       inverterRecovery.reset();
       return reading;
     }
+    // Seuls les onduleurs SMA changent de nom réseau (conflit Bonjour) ; les autres gardent leur adresse.
+    if (inverter.brand.protocol !== 'sma') {
+      return reading;
+    }
     const previous = inverter.host;
     const candidate = await inverterRecovery.trouble(previous);
     if (candidate === null || inverter.host !== previous) {
       return reading;
     }
-    const config = { enabled: true, host: candidate, certFingerprint: inverter.certFingerprint };
+    const config = { ...inverter.settings, enabled: true, host: candidate, certFingerprint: inverter.certFingerprint };
     inverter.configure(config);
     const moved = await inverter.read();
     if (moved.error === null && !inverter.troubled) {
@@ -481,7 +551,7 @@ function bootstrap(): void {
     return reading;
   };
   const pollOnce = async (): Promise<void> => {
-    if (!inverter.enabled || !secrets.has('inverterPsk') || mainWindow === null) {
+    if (!inverter.enabled || !inverterSecretReady() || mainWindow === null) {
       return;
     }
     const reading = await readInverter();
@@ -493,7 +563,7 @@ function bootstrap(): void {
         clearInterval(pollTimer);
         pollTimer = null;
       }
-      if (inverter.enabled && secrets.has('inverterPsk')) {
+      if (inverter.enabled && inverterSecretReady()) {
         void pollOnce();
         pollTimer = setInterval(() => void pollOnce(), INVERTER_POLL_MS);
       }

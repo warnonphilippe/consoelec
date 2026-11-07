@@ -5,6 +5,8 @@ import type {
   InverterReading,
 } from '../../../../electron/shared/ipc-contract';
 import { smaSerial } from '../../../../electron/shared/device-names';
+import { inverterBrand } from '../../../../electron/shared/inverter-brands';
+import { dayWhFromTotal } from '../calc/pv-day';
 import { toLocalIso } from '../calc/time';
 import { DataStore } from './data-store.service';
 import { SecretsService } from './secrets.service';
@@ -46,8 +48,12 @@ export class InverterService {
   /** Résultat de la dernière lecture des journaux : nombre de journées ajoutées ou message d'erreur. */
   readonly historyStatus = signal<{ at: number; added: number; error: string | null } | null>(null);
   readonly settings = computed(() => this.store.settings().inverter);
-  /** Prêt à interroger l'onduleur : activé, clé enregistrée. */
-  readonly ready = computed(() => this.settings().enabled && this.secrets.has('inverterPsk'));
+  /** Marque choisie : protocole, champs à afficher, journaux disponibles. */
+  readonly brand = computed(() => inverterBrand(this.settings().brand));
+  /** Prêt à interroger l'onduleur : activé, secret enregistré si la marque en demande un. */
+  readonly ready = computed(
+    () => this.settings().enabled && (!this.brand().secretRequired || this.secrets.has('inverterPsk')),
+  );
   /** Dernière lecture réussie récente (moins de 2 h). */
   readonly fresh = computed(() => {
     const r = this.live();
@@ -70,8 +76,12 @@ export class InverterService {
       this.secrets.status();
       void this.api?.configure({
         enabled: s.enabled,
+        brand: s.brand,
         host: s.host,
         certFingerprint: s.certFingerprint,
+        port: s.port,
+        unitId: s.unitId,
+        loggerSerial: s.loggerSerial,
       });
     });
   }
@@ -91,17 +101,32 @@ export class InverterService {
   }
 
   /**
-   * Cherche les onduleurs SMA sur le réseau local et pré-remplit l'adresse si elle est vide (ou si `replace`).
-   * Renvoie les noms trouvés.
+   * Cherche les onduleurs de la marque choisie sur le réseau local et pré-remplit l'adresse si elle est vide (ou si
+   * `replace`), avec le numéro de série de la clé Wi-Fi quand la recherche le donne. Renvoie les adresses trouvées.
    */
   async discover(replace = false): Promise<string[]> {
-    if (this.api === null) {
+    if (this.api === null || this.brand().discovery === 'none') {
       return [];
     }
     this.discovering.set(true);
     try {
-      const hosts = await this.api.discover();
       const current = this.settings();
+      const found = await this.api.discover(current.brand);
+      if (current.brand !== 'sma') {
+        const first = found[0];
+        if (first !== undefined && (replace || current.host === '') && current.host !== first.host) {
+          this.store.updateSettings({
+            inverter: {
+              ...current,
+              host: first.host,
+              certFingerprint: null,
+              loggerSerial: first.loggerSerial ?? current.loggerSerial,
+            },
+          });
+        }
+        return found.map((f) => f.host);
+      }
+      const hosts = found.map((f) => f.host);
       // Le même onduleur (même numéro de série) en tête : il a pu changer de nom après un conflit sur le réseau.
       const serial = smaSerial(current.host);
       if (serial !== null) {
@@ -127,7 +152,7 @@ export class InverterService {
    */
   async loadHistory(force = false): Promise<void> {
     const last = this.historyStatus();
-    if (this.api === null || !this.ready() || this.historyBusy()) {
+    if (this.api === null || !this.ready() || this.historyBusy() || !this.brand().logs) {
       return;
     }
     if (!force && last !== null && Date.now() - last.at < HISTORY_MIN_INTERVAL_MS) {
@@ -162,6 +187,13 @@ export class InverterService {
     }
     if (!this.ready()) {
       return { date, points: [], error: "Onduleur non configuré ou clé absente." };
+    }
+    if (!this.brand().logs) {
+      return {
+        date,
+        points: [],
+        error: `Les onduleurs ${this.brand().label} ne gardent pas de courbe des journées passées : seuls les totaux sont disponibles.`,
+      };
     }
     const curve = await this.api.dayCurve(date);
     if (curve.error === null && curve.points.length > 0 && date < localDay(Date.now())) {
@@ -206,11 +238,14 @@ export class InverterService {
     if (reading.error === null && reading.certFingerprint && !s.certFingerprint) {
       this.store.updateSettings({ inverter: { ...s, certFingerprint: reading.certFingerprint } });
     }
-    if (reading.error === null && reading.totalWh !== null && reading.dayWh !== null) {
+    if (reading.error === null && reading.totalWh !== null) {
       const at = toLocalIso(new Date(reading.at));
+      const date = at.slice(0, 10);
+      // Onduleurs SunSpec : pas de production du jour, déduite de l'index total.
+      const dayWh = reading.dayWh ?? dayWhFromTotal(reading.totalWh, date, this.store.data().pvDaily);
       this.store.recordPvDay({
-        date: at.slice(0, 10),
-        dayKwh: Math.round(reading.dayWh) / 1000,
+        date,
+        dayKwh: Math.round(dayWh) / 1000,
         totalKwh: Math.round(reading.totalWh) / 1000,
         at,
       });

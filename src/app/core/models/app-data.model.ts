@@ -1,3 +1,4 @@
+import type { InverterBrand } from '../../../../electron/shared/inverter-brands';
 import type { ThemeMode } from '../../../../electron/shared/ipc-contract';
 import { DEFAULT_DASHBOARD, type CardId } from './dashboard';
 
@@ -210,12 +211,23 @@ export interface AnnualBill {
   note: string;
 }
 
-/** Connexion locale à l'onduleur ; la clé (WPA2-PSK de la plaque) est dans le Trousseau, jamais ici. */
+/**
+ * Connexion locale à l'onduleur ; le secret (clé de la plaque SMA, mot de passe, jeton Enphase) est dans le Trousseau,
+ * jamais ici.
+ */
 export interface InverterSettings {
   enabled: boolean;
+  /** Marque (protocole de lecture). */
+  brand: InverterBrand;
   host: string;
-  /** Empreinte SHA-256 du certificat de l'onduleur, épinglée à la première connexion. */
+  /** Empreinte SHA-256 du certificat de l'onduleur, épinglée à la première connexion (SMA, Enphase). */
   certFingerprint: string | null;
+  /** Port ; `null` : celui de la marque. */
+  port: number | null;
+  /** Identifiant Modbus ; `null` : celui de la marque. */
+  unitId: number | null;
+  /** Numéro de série de la clé Wi-Fi Solarman (Solis, Deye, Sofar), ou `null`. */
+  loggerSerial: string | null;
 }
 
 /** Lecture du compteur par le port P1 (lecteur HomeWizard sur le réseau local). */
@@ -315,7 +327,15 @@ export const DEFAULT_SETTINGS: Settings = {
   priceHc: 0.24,
   theme: 'system',
   aiModel: DEFAULT_AI_MODEL,
-  inverter: { enabled: false, host: '', certFingerprint: null },
+  inverter: {
+    enabled: false,
+    brand: 'sma',
+    host: '',
+    certFingerprint: null,
+    port: null,
+    unitId: null,
+    loggerSerial: null,
+  },
   p1: { enabled: false, host: '' },
   dashboard: [...DEFAULT_DASHBOARD],
 };

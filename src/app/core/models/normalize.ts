@@ -1,3 +1,4 @@
+import { isInverterBrand } from '../../../../electron/shared/inverter-brands';
 import {
   type AnnualBill,
   AI_MODELS,
@@ -281,10 +282,17 @@ function normalizeAnnualBills(value: unknown): AnnualBill[] {
 function normalizeInverter(raw: unknown): InverterSettings {
   const r = isObject(raw) ? raw : {};
   const fp = r['certFingerprint'];
+  const int = (value: unknown, max: number): number | null =>
+    typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= max ? value : null;
+  const serial = r['loggerSerial'];
   return {
     enabled: bool(r['enabled'], DEFAULT_SETTINGS.inverter.enabled),
+    brand: isInverterBrand(r['brand']) ? r['brand'] : DEFAULT_SETTINGS.inverter.brand,
     host: str(r['host'], DEFAULT_SETTINGS.inverter.host).trim(),
     certFingerprint: typeof fp === 'string' && /^[0-9A-Fa-f:]{64,95}$/.test(fp) ? fp : null,
+    port: int(r['port'], 65535),
+    unitId: int(r['unitId'], 255),
+    loggerSerial: typeof serial === 'string' && /^\d{1,10}$/.test(serial) ? serial : null,
   };
 }
 

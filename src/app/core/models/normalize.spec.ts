@@ -169,10 +169,31 @@ describe('normalizeData', () => {
     });
     expect(data.settings.inverter).toEqual({
       enabled: true,
+      brand: 'sma',
       host: '192.168.1.42',
       certFingerprint: null,
+      port: null,
+      unitId: null,
+      loggerSerial: null,
     });
     expect(normalizeData({ readings: [] }).settings.inverter.host).toBe('');
+  });
+
+  it('garde la marque, le port, l’identifiant Modbus et la clé Solarman valides', () => {
+    const inverter = (raw: Record<string, unknown>) =>
+      normalizeData({ settings: { inverter: { enabled: true, host: '192.168.1.50', ...raw } } }).settings.inverter;
+    expect(inverter({ brand: 'solis', port: 8899, unitId: 1, loggerSerial: '2712345678' })).toMatchObject({
+      brand: 'solis',
+      port: 8899,
+      unitId: 1,
+      loggerSerial: '2712345678',
+    });
+    expect(inverter({ brand: 'growatt', port: 70000, unitId: -1, loggerSerial: 'ABC' })).toMatchObject({
+      brand: 'sma',
+      port: null,
+      unitId: null,
+      loggerSerial: null,
+    });
   });
 
   it('valide les réglages du lecteur P1', () => {

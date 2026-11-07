@@ -8,7 +8,7 @@ Application de bureau (**Angular 21 + Electron**) pour suivre la consommation et
 - **Prévisions** selon la saison : statistique belge, statistique recalée sur la maison (avec prudence quand les données sont courtes), historique réel ; fiabilité mesurée par rétro-test sur les mois passés. Scénario **voiture électrique** (avec / sans).
 - **Plusieurs ordinateurs** : export JSON, puis import qui fusionne. Seuls les relevés absents sont ajoutés ; rien n'est modifié ni supprimé. Export et import CSV des relevés (Excel).
 - **Compteur par le port P1** : lecteur HomeWizard Wi-Fi P1 lu chaque minute sur le réseau local (API locale) ; les index alimentent les calculs sans relevé manuel, journal compact (minutes de la dernière heure, heures du jour, un point par jour), compteur en direct et courbe du jour.
-- **Onduleur SMA** : lecture locale (WebConnect, connexion SRP) de la puissance et de la production du jour, historique quotidien, relevés pré-remplis, rendement mesuré.
+- **Onduleur** : lecture locale de la puissance, de la production du jour et de l'index total, relevés pré-remplis, rendement mesuré. SMA (WebConnect, connexion SRP ou mot de passe, avec historique quotidien), Fronius (Solar API), SolarEdge, Kostal et autres SunSpec (Modbus TCP), Huawei, Sungrow, Solis, Deye, Sofar (Modbus TCP ou clé Solarman), GoodWe (UDP), Enphase (IQ Gateway).
 - **Clés dans le Trousseau macOS** (clé API Claude, clé de l'onduleur), lues au démarrage sans rien demander ; fichier chiffré par le système sous Windows.
 - **Assistant IA** : panneau Claude qui voit toutes les données (clé API dans le Trousseau, jamais exposée à la page).
 - Thèmes **clair / sombre / système**, interface en CSS natif, sans bibliothèque de composants.
@@ -57,6 +57,19 @@ Playwright pilote l'interface dans Google Chrome avec des données de démo et d
 
 Le MP4 n'est pas dans le dépôt (il est ignoré par git) : la dernière version est jointe à la [release `video-2026-11`](https://github.com/warnonphilippe/consoelec/releases/tag/video-2026-11).
 
+## Émulateurs d'onduleurs
+
+Pour essayer une marque qu'on n'a pas, `npm run emulate` lance sur le Mac de faux onduleurs qui parlent chacun le protocole de leur marque, avec une journée solaire simulée à l'heure du Mac, et affiche les réglages à saisir dans ConsoElec (marque, adresse, port, identifiant Modbus, clé) :
+
+```bash
+npm run emulate                   # tous, sur 127.0.0.1, ports 15001 et suivants
+npm run emulate -- huawei solis   # seulement ceux-là
+npm run emulate -- --lan deye     # sur l'adresse IP du Mac, avec réponse à la recherche des clés Wi-Fi
+npm run emulate -- --list
+```
+
+Les mêmes émulateurs ([`scripts/emulators/`](scripts/emulators)) servent aux tests de bout en bout des lecteurs (`electron/inverters/inverters.spec.ts`). Leurs registres sont écrits d'après la documentation des fabricants, indépendamment des tables du client : ils vérifient le transport, le décodage et les échelles, pas la documentation elle-même. Seul l'onduleur SMA a été essayé sur un vrai appareil.
+
 ## Widget macOS
 
 Le dossier [`widget/`](widget) contient un vrai widget WidgetKit, « ConsoElec Widget », qui lit l'onduleur SMA lui-même (même ConsoElec fermée) et affiche la puissance instantanée, la production du jour, la courbe de la journée et l'index total.
@@ -86,13 +99,17 @@ electron/                  Process principal (TypeScript → dist-electron/)
   secret-store.ts          clés de l'app en mémoire : Trousseau (macOS) ou secrets.ts, import de l'ancien coffre
   secrets.ts               repli hors macOS : fichier chiffré par safeStorage (DPAPI)
   vault.ts, vault-core.ts  ancien coffre chiffré par la clé SSH, seulement relu pour l'import unique
-  sma-core.ts, inverter.ts client WebConnect de l'onduleur SMA : SRP 8192 bits, mesures, épinglage du certificat
+  sma-core.ts, inverter.ts client WebConnect de l'onduleur SMA : SRP 8192 bits (ou mot de passe), mesures, journaux, épinglage
+  inverters/                autres marques : hub.ts (choix du client selon la marque), local-client.ts, modbus.ts
+                           (Modbus TCP et RTU), transports.ts (clé Solarman V5, GoodWe UDP), register-maps.ts,
+                           sunspec.ts, fronius.ts, enphase.ts, scan.ts (diffusion WIFIKIT, balayage du réseau)
   p1-core.ts, p1.ts         lecteur P1 HomeWizard : GET /api/v1/data sur le réseau local, lecture des quatre index
-  discovery.ts             recherche Bonjour de l'onduleur SMA et du lecteur P1
+  discovery.ts             recherche Bonjour de l'onduleur SMA, de la passerelle Enphase et du lecteur P1
   ai-core.ts               API Claude : requêtes, flux SSE, outil de lecture de photo, erreurs (pur, testé)
   ai.ts                    appels réseau depuis le process principal uniquement
   image.ts                 conversion d'image en JPEG (HEIC des iPhone via sips sur macOS)
   shared/ipc-contract.ts   types partagés avec l'interface
+  shared/inverter-brands.ts marques d'onduleurs : protocole, réglages par défaut, conseils de mise en service
 src/app/
   core/models/             modèle de données, validation et fusion des fichiers importés (merge.ts)
   core/calc/               calculs purs et testés :

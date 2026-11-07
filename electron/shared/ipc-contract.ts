@@ -3,6 +3,8 @@
  * Ne contient que des types : il est effacé à la compilation.
  */
 
+import type { InverterBrand } from './inverter-brands';
+
 export type ThemeMode = 'system' | 'light' | 'dark';
 
 export type ExportKind = 'json' | 'csv';
@@ -34,10 +36,18 @@ export interface SecretsStatus {
 
 export interface InverterConfig {
   readonly enabled: boolean;
+  /** Marque (protocole) de l'onduleur ; SMA si absent. */
+  readonly brand?: InverterBrand;
   /** Nom ou adresse de l'onduleur sur le réseau local (ex. `SMA3012345678.local` : « SMA » + numéro de série). */
   readonly host: string;
   /** Empreinte SHA-256 du certificat épinglée à la première connexion, ou `null`. */
   readonly certFingerprint: string | null;
+  /** Port ; `null` ou absent : port par défaut de la marque. */
+  readonly port?: number | null;
+  /** Identifiant Modbus (unit id) ; `null` ou absent : celui de la marque. */
+  readonly unitId?: number | null;
+  /** Numéro de série de la clé Wi-Fi Solarman (Solis, Deye, Sofar), ou `null`. */
+  readonly loggerSerial?: string | null;
 }
 
 /** Journaux de l'onduleur : production par jour depuis sa mise en service et courbe du jour (5 minutes). */
@@ -53,6 +63,14 @@ export interface InverterDayCurve {
   readonly date: string;
   readonly points: readonly { at: number; powerW: number }[];
   readonly error: string | null;
+}
+
+/** Onduleur trouvé sur le réseau local. */
+export interface InverterFound {
+  /** Nom réseau ou adresse IP. */
+  readonly host: string;
+  /** Numéro de série de la clé Wi-Fi Solarman, quand la recherche le donne. */
+  readonly loggerSerial?: string;
 }
 
 export interface InverterReading {
@@ -180,8 +198,11 @@ export interface ConsoElecApi {
     /** Lit tout de suite les mesures (aussi diffusées par `onReading`). */
     refresh(): Promise<InverterReading>;
     onReading(listener: (reading: InverterReading) => void): () => void;
-    /** Cherche les onduleurs SMA sur le réseau local ; renvoie leurs noms réseau. */
-    discover(): Promise<string[]>;
+    /**
+     * Cherche les onduleurs de la marque sur le réseau local (SMA si absente) ; renvoie leurs noms réseau ou adresses,
+     * avec le numéro de série de la clé Wi-Fi quand la recherche le donne (Solarman).
+     */
+    discover(brand?: InverterBrand): Promise<InverterFound[]>;
     /** Lit les journaux de production de l'onduleur (jours passés et courbe du jour). */
     history(): Promise<InverterHistory>;
     /** Lit la courbe de puissance d'une journée (`AAAA-MM-JJ`) dans le journal des 5 minutes. */

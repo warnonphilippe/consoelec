@@ -244,3 +244,13 @@
 .prices .input-suffix {
   flex: 1;
 }
+
+.inverter-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.options-help {
+  margin-top: -4px;
+}

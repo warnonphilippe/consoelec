@@ -289,7 +289,7 @@
       configure: async () => {},
       refresh: async () => inverterReading(),
       onReading: (fn) => subscribe(listeners.inverter, fn),
-      discover: async () => [settings.inverter.host],
+      discover: async () => [{ host: settings.inverter.host }],
       history: async () => ({
         days: config.data.pvDaily.map(({ date, dayKwh, totalKwh }) => ({ date, dayKwh, totalKwh })),
         today: todayCurve(),

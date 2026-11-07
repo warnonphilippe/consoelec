@@ -40,7 +40,7 @@ const DAY_S = 86_400;
  * connexions ; avec l'essai en parallèle de Node (250 ms pour l'IPv4), une réponse Wi-Fi un peu lente faisait
  * échouer toute la connexion.
  */
-const lookupIpv4First: LookupFunction = (hostname, options, callback) =>
+export const lookupIpv4First: LookupFunction = (hostname, options, callback) =>
   dns.lookup(hostname, { ...options, order: 'ipv4first' }, callback);
 
 /** Codes d'erreur d'une erreur réseau de Node (une `AggregateError` en regroupe plusieurs). */
@@ -118,7 +118,9 @@ export class InverterClient {
 
   configure(config: InverterConfig): void {
     const changed =
-      config.host !== this.config.host || config.certFingerprint !== this.config.certFingerprint;
+      config.host !== this.config.host ||
+      config.port !== this.config.port ||
+      config.certFingerprint !== this.config.certFingerprint;
     if (config.certFingerprint !== this.config.certFingerprint) {
       this.lastAddress = null;
     }
@@ -303,6 +305,10 @@ export class InverterClient {
     const start = srpStart(this.role);
     const first = await this.post('/dyn/authYAPStart.json', start.body);
     const server = first.json as { B?: string; salt?: string; id?: unknown } | null;
+    if (first.status === 404) {
+      // Logiciel SMA antérieur à la connexion SRP : mot de passe du profil « Utilisateur ».
+      return this.passwordLogin(secret);
+    }
     if (!server?.B || !server.salt) {
       throw new Error(inverterError(first.status, first.json));
     }
@@ -324,6 +330,23 @@ export class InverterClient {
       throw new Error("Connexion acceptée mais l'onduleur n'a pas ouvert de session.");
     }
     return sid;
+  }
+
+  /** Connexion des onduleurs SMA plus anciens (`/dyn/login.json`, mot de passe du profil). */
+  private async passwordLogin(password: string): Promise<string> {
+    const res = await this.post('/dyn/login.json', { right: this.role, pass: password });
+    const reply = res.json as { result?: { sid?: string }; err?: number } | null;
+    const sid = reply?.result?.sid;
+    if (res.status === 200 && typeof sid === 'string' && sid.length > 0) {
+      return sid;
+    }
+    if (reply?.err === 401 || res.status === 401) {
+      throw new Error("Mot de passe refusé par l'onduleur SMA (profil « Utilisateur »).");
+    }
+    if (reply?.err === 503 || res.status === 503) {
+      throw new Error("L'onduleur n'accepte plus de session pour l'instant (503) : réessayez plus tard.");
+    }
+    throw new Error(inverterError(res.status, res.json));
   }
 
   private async logout(): Promise<void> {
@@ -367,7 +390,7 @@ export class InverterClient {
       // `autoSelectFamily` est transmis à la connexion TCP mais absent du type des options HTTPS.
       const options: https.RequestOptions & { autoSelectFamily: boolean } = {
         host,
-        port: this.port,
+        port: this.config.port ?? this.port,
         path,
         method: 'POST',
         // Certificat auto-signé : il est vérifié par épinglage ci-dessous, pas par une autorité.

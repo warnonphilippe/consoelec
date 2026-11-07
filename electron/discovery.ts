@@ -116,3 +116,18 @@ export async function discoverSmaInverters(): Promise<string[]> {
 export async function discoverP1Meters(): Promise<string[]> {
   return parseP1Hosts(await browse('_hwenergy._tcp'));
 }
+
+/**
+ * Cherche les passerelles Enphase IQ Gateway (Bonjour `_enphase-envoy._tcp`) ; renvoie leurs noms réseau
+ * (`envoy.local` en général).
+ */
+export async function discoverEnphaseGateways(): Promise<string[]> {
+  const output = await browse('_enphase-envoy._tcp');
+  const instances = addedInstances(output, '_enphase-envoy._tcp');
+  const resolved = await Promise.all(
+    instances.map(async (instance) =>
+      parseResolvedHost(await runDnsSd(['-L', instance, '_enphase-envoy._tcp', 'local.'], RESOLVE_MS)),
+    ),
+  );
+  return [...new Set(resolved.filter((h): h is string => h !== null))];
+}
