@@ -57,7 +57,7 @@ Playwright pilote l'interface dans Google Chrome avec des données de démo et d
 
 Le MP4 n'est pas dans le dépôt (il est ignoré par git) : la dernière version est jointe à la [release `video-2026-11`](https://github.com/warnonphilippe/consoelec/releases/tag/video-2026-11).
 
-## Widgets macOS et iPhone
+## Widget macOS
 
 Le dossier [`widget/`](widget) contient un vrai widget WidgetKit, « ConsoElec Widget », qui lit l'onduleur SMA lui-même (même ConsoElec fermée) et affiche la puissance instantanée, la production du jour, la courbe de la journée et l'index total.
 
@@ -73,12 +73,7 @@ Structure :
 
 ### iPhone
 
-Le même projet produit l'app iPhone « ConsoElec » et son widget (écran d'accueil : petit et moyen formats ; écran verrouillé : rond, rectangulaire, en ligne). Le code de l'app de réglage, de la vue et de l'extension est partagé avec le Mac.
-
-- **Prérequis** en plus du Mac : la plateforme iOS dans Xcode (`xcodebuild -downloadPlatform iOS`), l'iPhone branché en USB (« Se fier à cet ordinateur »), le **mode développeur** activé sur l'iPhone (Réglages → Confidentialité et sécurité).
-- `./widget/build-ios.sh` construit en Release, installe sur l'iPhone et lance l'app. Au premier lancement, autoriser le développeur : Réglages → Général → VPN et gestion de l'appareil.
-- Avec l'équipe gratuite « Personal Team », la signature **expire après 7 jours** : relancer le script chaque semaine (le programme développeur payant porte cette durée à un an).
-- Le widget lit l'onduleur sur le Wi-Fi de la maison ; ailleurs, il affiche la dernière lecture. Sur iOS, le groupe d'apps s'écrit `group.io.github.warnonphilippe.consoelec` (sans préfixe d'équipe).
+L'app iPhone « ConsoElec » et son widget (écran d'accueil et écran verrouillé) ne sont plus dans ce dépôt : ils vivent dans le dépôt privé [`warnonphilippe/consoelec-mobile`](https://github.com/warnonphilippe/consoelec-mobile). Prérequis, signature et installation sur l'iPhone (`./build-ios.sh`) y sont décrits.
 
 ## Architecture
 

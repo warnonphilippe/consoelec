@@ -379,20 +379,7 @@ La moyenne est prise entre la lecture du moment et la précédente d'au moins 5 
 
 ## Widget iPhone
 
-L'app iPhone **ConsoElec** et son widget affichent la production sur l'écran d'accueil ou l'écran verrouillé.
-
-1. Installez-la depuis le Mac avec `./widget/build-ios.sh`, iPhone branché en USB (voir le README). La première fois, activez le **mode développeur** (Réglages → Confidentialité et sécurité → Mode développeur) puis autorisez le développeur : Réglages → Général → VPN et gestion de l'appareil → votre identifiant Apple → **Faire confiance**.
-2. Ouvrez **ConsoElec** sur l'iPhone, connecté au Wi-Fi de la maison. Acceptez l'accès au **réseau local**, touchez **Rechercher** pour l'adresse, saisissez la **clé WPA2-PSK** et touchez **Enregistrer**. La clé reste dans le Trousseau de l'iPhone.
-3. **Tester la lecture** affiche les valeurs et l'aperçu du widget. Tant que l'app est ouverte, elle relit l'onduleur chaque minute.
-   Pour le widget **Compteur électrique**, indiquez aussi l'adresse du lecteur P1 dans la section **Compteur (port P1)** (voir le widget macOS).
-4. Ajoutez le widget :
-   - écran d'accueil : appui long sur un espace vide → **Modifier** → **Ajouter un widget** → **ConsoElec** (petit ou moyen format) ;
-   - écran verrouillé : appui long → **Personnaliser** → écran verrouillé → zone des widgets → **ConsoElec** (rond : puissance ; rectangulaire : puissance, production du jour et heure ; en ligne, au-dessus de l'heure).
-
-Bon à savoir :
-- l'onduleur n'est joignable que depuis le **Wi-Fi de la maison**. Ailleurs, le widget garde la dernière lecture, avec son heure et une icône Wi-Fi barrée ;
-- iOS rafraîchit le widget environ **tous les quarts d'heure**, selon son propre budget ;
-- avec un identifiant Apple gratuit, l'app **cesse de s'ouvrir après 7 jours** : rebranchez l'iPhone et relancez `./widget/build-ios.sh`. La clé et l'historique du jour sont conservés.
+L'app iPhone **ConsoElec** et son widget ne font plus partie de ce dépôt : ils sont dans le dépôt privé [`warnonphilippe/consoelec-mobile`](https://github.com/warnonphilippe/consoelec-mobile). On les installe depuis le Mac avec `./build-ios.sh`, iPhone branché en USB (prérequis et signature : voir son README).
 
 ## Partager entre plusieurs ordinateurs
 

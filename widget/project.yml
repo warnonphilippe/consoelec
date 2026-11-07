@@ -1,11 +1,10 @@
-# Projet Xcode des widgets de ConsoElec (Mac et iPhone), généré par XcodeGen : `xcodegen generate`
-# (voir build.sh et build-ios.sh).
+# Projet Xcode du widget macOS de ConsoElec, généré par XcodeGen : `xcodegen generate` (voir build.sh).
+# L'app iPhone vit dans son propre dépôt, warnonphilippe/consoelec-mobile.
 name: ConsoElecWidget
 options:
   bundleIdPrefix: io.github.warnonphilippe
   deploymentTarget:
     macOS: "14.0"
-    iOS: "17.0"
   developmentLanguage: fr
 configFiles:
   Debug: Local.xcconfig
@@ -82,72 +81,6 @@ targets:
         com.apple.security.network.client: true
         com.apple.security.application-groups: [$(TeamIdentifierPrefix)group.io.github.warnonphilippe.consoelec]
         keychain-access-groups: [$(AppIdentifierPrefix)io.github.warnonphilippe.consoelec.shared]
-  # iPhone : sur iOS, un groupe d'apps s'écrit « group.… », sans préfixe d'équipe.
-  ConsoElecPhone:
-    type: application
-    platform: iOS
-    sources:
-      - path: App
-        excludes: [Info.plist, App.entitlements]
-      - Shared
-    dependencies:
-      - package: SmaKit
-      - target: ConsoElecPhoneWidget
-        embed: true
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: io.github.warnonphilippe.consoelec.phone
-        PRODUCT_NAME: ConsoElec
-        TARGETED_DEVICE_FAMILY: "1"
-        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-    info:
-      path: iOS/App-Info.plist
-      properties:
-        CFBundleDisplayName: ConsoElec
-        UILaunchScreen: {}
-        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
-        ConsoElecAppGroup: group.io.github.warnonphilippe.consoelec
-        ConsoElecKeychainGroup: $(AppIdentifierPrefix)io.github.warnonphilippe.consoelec.shared
-        NSLocalNetworkUsageDescription: Lire la production de votre onduleur solaire et votre compteur électrique (lecteur P1) sur le Wi-Fi de la maison.
-        NSAppTransportSecurity: { NSAllowsLocalNetworking: true }
-        NSBonjourServices: [_http._tcp, _hwenergy._tcp]
-    entitlements:
-      path: iOS/App.entitlements
-      properties:
-        com.apple.security.application-groups: [group.io.github.warnonphilippe.consoelec]
-        keychain-access-groups: [$(AppIdentifierPrefix)io.github.warnonphilippe.consoelec.shared]
-  ConsoElecPhoneWidget:
-    type: app-extension
-    platform: iOS
-    sources:
-      - path: Extension
-        excludes: [Info.plist, Extension.entitlements]
-      - Shared
-    dependencies:
-      - package: SmaKit
-      - sdk: WidgetKit.framework
-      - sdk: SwiftUI.framework
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: io.github.warnonphilippe.consoelec.phone.widget
-        PRODUCT_NAME: ConsoElecPhoneWidget
-        TARGETED_DEVICE_FAMILY: "1"
-    info:
-      path: iOS/Widget-Info.plist
-      properties:
-        CFBundleDisplayName: ConsoElec
-        ConsoElecAppGroup: group.io.github.warnonphilippe.consoelec
-        ConsoElecKeychainGroup: $(AppIdentifierPrefix)io.github.warnonphilippe.consoelec.shared
-        NSLocalNetworkUsageDescription: Lire la production de votre onduleur solaire et votre compteur électrique (lecteur P1) sur le Wi-Fi de la maison.
-        NSAppTransportSecurity: { NSAllowsLocalNetworking: true }
-        NSBonjourServices: [_http._tcp, _hwenergy._tcp]
-        NSExtension:
-          NSExtensionPointIdentifier: com.apple.widgetkit-extension
-    entitlements:
-      path: iOS/Widget.entitlements
-      properties:
-        com.apple.security.application-groups: [group.io.github.warnonphilippe.consoelec]
-        keychain-access-groups: [$(AppIdentifierPrefix)io.github.warnonphilippe.consoelec.shared]
   SmaKitTests:
     type: bundle.unit-test
     platform: macOS
@@ -165,7 +98,3 @@ schemes:
         ConsoElecWidget: all
     test:
       targets: [SmaKitTests]
-  ConsoElecPhone:
-    build:
-      targets:
-        ConsoElecPhone: all

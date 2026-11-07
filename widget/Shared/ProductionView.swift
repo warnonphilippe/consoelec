@@ -11,11 +11,7 @@ struct ProductionView: View {
 
   private var power: Double? { snapshot?.measurements.powerW }
 
-  #if os(macOS)
   static let setupHint = "Ouvrez l'app ConsoElec Widget pour configurer l'onduleur."
-  #else
-  static let setupHint = "Ouvrez l'app ConsoElec pour configurer l'onduleur."
-  #endif
 
   var body: some View {
     VStack(alignment: .leading, spacing: compact ? 4 : 6) {

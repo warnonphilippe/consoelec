@@ -6,11 +6,7 @@ struct MeterView: View {
   let outcome: MeterReader.Outcome
   let compact: Bool
 
-  #if os(macOS)
   static let setupHint = "Ouvrez l'app ConsoElec Widget pour indiquer l'adresse du lecteur P1."
-  #else
-  static let setupHint = "Ouvrez l'app ConsoElec pour indiquer l'adresse du lecteur P1."
-  #endif
 
   var body: some View {
     VStack(alignment: .leading, spacing: compact ? 4 : 6) {
