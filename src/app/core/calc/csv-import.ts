@@ -13,7 +13,7 @@ export interface CsvImport {
 }
 
 /** Découpe une ligne CSV en respectant les guillemets. */
-function splitLine(text: string, sep: string): string[] {
+export function splitLine(text: string, sep: string): string[] {
   const cells: string[] = [];
   let current = '';
   let quoted = false;
@@ -41,7 +41,8 @@ function splitLine(text: string, sep: string): string[] {
   return cells.map((c) => c.trim());
 }
 
-function detectSeparator(header: string): string {
+/** Séparateur le plus fréquent de la ligne d'en-têtes (`;`, tabulation ou `,`). */
+export function detectSeparator(header: string): string {
   const counts = [';', '\t', ','].map((s) => ({ s, n: header.split(s).length - 1 }));
   return counts.sort((a, b) => b.n - a.n)[0]!.s;
 }

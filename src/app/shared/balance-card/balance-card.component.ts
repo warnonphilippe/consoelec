@@ -19,6 +19,8 @@ export class BalanceCardComponent {
   protected readonly store = inject(DataStore);
 
   protected readonly historyOptions = [
+    { label: '1 mois', days: 30 },
+    { label: '3 mois', days: 91 },
     { label: '6 mois', days: 183 },
     { label: '1 an', days: 365 },
     { label: '2 ans', days: 730 },
@@ -26,6 +28,8 @@ export class BalanceCardComponent {
   ] as const;
   protected readonly forecastOptions = [
     { label: 'Sans prévision', days: 0 },
+    { label: '+ 1 mois', days: 30 },
+    { label: '+ 3 mois', days: 91 },
     { label: '+ 6 mois', days: 183 },
     { label: '+ 12 mois', days: 365 },
   ] as const;

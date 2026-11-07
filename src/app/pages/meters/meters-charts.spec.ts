@@ -9,6 +9,7 @@ import {
   indexAxisRange,
   indexChart,
   keepTooltipItem,
+  withNeighbours,
   pointsFrom,
 } from './meters-charts';
 
@@ -117,3 +118,22 @@ describe('indexChart', () => {
     expect(config.data.datasets[0]!.data).toEqual([{ x: ms('2026-10-28T10:05'), y: 114 }]);
   });
 });
+
+describe('withNeighbours', () => {
+  const pts = [10, 40, 70, 100].map((day) => ({ day }));
+
+  it('garde les points de la période et un voisin de chaque côté', () => {
+    expect(withNeighbours(pts, { min: 35, max: 75 }).map((p) => p.day)).toEqual([10, 40, 70, 100]);
+    expect(withNeighbours(pts, { min: 60, max: 120 }).map((p) => p.day)).toEqual([40, 70, 100]);
+  });
+
+  it('trace le segment qui traverse une période sans relevé', () => {
+    expect(withNeighbours(pts, { min: 45, max: 65 }).map((p) => p.day)).toEqual([40, 70]);
+  });
+
+  it('ne trace rien quand tous les points sont avant ou après la période', () => {
+    expect(withNeighbours(pts, { min: 110, max: 140 })).toEqual([]);
+    expect(withNeighbours(pts, { min: 0, max: 5 })).toEqual([]);
+  });
+});
+

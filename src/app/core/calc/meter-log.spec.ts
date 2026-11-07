@@ -269,6 +269,19 @@ describe('totaux du jour', () => {
     });
   });
 
+  it('part de l’index de minuit du profil quand le journal n’a pas de lecture de la veille', () => {
+    const log = [point('2026-10-28T10:00', 100), point('2026-10-28T11:00', 101)].reduce(
+      (l, p) => appendMeterLog(l, p, ms(p.at)),
+      EMPTY_METER_LOG,
+    );
+    expect(todayEnergy(log, ms('2026-10-28T11:00'), { importWh: 148_500, exportWh: 500_000 })).toMatchObject({
+      importKwh: 2.5,
+      exportKwh: 0,
+      from: '2026-10-28T00:00',
+      sinceMidnight: true,
+    });
+  });
+
   it('sépare soutirage et injection, heures pleines et creuses additionnées', () => {
     let log = appendMeterLog(EMPTY_METER_LOG, point('2026-10-28T09:00', 100, 200), ms('2026-10-28T09:00'));
     log = appendMeterLog(

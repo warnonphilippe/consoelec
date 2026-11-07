@@ -3,7 +3,8 @@ import { analyze } from '../calc/analysis';
 import { balanceSeries, billingCost } from '../calc/balance';
 import { analyzeConsumption } from '../calc/consumption';
 import { buildDemoData } from '../calc/demo-data';
-import { appendMeterLog, meterLogReadings } from '../calc/meter-log';
+import { appendMeterLog, lastLogPoint, meterLogReadings } from '../calc/meter-log';
+import { addSamples, mergeProfiles, pruneProfile, samplesBetween } from '../calc/meter-profile';
 import { dateToDayNumber } from '../calc/time';
 import {
   type AnnualBill,
@@ -12,6 +13,7 @@ import {
   type AppData,
   type House,
   type MeterLogPoint,
+  type MeterProfileDay,
   type MeterReading,
   type PvDay,
   type Settings,
@@ -154,9 +156,28 @@ export class DataStore {
   recordMeterPoint(point: MeterLogPoint): void {
     const log = this.state().meterLog;
     const next = appendMeterLog(log, point, Date.now());
-    if (next !== log) {
-      this.update((d) => ({ ...d, meterLog: next }));
+    if (next === log) {
+      return;
     }
+    // Profil au quart d'heure : index interpolés entre la lecture précédente et celle-ci (estimés sur un trou).
+    const previous = lastLogPoint(log);
+    const samples = previous === null ? [] : samplesBetween(previous, point);
+    this.update((d) => ({ ...d, meterLog: next, meterProfile: addSamples(d.meterProfile, samples) }));
+  }
+
+  /**
+   * Ajoute un profil importé (export HomeWizard) : ses index mesurés remplacent les index estimés. Renvoie le nombre
+   * de journées nouvelles ou complétées.
+   */
+  importMeterProfile(days: readonly MeterProfileDay[]): number {
+    const before = this.state().meterProfile;
+    const merged = pruneProfile(mergeProfiles(before, days));
+    const old = new Map(before.map((d) => [d.date, JSON.stringify(d)]));
+    const changed = merged.filter((d) => old.get(d.date) !== JSON.stringify(d)).length;
+    if (changed > 0) {
+      this.update((d) => ({ ...d, meterProfile: merged }));
+    }
+    return changed;
   }
 
   /** Enregistre la production du jour lue sur l'onduleur (une entrée par jour, mise à jour à chaque lecture). */

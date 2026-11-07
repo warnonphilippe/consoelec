@@ -30,6 +30,14 @@ export function lastLogAt(log: MeterLog): string | null {
   return ats.length === 0 ? null : ats.reduce((a, b) => (a > b ? a : b));
 }
 
+/** Lecture la plus récente du journal, ou `null` s'il est vide. */
+export function lastLogPoint(log: MeterLog): MeterLogPoint | null {
+  const last = lastLogAt(log);
+  return last === null
+    ? null
+    : ([...log.minutes, ...log.hours, ...log.days].find((p) => p.at === last) ?? null);
+}
+
 /**
  * Ajoute une lecture au journal en le gardant compact : les minutes de la dernière heure, la dernière lecture de
  * chaque heure du jour de la lecture, la dernière lecture de chaque jour. Une lecture plus ancienne que la dernière
@@ -159,7 +167,15 @@ export interface TodayEnergy {
  * lecture de la veille proche de minuit (lecteur éteint), le total part de la plus ancienne lecture du jour.
  * Renvoie `null` sans au moins deux lectures utilisables.
  */
-export function todayEnergy(log: MeterLog, nowMs: number): TodayEnergy | null {
+export function todayEnergy(
+  log: MeterLog,
+  nowMs: number,
+  /**
+   * Index totaux (Wh) de minuit aujourd'hui tirés du profil au quart d'heure (lecture de la veille ou export
+   * HomeWizard), quand le journal n'a pas de lecture de la veille proche de minuit.
+   */
+  midnightIndex: { importWh: number; exportWh: number } | null = null,
+): TodayEnergy | null {
   const now = toLocalIso(new Date(nowMs));
   const today = now.slice(0, 10);
   const to = log.days.at(-1);
@@ -169,13 +185,22 @@ export function todayEnergy(log: MeterLog, nowMs: number): TodayEnergy | null {
   const eve = log.days.at(-2);
   const midnight = `${today}T00:00`;
   const sinceMidnight = eve !== undefined && minutesBetween(eve.at, midnight) <= MIDNIGHT_MAX_GAP_MIN;
+  const kwh = (v: number): number => Math.max(0, v);
+  if (!sinceMidnight && midnightIndex !== null) {
+    return {
+      importKwh: kwh(to.importPeak + to.importOff - midnightIndex.importWh / 1000),
+      exportKwh: kwh(to.exportPeak + to.exportOff - midnightIndex.exportWh / 1000),
+      from: midnight,
+      to: to.at,
+      sinceMidnight: true,
+    };
+  }
   const from = sinceMidnight
     ? eve
     : [...log.hours, ...log.minutes].filter((p) => day(p) === today).sort(byAt)[0];
   if (from === undefined || from.at >= to.at) {
     return null;
   }
-  const kwh = (v: number): number => Math.max(0, v);
   return {
     importKwh: kwh(to.importPeak + to.importOff - from.importPeak - from.importOff),
     exportKwh: kwh(to.exportPeak + to.exportOff - from.exportPeak - from.exportOff),

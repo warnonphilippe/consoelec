@@ -15,6 +15,7 @@ import {
   type InverterSettings,
   type MeterLog,
   type MeterLogPoint,
+  type MeterProfileDay,
   type P1Settings,
   REGISTER_KEYS,
   type MeterReading,
@@ -27,6 +28,7 @@ import {
   type SurplusHeater,
 } from './app-data.model';
 import { normalizeDashboard } from './dashboard';
+import { QUARTERS_PER_DAY, profileFromLog, pruneProfile } from '../calc/meter-profile';
 
 type Raw = Record<string, unknown>;
 
@@ -56,6 +58,7 @@ export function normalizeData(input: unknown): AppData {
     throw new Error('Ce fichier ne contient pas de données ConsoElec.');
   }
   const base = emptyData();
+  const meterLog = normalizeMeterLog(input['meterLog']);
   return {
     schemaVersion: 1,
     house: isObject(input['house']) ? normalizeHouse(input['house']) : base.house,
@@ -64,7 +67,12 @@ export function normalizeData(input: unknown): AppData {
       .filter((r): r is MeterReading => r !== null),
     pvDaily: normalizePvDaily(input['pvDaily']),
     annualBills: normalizeAnnualBills(input['annualBills']),
-    meterLog: normalizeMeterLog(input['meterLog']),
+    meterLog,
+    // Premier chargement avec le profil au quart d'heure : il est tiré du journal P1 existant.
+    meterProfile:
+      'meterProfile' in input
+        ? normalizeMeterProfile(input['meterProfile'])
+        : profileFromLog(meterLog),
     settings: isObject(input['settings']) ? normalizeSettings(input['settings']) : base.settings,
   };
 }
@@ -318,6 +326,40 @@ function normalizeMeterLog(raw: unknown): MeterLog {
     hours: normalizeLogPoints(r['hours']),
     days: normalizeLogPoints(r['days']),
   };
+}
+
+/** Index d'un quart d'heure : entier positif (Wh) ou `null`. */
+function profileValues(raw: unknown): (number | null)[] {
+  const values = Array.isArray(raw) ? raw : [];
+  return Array.from({ length: QUARTERS_PER_DAY }, (_, q) => {
+    const v = values[q];
+    return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.round(v) : null;
+  });
+}
+
+/** Journées valides du profil au quart d'heure, triées, une seule par date. */
+function normalizeMeterProfile(raw: unknown): MeterProfileDay[] {
+  const byDate = new Map<string, MeterProfileDay>();
+  for (const item of Array.isArray(raw) ? raw : []) {
+    const date = isObject(item) ? str(item['date'], '') : '';
+    if (!isObject(item) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      continue;
+    }
+    const importWh = profileValues(item['importWh']);
+    const exportWh = profileValues(item['exportWh']);
+    // Un index n'a de sens qu'avec son pendant : soutirage et injection lus ensemble.
+    for (let q = 0; q < QUARTERS_PER_DAY; q++) {
+      if (importWh[q] === null || exportWh[q] === null) {
+        importWh[q] = null;
+        exportWh[q] = null;
+      }
+    }
+    const estimated = (Array.isArray(item['estimated']) ? item['estimated'] : []).filter(
+      (q): q is number => Number.isInteger(q) && q >= 0 && q < QUARTERS_PER_DAY && importWh[q as number] !== null,
+    );
+    byDate.set(date, { date, importWh, exportWh, estimated: [...new Set(estimated)].sort((a, b) => a - b) });
+  }
+  return pruneProfile([...byDate.values()].sort((a, b) => a.date.localeCompare(b.date)));
 }
 
 export function newId(): string {

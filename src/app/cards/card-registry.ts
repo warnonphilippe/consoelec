@@ -22,6 +22,7 @@ import {
   MeterTodayEnergyCard,
   MeterTotalCard,
 } from './meters/meters-cards';
+import { MeterProfileDayCard, MeterProfileDaysCard } from './meters/profile-cards';
 import { ProductionDayCard, ProductionHistoryCard, ProductionKpiCard } from './production/production-cards';
 import {
   StatsMonthlyTableCard,
@@ -55,6 +56,8 @@ export const CARDS: Record<CardId, CardDef> = {
   'meters-recent-power': { component: MeterRecentPowerCard },
   'meters-today-energy': { component: MeterTodayEnergyCard },
   'meters-index-chart': { component: MeterIndexChartCard, wide: true },
+  'meters-profile-day': { component: MeterProfileDayCard, wide: true },
+  'meters-profile-days': { component: MeterProfileDaysCard, wide: true },
   'meters-balance': { component: BalanceCardComponent, wide: true },
   'meters-balance-to-date': { component: MeterBalanceCard, inputs: { period: 'to-date' } },
   'meters-balance-current-year': { component: MeterBalanceCard, inputs: { period: 'current-year' } },

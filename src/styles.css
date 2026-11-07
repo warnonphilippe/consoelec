@@ -968,3 +968,64 @@ dialog.modal .modal-foot {
 .card-host:empty {
   display: none;
 }
+
+/* Icône d'information des cadres et sa bulle (CardMenuDirective, CardInfoService) */
+.card-info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  width: 20px;
+  height: 20px;
+  margin-left: 6px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  flex-shrink: 0;
+  font-size: 0;
+}
+
+.card-info-btn:hover,
+.card-info-btn[aria-expanded='true'] {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+
+.card-info-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.card-info-bubble {
+  position: fixed;
+  z-index: 1000;
+  padding: 12px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-pop);
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.card-info-bubble strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.card-info-bubble p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.kpi-label .card-info-btn {
+  margin-left: -2px;
+}

@@ -4,6 +4,7 @@ import type { FullAnalysis } from '../../core/calc/analysis';
 import type { BalancePoint, BalanceSeries, LimitPoint } from '../../core/calc/balance';
 import type { Forecast } from '../../core/calc/forecast';
 import { dayNumberToDate, toDayNumber, toLocalIso } from '../../core/calc/time';
+import type { DayEnergy, QuarterEnergy } from '../../core/calc/meter-profile';
 import { REGISTERS, type MeterLogPoint, type RegisterKey } from '../../core/models/app-data.model';
 import { alpha, chartLegend, type ChartColors } from '../../shared/chart/chart-colors';
 import { fmt } from '../../shared/format';
@@ -350,7 +351,7 @@ export function balanceChart(
     // vide entre les deux évite le trait vertical, qui ressemblerait à une chute de consommation.
     const toData = (points: readonly LimitPoint[], key: 'hp' | 'hc') => {
       const data: BalanceDatum[] = [];
-      for (const p of points.filter(visible)) {
+      for (const p of withNeighbours(points, range)) {
         if (p.kind === 'yearStart' && data.length > 0) {
           data.push({ x: ms(p.day), y: null, kind: undefined });
         }
@@ -476,6 +477,29 @@ export function balanceChart(
   };
 }
 
+/**
+ * Points d'une courbe (triés par jour) à tracer pour la période `range` : ceux de la période, plus le dernier avant et
+ * le premier après. Le trait entre ainsi dans le graphique et en sort par ses bords, même quand la période est plus
+ * courte que l'écart entre deux relevés (vue d'un mois avec des relevés mensuels).
+ */
+export function withNeighbours<T extends { day: number }>(
+  points: readonly T[],
+  range: { min: number; max: number },
+): T[] {
+  const first = points.findIndex((p) => p.day >= range.min);
+  let last = -1;
+  for (let i = points.length - 1; i >= 0; i--) {
+    if (points[i]!.day <= range.max) {
+      last = i;
+      break;
+    }
+  }
+  if (first === -1 || last === -1) {
+    return [];
+  }
+  return points.slice(Math.max(0, first - 1), Math.min(points.length, last + 2));
+}
+
 /** Répartition heures pleines / heures creuses. */
 export function splitChart(
   peak: number,
@@ -507,6 +531,186 @@ export function splitChart(
             callbacks: {
               label: (item) =>
                 `${item.label}: ${fmt.kwh(Number(item.raw))}`,
+            },
+          },
+        },
+      },
+    };
+    return config as unknown as ChartConfiguration;
+  };
+}
+
+// --- Soutirage et injection au quart d'heure -----------------------------------------------------------------
+
+const QUARTER_MS = 15 * 60 * 1000;
+
+/**
+ * Soutirage (vers le haut) et injection (vers le bas) de chaque quart d'heure d'une journée, en puissance moyenne (kW),
+ * avec la production de l'onduleur en surimpression. Les quarts d'heure estimés (répartis sur un trou de lecture) sont
+ * pâles. `dayStart` est minuit de la journée (ms).
+ */
+export function quarterChart(
+  quarters: readonly QuarterEnergy[],
+  pv: readonly { at: number; powerW: number }[],
+  dayStart: number,
+) {
+  return (c: ChartColors): ChartConfiguration => {
+    const day = new Date(dayStart);
+    const end = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1).getTime();
+    const middle = (q: QuarterEnergy): number => dayNumberToDate(toDayNumber(q.at)).getTime() + QUARTER_MS / 2;
+    const bars = (sign: 1 | -1, color: string, key: 'importWh' | 'exportWh', label: string) => ({
+      type: 'bar' as const,
+      label,
+      data: quarters.map((q) => ({ x: middle(q), y: (sign * q[key] * 4) / 1000, estimated: q.estimated, wh: q[key] })),
+      backgroundColor: quarters.map((q) => alpha(color, q.estimated ? 0.3 : 0.85)),
+      borderWidth: 0,
+      grouped: false,
+      barPercentage: 1,
+      categoryPercentage: 0.9,
+      order: 2,
+    });
+    const config = {
+      data: {
+        datasets: [
+          bars(1, c.importPeak, 'importWh', 'Soutirage'),
+          bars(-1, c.exportPeak, 'exportWh', 'Injection'),
+          {
+            type: 'line' as const,
+            label: 'Production',
+            data: pv.map((p) => ({ x: p.at, y: p.powerW / 1000 })),
+            borderColor: c.pv,
+            backgroundColor: c.pv,
+            borderWidth: 2,
+            pointRadius: 0,
+            pointHoverRadius: 3,
+            tension: 0.25,
+            order: 1,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        parsing: false,
+        interaction: { mode: 'nearest', axis: 'x', intersect: false },
+        scales: {
+          x: {
+            type: 'time',
+            min: dayStart,
+            max: end,
+            offset: false,
+            adapters: { date: { locale: fr } },
+            time: { unit: 'hour', tooltipFormat: 'HH:mm', displayFormats: { hour: 'HH:mm' } },
+            grid: { color: c.grid },
+            ticks: { color: c.muted, maxTicksLimit: 13 },
+          },
+          y: {
+            grid: { color: (ctx: { tick: { value: number } }) => (ctx.tick.value === 0 ? c.muted : c.grid) },
+            ticks: { color: c.muted, callback: (v: unknown) => fmt.number(Math.abs(Number(v)), 1) },
+            title: { display: true, text: 'kW (moyenne du quart d’heure)', color: c.muted },
+            afterFit: (axis: { width: number }) => {
+              axis.width = 64;
+            },
+          },
+        },
+        plugins: {
+          legend: chartLegend(c),
+          tooltip: {
+            callbacks: {
+              title: (items: { raw: unknown; dataset: { type?: string } }[]) => {
+                const item = items.find((i) => i.dataset.type === 'bar') ?? items[0];
+                const x = (item?.raw as { x: number } | undefined)?.x;
+                if (x === undefined) {
+                  return '';
+                }
+                const start = new Date(item?.dataset.type === 'bar' ? x - QUARTER_MS / 2 : x);
+                const hhmm = (d: Date): string => toLocalIso(d).slice(11, 16);
+                return item?.dataset.type === 'bar'
+                  ? `${hhmm(start)} – ${hhmm(new Date(start.getTime() + QUARTER_MS))}`
+                  : hhmm(start);
+              },
+              label: (item: { raw: unknown; dataset: { label?: string; type?: string } }) => {
+                const raw = item.raw as { y: number; wh?: number; estimated?: boolean };
+                if (item.dataset.type !== 'bar') {
+                  return `${item.dataset.label}: ${fmt.number(raw.y, 1)} kW`;
+                }
+                return `${item.dataset.label}: ${fmt.number(Math.abs(raw.y), 1)} kW (${fmt.number(raw.wh ?? 0)} Wh)${raw.estimated ? ' · estimé' : ''}`;
+              },
+            },
+          },
+        },
+      },
+    };
+    return config as unknown as ChartConfiguration;
+  };
+}
+
+/**
+ * Soutirage (vers le haut) et injection (vers le bas) par jour, en kWh. Jours estimés ou partiels pâles. Un clic sur
+ * une barre appelle `onPick` avec la date du jour.
+ */
+export function dailyEnergyChart(days: readonly DayEnergy[], onPick: (date: string) => void) {
+  return (c: ChartColors): ChartConfiguration => {
+    const label = new Intl.DateTimeFormat('fr-BE', { weekday: 'short', day: 'numeric', month: 'numeric' });
+    const pale = (d: DayEnergy): boolean => d.estimated || d.partial;
+    const bars = (sign: 1 | -1, color: string, key: 'importKwh' | 'exportKwh', name: string) => ({
+      label: name,
+      data: days.map((d) => sign * d[key]),
+      backgroundColor: days.map((d) => alpha(color, pale(d) ? 0.35 : 0.85)),
+      borderWidth: 0,
+      grouped: false,
+      barPercentage: 0.8,
+    });
+    const config: ChartConfiguration<'bar'> = {
+      type: 'bar',
+      data: {
+        labels: days.map((d) => label.format(dayNumberToDate(toDayNumber(d.date)))),
+        datasets: [bars(1, c.importPeak, 'importKwh', 'Soutirage'), bars(-1, c.exportPeak, 'exportKwh', 'Injection')],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        onClick: (_event, elements) => {
+          const index = elements[0]?.index;
+          const day = index === undefined ? undefined : days[index];
+          if (day) {
+            onPick(day.date);
+          }
+        },
+        onHover: (event, elements) => {
+          const target = event.native?.target as HTMLElement | undefined;
+          if (target) {
+            target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: c.muted, maxRotation: 0, autoSkip: true } },
+          y: {
+            grid: { color: (ctx) => (ctx.tick.value === 0 ? c.muted : c.grid) },
+            ticks: { color: c.muted, callback: (v) => fmt.number(Math.abs(Number(v))) },
+            title: { display: true, text: 'kWh', color: c.muted },
+          },
+        },
+        plugins: {
+          legend: chartLegend(c),
+          tooltip: {
+            callbacks: {
+              title: (items) => {
+                const d = days[items[0]?.dataIndex ?? -1];
+                return d ? fmt.longDate(d.date) : '';
+              },
+              label: (item) => `${item.dataset.label}: ${fmt.number(Math.abs(Number(item.raw)), 1)} kWh`,
+              footer: (items) => {
+                const d = days[items[0]?.dataIndex ?? -1];
+                if (!d) {
+                  return '';
+                }
+                return d.partial
+                  ? 'Journée incomplète (lectures manquantes)'
+                  : d.estimated
+                    ? 'Répartition en partie estimée (trou de lecture)'
+                    : 'Clic : détail de la journée';
+              },
             },
           },
         },

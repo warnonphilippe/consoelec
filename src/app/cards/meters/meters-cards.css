@@ -147,3 +147,59 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
+
+/* Soutirage et injection au quart d'heure */
+.day-head {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.day-head h2 {
+  margin: 0;
+}
+
+.day-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.day-input {
+  width: auto;
+}
+
+.day-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 36px;
+  margin: 4px 0 12px;
+}
+
+.day-stats div {
+  display: flex;
+  flex-direction: column;
+}
+
+.day-value {
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.day-value.inject {
+  color: var(--success);
+}
+
+.day-empty {
+  margin: 24px 0;
+  text-align: center;
+}
+
+.import-help {
+  margin: 12px 0 0;
+}
+
+section.card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

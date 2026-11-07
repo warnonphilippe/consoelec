@@ -17,6 +17,8 @@ export const CARD_TITLES: Record<CardId, string> = {
   'meters-recent-power': 'Moyennes des 5 dernières minutes',
   'meters-today-energy': 'Totaux du jour',
   'meters-index-chart': 'Index cumulés',
+  'meters-profile-day': "Soutirage et injection d'une journée",
+  'meters-profile-days': 'Soutirage et injection par jour',
   'meters-balance': 'Graphique des soldes',
   'meters-balance-to-date': 'Soldes à ce jour',
   'meters-balance-current-year': "Soldes de fin d'année",

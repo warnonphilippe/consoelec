@@ -159,6 +159,10 @@ Ce sont les cadres d'origine : le tableau de bord se compose ensuite librement (
 
 La barre latérale affiche en permanence la **facture estimée** de l'année. C'est une estimation au prix moyen : la facture réelle détaille énergie, réseau et taxes, et les frais de réseau se paient sur tout le soutirage. L'autoconsommation est sur la page Production.
 
+### Ce que montre un cadre
+
+Chaque cadre des pages de données et du tableau de bord porte, après son titre, une petite icône **ⓘ** : un clic ouvre une bulle qui décrit ce que le cadre représente (les données affichées, d'où elles viennent, comment lire le graphique). Un nouveau clic, un clic ailleurs ou **Échap** la referme.
+
 ### Composer son tableau de bord
 
 Le tableau de bord se compose à la souris, par **clic droit** :
@@ -202,7 +206,7 @@ En Wallonie, une installation photovoltaïque de 10 kVA au plus mise en service 
 - **solde heures pleines** = soutiré HP (1.8.1) − injecté HP (2.8.1) ;
 - **solde heures creuses** = soutiré HC (1.8.2) − injecté HC (2.8.2).
 
-Le **graphique des soldes**, sous les index cumulés, suit ces deux soldes depuis le début de l'année de facturation, puis les prolonge par la prévision (pointillés). Ils repartent de zéro à chaque début d'année. Au-dessus de zéro, c'est de l'énergie à payer ; en dessous, un **surplus** qui n'est pas remboursé en fin d'année. Sous le graphique, trois cadres : les soldes **mesurés à ce jour** depuis le début de l'année de facturation (au dernier relevé ou à la dernière lecture du compteur), puis, pour la fin de l'année en cours et de la suivante, les kWh à payer et le surplus perdu. Chacun de ces cadres, comme le graphique, peut être ajouté seul au tableau de bord.
+Le **graphique des soldes**, sous les index cumulés, suit ces deux soldes (sur 1 mois, 3 mois, 6 mois, 1 an, 2 ans ou tout l'historique, avec une prévision de 1 à 12 mois) depuis le début de l'année de facturation, puis les prolonge par la prévision (pointillés). Ils repartent de zéro à chaque début d'année. Au-dessus de zéro, c'est de l'énergie à payer ; en dessous, un **surplus** qui n'est pas remboursé en fin d'année. Sous le graphique, trois cadres : les soldes **mesurés à ce jour** depuis le début de l'année de facturation (au dernier relevé ou à la dernière lecture du compteur), puis, pour la fin de l'année en cours et de la suivante, les kWh à payer et le surplus perdu. Chacun de ces cadres, comme le graphique, peut être ajouté seul au tableau de bord.
 
 #### Courbes limites
 
@@ -317,9 +321,25 @@ Ensuite, tant que l'application est ouverte, ConsoElec lit le compteur **chaque 
 Pour ne pas alourdir le fichier de données, ConsoElec garde :
 - chaque minute de la **dernière heure** ;
 - la dernière lecture de chaque **heure du jour en cours** ;
-- la dernière lecture de chaque **jour**.
+- la dernière lecture de chaque **jour** ;
+- le **profil au quart d'heure** : les index de soutirage et d'injection à chaque quart d'heure (00:00, 00:15…), en détail sur 400 jours, puis l'index de minuit seulement (totaux par jour).
 
-Les jours sont exportés et fusionnés avec le reste (voir [Partager entre plusieurs ordinateurs](#partager-entre-plusieurs-ordinateurs)). Le lecteur est interrogé directement sur le réseau local, sans passer par le cloud HomeWizard.
+Les jours et le profil sont exportés et fusionnés avec le reste (voir [Partager entre plusieurs ordinateurs](#partager-entre-plusieurs-ordinateurs)). Le lecteur est interrogé directement sur le réseau local, sans passer par le cloud HomeWizard.
+
+### Soutirage et injection au quart d'heure
+
+La page **Compteurs** (section « Soutirage et injection ») montre :
+- **une journée**, quart d'heure par quart d'heure : soutirage vers le haut, injection vers le bas, en puissance moyenne (kW), avec la production de l'onduleur en surimpression quand il est lu. Les flèches, le calendrier ou **Aujourd'hui** changent de jour ;
+- **les journées précédentes** (30 jours, 90 jours ou un an) : soutirage et injection de chaque jour en kWh. Un clic sur un jour ouvre son détail.
+
+Le lecteur P1 **ne garde aucun historique** : il ne donne que les index du moment, et l'app HomeWizard Energy montre l'historique enregistré par le cloud HomeWizard. ConsoElec ne connaît donc que les lectures faites pendant qu'il était ouvert. Quand le Mac était éteint, l'énergie totale du trou reste exacte (les index sont cumulés) mais sa répartition dans le temps est **estimée** (uniforme) : ces quarts d'heure et ces journées sont affichés en pâle.
+
+Pour récupérer l'historique réel :
+1. Dans l'app **HomeWizard Energy** (iPhone), **Réglages › Graphiques**, choisissez le graphique du compteur P1, puis **Exporter les données** au **quart d'heure** (365 jours au plus ; l'export par jour, sans limite, ne donne que les totaux par jour).
+2. Envoyez-vous le fichier CSV (AirDrop, e-mail…).
+3. Page **Compteurs**, cadre **Soutirage et injection par jour** : **Importer l'historique HomeWizard** et choisissez le fichier.
+
+Les index de l'export remplacent les quarts d'heure estimés ; réimporter le même fichier ne change rien.
 
 ## Lecture de l'onduleur
 

@@ -245,6 +245,21 @@ export interface MeterLog {
   days: MeterLogPoint[];
 }
 
+/**
+ * Une journée du profil de soutirage et d'injection : index totaux (HP + HC, en Wh) à chaque quart d'heure
+ * (00:00, 00:15 … 23:45). Voir `src/app/core/calc/meter-profile.ts`.
+ */
+export interface MeterProfileDay {
+  /** `AAAA-MM-JJ`, date locale. */
+  date: string;
+  /** Index de soutirage (1.8.1 + 1.8.2, Wh) au début de chaque quart d'heure ; `null` = inconnu. */
+  importWh: (number | null)[];
+  /** Index d'injection (2.8.1 + 2.8.2, Wh) au début de chaque quart d'heure ; `null` = inconnu. */
+  exportWh: (number | null)[];
+  /** Quarts d'heure dont l'index est interpolé sur un trou de lecture (estimé, pas mesuré). */
+  estimated?: number[];
+}
+
 export interface AppData {
   schemaVersion: 1;
   house: House;
@@ -255,6 +270,8 @@ export interface AppData {
   annualBills: AnnualBill[];
   /** Index lus automatiquement par le port P1. */
   meterLog: MeterLog;
+  /** Profil de soutirage et d'injection au quart d'heure (lecteur P1 et exports HomeWizard). */
+  meterProfile: MeterProfileDay[];
   settings: Settings;
 }
 
@@ -354,6 +371,7 @@ export function emptyData(): AppData {
     pvDaily: [],
     annualBills: [],
     meterLog: { minutes: [], hours: [], days: [] },
+    meterProfile: [],
     settings: {
       ...DEFAULT_SETTINGS,
       offPeakHours: [...DEFAULT_SETTINGS.offPeakHours],

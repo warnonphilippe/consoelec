@@ -1,5 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { recentAveragePower, todayEnergy } from '../../core/calc/meter-log';
+import { toLocalIso } from '../../core/calc/time';
 import { REGISTERS, type RegisterKey } from '../../core/models/app-data.model';
 import { DataStore } from '../../core/services/data-store.service';
 
@@ -35,7 +36,17 @@ export class MetersView {
   /** Soutirage et injection du jour en cours, lus par le port P1 (rafraîchis à chaque lecture). */
   readonly todayEnergy = computed(() => {
     this.store.now();
-    return todayEnergy(this.store.data().meterLog, Date.now());
+    const data = this.store.data();
+    const today = toLocalIso(new Date()).slice(0, 10);
+    const day = data.meterProfile.find((d) => d.date === today);
+    const imp = day?.importWh[0];
+    const exp = day?.exportWh[0];
+    // Index de minuit connu par le profil (lecture de la veille ou export HomeWizard) : total depuis minuit.
+    const midnight =
+      imp !== null && imp !== undefined && exp !== null && exp !== undefined && !(day?.estimated ?? []).includes(0)
+        ? { importWh: imp, exportWh: exp }
+        : null;
+    return todayEnergy(data.meterLog, Date.now(), midnight);
   });
 
   toggle(key: RegisterKey): void {

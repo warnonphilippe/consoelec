@@ -11,6 +11,7 @@ import {
   MeterTotalCard,
 } from '../../cards/meters/meters-cards';
 import { MetersView } from '../../cards/meters/meters-view';
+import { MeterProfileDayCard, MeterProfileDaysCard } from '../../cards/meters/profile-cards';
 import { REGISTERS } from '../../core/models/app-data.model';
 import { DataStore } from '../../core/services/data-store.service';
 import { BalanceCardComponent } from '../../shared/balance-card/balance-card.component';
@@ -28,7 +29,9 @@ import { IconComponent } from '../../shared/icon.component';
     MeterRegisterCard,
     MeterRecentPowerCard,
     MeterTodayEnergyCard,
-      MeterIndexChartCard,
+    MeterIndexChartCard,
+    MeterProfileDayCard,
+    MeterProfileDaysCard,
     MeterSplitCard,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,

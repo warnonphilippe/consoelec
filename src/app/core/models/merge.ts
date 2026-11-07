@@ -1,4 +1,5 @@
 import { mergeMeterLogs } from '../calc/meter-log';
+import { mergeProfiles, pruneProfile } from '../calc/meter-profile';
 import type { AnnualBill, AppData, House, MeterReading, PvDay } from './app-data.model';
 
 export interface MergeReport {
@@ -67,6 +68,7 @@ export function mergeData(
   const pv = mergePvDaily(local.pvDaily, incoming.pvDaily);
   const bills = mergeBills(local.annualBills, incoming.annualBills);
   const meter = mergeMeterLogs(local.meterLog, incoming.meterLog);
+  const profile = pruneProfile(mergeProfiles(local.meterProfile, incoming.meterProfile));
   const houseAdopted = localHouseIsDefault && !sameHouse(local.house, incoming.house);
   const houseDiffers = !localHouseIsDefault && !sameHouse(local.house, incoming.house);
   return {
@@ -77,6 +79,7 @@ export function mergeData(
       pvDaily: pv.list,
       annualBills: bills.list,
       meterLog: meter.log,
+      meterProfile: profile,
     },
     report: {
       addedReadings: added,
