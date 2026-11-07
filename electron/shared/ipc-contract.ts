@@ -67,6 +67,8 @@ export interface InverterReading {
   readonly error: string | null;
   /** Empreinte du certificat présenté par l'onduleur (pour l'épingler la première fois). */
   readonly certFingerprint: string | null;
+  /** Nouveau nom réseau sous lequel l'onduleur a été retrouvé (à enregistrer dans les réglages). */
+  readonly movedTo?: string;
 }
 
 export interface P1Config {
@@ -93,6 +95,8 @@ export interface P1Reading {
   /** Modèle du compteur annoncé par le lecteur (ex. `ISKRA 2MIE5T-200`). */
   readonly meterModel: string | null;
   readonly error: string | null;
+  /** Nouveau nom réseau sous lequel le lecteur a été retrouvé (à enregistrer dans les réglages). */
+  readonly movedTo?: string;
 }
 
 export interface AiMessage {

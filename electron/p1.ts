@@ -1,7 +1,7 @@
 import dns from 'node:dns';
 import http from 'node:http';
 import type { LookupFunction } from 'node:net';
-import { networkErrorMessage } from './inverter';
+import { NetworkError, isNameNotFound, networkErrorMessage } from './inverter';
 import { P1_DATA_PATH, p1Failure, p1StatusError, parseP1Data } from './p1-core';
 import type { P1Config, P1Reading } from './shared/ipc-contract';
 
@@ -19,6 +19,7 @@ const lookupIpv4First: LookupFunction = (hostname, options, callback) =>
  */
 export class P1Client {
   private config: P1Config = { enabled: false, host: '' };
+  private trouble = false;
 
   constructor(
     /** Port HTTP (80 ; autre valeur pour les tests). */
@@ -33,12 +34,22 @@ export class P1Client {
     return this.config.enabled && this.config.host.length > 0;
   }
 
+  get host(): string {
+    return this.config.host;
+  }
+
+  /** La dernière lecture a-t-elle échoué faute de joindre le lecteur (signal pour le rechercher sur le réseau) ? */
+  get troubled(): boolean {
+    return this.trouble;
+  }
+
   /** Lit le compteur ; ne lève jamais : l'erreur est rapportée dans le résultat. */
   async read(): Promise<P1Reading> {
     const at = Date.now();
     if (!this.config.host) {
       return p1Failure(at, 'Adresse du lecteur P1 non renseignée.');
     }
+    this.trouble = false;
     try {
       const res = await this.get(P1_DATA_PATH);
       if (res.status !== 200) {
@@ -49,6 +60,7 @@ export class P1Client {
         p1Failure(at, "Réponse inattendue : ce n'est pas un lecteur P1 HomeWizard.")
       );
     } catch (error) {
+      this.trouble = error instanceof NetworkError;
       return p1Failure(at, error instanceof Error ? error.message : String(error));
     }
   }
@@ -65,8 +77,16 @@ export class P1Client {
         timeout: TIMEOUT_MS,
         headers: { Accept: 'application/json' },
       });
-      req.on('timeout', () => req.destroy(new Error(`Le lecteur P1 ne répond pas (${host}).`)));
-      req.on('error', (e) => reject(new Error(networkErrorMessage(e, host, 'Lecteur P1'))));
+      req.on('timeout', () =>
+        req.destroy(new NetworkError(`Le lecteur P1 ne répond pas (${host}).`)),
+      );
+      req.on('error', (e) =>
+        reject(
+          e instanceof NetworkError || !('code' in e || e instanceof AggregateError)
+            ? e
+            : new NetworkError(networkErrorMessage(e, host, 'Lecteur P1'), isNameNotFound(e)),
+        ),
+      );
       req.on('response', (res) => {
         let text = '';
         let size = 0;

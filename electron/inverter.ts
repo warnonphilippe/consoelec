@@ -43,13 +43,35 @@ const DAY_S = 86_400;
 const lookupIpv4First: LookupFunction = (hostname, options, callback) =>
   dns.lookup(hostname, { ...options, order: 'ipv4first' }, callback);
 
-/** Message lisible d'une erreur réseau (une `AggregateError` de Node n'a pas de message propre). */
-export function networkErrorMessage(error: unknown, host: string, subject = 'Onduleur'): string {
+/** Codes d'erreur d'une erreur réseau de Node (une `AggregateError` en regroupe plusieurs). */
+function errorCodes(error: unknown): string[] {
   const errors = error instanceof AggregateError ? error.errors : [error];
-  const codes = errors
+  return errors
     .map((e) => (e as { code?: string } | null)?.code)
     .filter((c): c is string => typeof c === 'string');
-  if (codes.some((c) => /ENOTFOUND|EAI_AGAIN/.test(c))) {
+}
+
+/** Le nom de l'appareil ne se résout plus sur le réseau ? */
+export const isNameNotFound = (error: unknown): boolean =>
+  errorCodes(error).some((c) => /ENOTFOUND|EAI_AGAIN/.test(c));
+
+/**
+ * Échec réseau (appareil introuvable, injoignable ou muet), par opposition à un refus de l'appareil lui-même.
+ * `notFound` : le nom ne se résout plus.
+ */
+export class NetworkError extends Error {
+  constructor(
+    message: string,
+    readonly notFound = false,
+  ) {
+    super(message);
+  }
+}
+
+/** Message lisible d'une erreur réseau (une `AggregateError` de Node n'a pas de message propre). */
+export function networkErrorMessage(error: unknown, host: string, subject = 'Onduleur'): string {
+  const codes = errorCodes(error);
+  if (isNameNotFound(error)) {
     return `${subject} introuvable sur le réseau (${host}).`;
   }
   if (codes.length > 0) {
@@ -77,6 +99,11 @@ export class InverterClient {
   private sid: string | null = null;
   private queue: Promise<unknown> = Promise.resolve();
   private seenFingerprint: string | null = null;
+  /** Dernière adresse IP où l'onduleur épinglé a répondu : repli quand son nom ne se résout plus. */
+  private lastAddress: string | null = null;
+  /** Adresse IP utilisée à la place du nom pendant l'opération en cours (nom introuvable). */
+  private viaAddress: string | null = null;
+  private trouble = false;
 
   constructor(
     private readonly secret: () => string | null,
@@ -88,6 +115,9 @@ export class InverterClient {
   configure(config: InverterConfig): void {
     const changed =
       config.host !== this.config.host || config.certFingerprint !== this.config.certFingerprint;
+    if (config.certFingerprint !== this.config.certFingerprint) {
+      this.lastAddress = null;
+    }
     this.config = { ...config };
     if (changed || !config.enabled) {
       void this.logout();
@@ -96,6 +126,22 @@ export class InverterClient {
 
   get enabled(): boolean {
     return this.config.enabled && this.config.host.length > 0;
+  }
+
+  get host(): string {
+    return this.config.host;
+  }
+
+  get certFingerprint(): string | null {
+    return this.config.certFingerprint;
+  }
+
+  /**
+   * La dernière lecture a-t-elle eu un souci réseau : onduleur injoignable, ou joint seulement par sa dernière
+   * adresse IP parce que son nom ne se résout plus ? (Signal pour le rechercher sur le réseau.)
+   */
+  get troubled(): boolean {
+    return this.trouble;
   }
 
   /** Lit les mesures ; ne lève jamais : l'erreur est rapportée dans le résultat. */
@@ -140,6 +186,7 @@ export class InverterClient {
     if (secret === null) {
       return fail("Clé de l'onduleur absente : ajoutez-la dans les réglages.");
     }
+    this.viaAddress = null;
     try {
       const res = await this.request(secret, (sid) =>
         this.post(`/dyn/getValues.json?sid=${encodeURIComponent(sid)}`, {
@@ -148,9 +195,11 @@ export class InverterClient {
         }),
       );
       const m = parseMeasurements(res.json);
+      this.trouble = this.viaAddress !== null;
       return { at, ...m, error: null, certFingerprint: this.seenFingerprint };
     } catch (error) {
       this.sid = null;
+      this.trouble = error instanceof NetworkError;
       return fail(error instanceof Error ? error.message : String(error));
     }
   }
@@ -164,6 +213,7 @@ export class InverterClient {
     if (secret === null) {
       return fail("Clé de l'onduleur absente : ajoutez-la dans les réglages.");
     }
+    this.viaAddress = null;
     try {
       const end = Math.floor(now.getTime() / 1000);
       const days = new Map<string, LoggerDay>();
@@ -209,6 +259,7 @@ export class InverterClient {
     if (secret === null) {
       return fail("Clé de l'onduleur absente : ajoutez-la dans les réglages.");
     }
+    this.viaAddress = null;
     try {
       const points = await this.logger(secret, LOGGER_KEYS.fiveMinutes, start - 300, end);
       return { date, points: powerFromLogger(points).filter((p) => localDate(p.at - 1) === date), error: null };
@@ -279,12 +330,39 @@ export class InverterClient {
     }
   }
 
-  private post(path: string, body: unknown): Promise<Response> {
+  /**
+   * Envoie une requête à l'onduleur. Si son nom ne se résout plus (mDNS capricieux, ou onduleur renommé après un
+   * conflit de nom), la requête est refaite sur sa dernière adresse IP connue : sans risque, puisque le certificat
+   * épinglé est vérifié avant tout envoi.
+   */
+  private async post(path: string, body: unknown): Promise<Response> {
+    if (this.viaAddress !== null) {
+      return this.postTo(this.viaAddress, path, body);
+    }
+    try {
+      return await this.postTo(this.config.host, path, body);
+    } catch (error) {
+      const fallback = this.lastAddress;
+      if (
+        error instanceof NetworkError &&
+        error.notFound &&
+        fallback !== null &&
+        fallback !== this.config.host &&
+        this.config.certFingerprint
+      ) {
+        this.viaAddress = fallback;
+        return this.postTo(fallback, path, body);
+      }
+      throw error;
+    }
+  }
+
+  private postTo(host: string, path: string, body: unknown): Promise<Response> {
     const data = JSON.stringify(body);
     return new Promise((resolve, reject) => {
       // `autoSelectFamily` est transmis à la connexion TCP mais absent du type des options HTTPS.
       const options: https.RequestOptions & { autoSelectFamily: boolean } = {
-        host: this.config.host,
+        host,
         port: this.port,
         path,
         method: 'POST',
@@ -297,8 +375,14 @@ export class InverterClient {
         headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
       };
       const req = https.request(options);
-      req.on('timeout', () => req.destroy(new Error("L'onduleur ne répond pas.")));
-      req.on('error', (e) => reject(new Error(networkErrorMessage(e, this.config.host))));
+      req.on('timeout', () => req.destroy(new NetworkError(`L'onduleur ne répond pas (${host}).`)));
+      req.on('error', (e) =>
+        reject(
+          e instanceof NetworkError || !('code' in e || e instanceof AggregateError)
+            ? e
+            : new NetworkError(networkErrorMessage(e, host), isNameNotFound(e)),
+        ),
+      );
       req.on('response', (res) => {
         let text = '';
         res.setEncoding('utf8');
@@ -325,6 +409,9 @@ export class InverterClient {
               ),
             );
             return;
+          }
+          if (socket.remoteAddress) {
+            this.lastAddress = socket.remoteAddress;
           }
           req.end(data);
         });

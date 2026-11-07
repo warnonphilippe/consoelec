@@ -317,6 +317,31 @@ describe('client local de l’onduleur (serveur HTTPS simulé)', () => {
     s.close();
   });
 
+  it('se replie sur la dernière adresse IP quand le nom ne se résout plus', async () => {
+    const s = await start();
+    const client = new InverterClient(() => PSK, 'usr', s.port);
+    client.configure({ enabled: true, host: s.host, certFingerprint: fingerprint });
+    expect((await client.read()).error).toBeNull();
+    expect(client.troubled).toBe(false);
+    // L'onduleur a changé de nom : l'ancien ne se résout plus.
+    client.configure({ enabled: true, host: 'sma-disparu.invalid', certFingerprint: fingerprint });
+    expect(await client.read()).toMatchObject({ powerW: 1830, error: null });
+    expect(client.troubled).toBe(true);
+    await client.close();
+    s.close();
+  });
+
+  it('ne se replie pas sur l’adresse IP sans certificat épinglé et signale l’onduleur introuvable', async () => {
+    const s = await start();
+    const client = new InverterClient(() => PSK, 'usr', s.port);
+    client.configure({ enabled: true, host: s.host, certFingerprint: null });
+    expect((await client.read()).error).toBeNull();
+    client.configure({ enabled: true, host: 'sma-disparu.invalid', certFingerprint: null });
+    expect((await client.read()).error).toContain('introuvable');
+    expect(client.troubled).toBe(true);
+    s.close();
+  });
+
   it('refuse un certificat différent de l’empreinte épinglée, sans rien envoyer', async () => {
     const s = await start();
     const client = new InverterClient(() => PSK, 'usr', s.port);

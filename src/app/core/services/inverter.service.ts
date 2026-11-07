@@ -4,6 +4,7 @@ import type {
   InverterHistory,
   InverterReading,
 } from '../../../../electron/shared/ipc-contract';
+import { smaSerial } from '../../../../electron/shared/device-names';
 import { toLocalIso } from '../calc/time';
 import { DataStore } from './data-store.service';
 import { SecretsService } from './secrets.service';
@@ -101,9 +102,17 @@ export class InverterService {
     try {
       const hosts = await this.api.discover();
       const current = this.settings();
-      if (hosts.length > 0 && (replace || current.host === '') && current.host !== hosts[0]) {
+      // Le même onduleur (même numéro de série) en tête : il a pu changer de nom après un conflit sur le réseau.
+      const serial = smaSerial(current.host);
+      if (serial !== null) {
+        hosts.sort((a, b) => Number(smaSerial(b) === serial) - Number(smaSerial(a) === serial));
+      }
+      const host = hosts[0];
+      if (host !== undefined && (replace || current.host === '') && current.host !== host) {
+        // Même numéro de série : l'empreinte épinglée reste valable (et protège le changement d'adresse).
+        const sameDevice = serial !== null && smaSerial(host) === serial;
         this.store.updateSettings({
-          inverter: { ...current, host: hosts[0]!, certFingerprint: null },
+          inverter: { ...current, host, certFingerprint: sameDevice ? current.certFingerprint : null },
         });
       }
       return hosts;
@@ -176,6 +185,10 @@ export class InverterService {
   }
 
   private onReading(reading: InverterReading): void {
+    // L'onduleur a été retrouvé sous un autre nom (même certificat) : on enregistre ce nom.
+    if (reading.movedTo && reading.movedTo !== this.settings().host) {
+      this.store.updateSettings({ inverter: { ...this.settings(), host: reading.movedTo } });
+    }
     const firstSuccess = this.live()?.error !== null && reading.error === null;
     this.live.set(reading);
     if (reading.error === null) {

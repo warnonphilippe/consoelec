@@ -1,5 +1,6 @@
 import { DestroyRef, Injectable, computed, effect, inject, signal } from '@angular/core';
 import type { P1Reading } from '../../../../electron/shared/ipc-contract';
+import { p1Identity } from '../../../../electron/shared/device-names';
 import { toLocalIso } from '../calc/time';
 import type { MeterLogPoint } from '../models/app-data.model';
 import { DataStore } from './data-store.service';
@@ -87,8 +88,14 @@ export class P1Service {
     try {
       const hosts = await this.api.discover();
       const current = this.settings();
-      if (hosts.length > 0 && (replace || current.host === '') && current.host !== hosts[0]) {
-        this.store.updateSettings({ p1: { ...current, host: hosts[0]! } });
+      // Le même lecteur en tête : il a pu changer de nom (suffixe `-2`) après un conflit sur le réseau.
+      const id = p1Identity(current.host);
+      if (id !== null) {
+        hosts.sort((a, b) => Number(p1Identity(b) === id) - Number(p1Identity(a) === id));
+      }
+      const host = hosts[0];
+      if (host !== undefined && (replace || current.host === '') && current.host !== host) {
+        this.store.updateSettings({ p1: { ...current, host } });
       }
       return hosts;
     } finally {
@@ -97,6 +104,10 @@ export class P1Service {
   }
 
   private onReading(reading: P1Reading): void {
+    // Le lecteur a été retrouvé sous un autre nom : on enregistre ce nom.
+    if (reading.movedTo && reading.movedTo !== this.settings().host) {
+      this.store.updateSettings({ p1: { ...this.settings(), host: reading.movedTo } });
+    }
     this.live.set(reading);
     const point = meterPointOf(reading);
     if (point !== null && this.store.loaded()) {

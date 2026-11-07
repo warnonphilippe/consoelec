@@ -16,7 +16,14 @@ import type { IpcMainInvokeEvent } from 'electron';
 import { APP_HOST, APP_SCHEME, assetFileUrl, buildContentSecurityPolicy } from './app-protocol';
 import { AiService, type FetchLike } from './ai';
 import { convertToJpeg } from './image';
-import { discoverP1Meters, discoverSmaInverters } from './discovery';
+import {
+  discoverP1Meters,
+  discoverSmaInverters,
+  p1Identity,
+  relocatedHost,
+  smaSerial,
+} from './discovery';
+import { HostRecovery } from './host-recovery';
 import { InverterClient } from './inverter';
 import { P1Client } from './p1';
 import { SECRET_NAMES, Secrets, fileBackend, keychainBackend } from './secret-store';
@@ -27,8 +34,10 @@ import {
   type AiChatRequest,
   type ExportKind,
   type InverterConfig,
+  type InverterReading,
   type MeterPhoto,
   type P1Config,
+  type P1Reading,
   type SecretName,
   type ThemeMode,
 } from './shared/ipc-contract';
@@ -442,11 +451,40 @@ function bootstrap(): void {
   );
   const inverter = new InverterClient(() => secrets.get('inverterPsk'));
   let pollTimer: ReturnType<typeof setInterval> | null = null;
+  // Onduleur introuvable sous son nom : on le cherche sur le réseau. Sans numéro de série reconnu, le seul onduleur
+  // trouvé est essayé : le certificat épinglé refuse tout autre appareil.
+  const inverterRecovery = new HostRecovery(discoverSmaInverters, (current, found) =>
+    relocatedHost(current, found, smaSerial, true),
+  );
+  /** Essaie l'onduleur sous un nouveau nom ; revient à l'ancien si la lecture échoue. */
+  const readInverter = async (): Promise<InverterReading> => {
+    const reading = await inverter.read();
+    if (!inverter.troubled) {
+      inverterRecovery.reset();
+      return reading;
+    }
+    const previous = inverter.host;
+    const candidate = await inverterRecovery.trouble(previous);
+    if (candidate === null || inverter.host !== previous) {
+      return reading;
+    }
+    const config = { enabled: true, host: candidate, certFingerprint: inverter.certFingerprint };
+    inverter.configure(config);
+    const moved = await inverter.read();
+    if (moved.error === null && !inverter.troubled) {
+      inverterRecovery.reset();
+      return { ...moved, movedTo: candidate };
+    }
+    if (inverter.host === candidate) {
+      inverter.configure({ ...config, host: previous });
+    }
+    return reading;
+  };
   const pollOnce = async (): Promise<void> => {
     if (!inverter.enabled || !secrets.has('inverterPsk') || mainWindow === null) {
       return;
     }
-    const reading = await inverter.read();
+    const reading = await readInverter();
     mainWindow?.webContents.send(IPC.inverterReading, reading);
   };
   const pollInverter = (): void => {
@@ -463,11 +501,37 @@ function bootstrap(): void {
   };
   const p1 = new P1Client();
   let p1Timer: ReturnType<typeof setInterval> | null = null;
+  // Lecteur P1 introuvable sous son nom : on le cherche sur le réseau, sous le même identifiant uniquement.
+  const p1Recovery = new HostRecovery(discoverP1Meters, (current, found) =>
+    relocatedHost(current, found, p1Identity),
+  );
+  const readP1 = async (): Promise<P1Reading> => {
+    const reading = await p1.read();
+    if (!p1.troubled) {
+      p1Recovery.reset();
+      return reading;
+    }
+    const previous = p1.host;
+    const candidate = await p1Recovery.trouble(previous);
+    if (candidate === null || p1.host !== previous) {
+      return reading;
+    }
+    p1.configure({ enabled: true, host: candidate });
+    const moved = await p1.read();
+    if (moved.error === null) {
+      p1Recovery.reset();
+      return { ...moved, movedTo: candidate };
+    }
+    if (p1.host === candidate) {
+      p1.configure({ enabled: true, host: previous });
+    }
+    return reading;
+  };
   const pollP1Once = async (): Promise<void> => {
     if (!p1.enabled || mainWindow === null) {
       return;
     }
-    const reading = await p1.read();
+    const reading = await readP1();
     mainWindow?.webContents.send(IPC.p1Reading, reading);
   };
   const pollP1 = (): void => {
