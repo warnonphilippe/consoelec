@@ -130,6 +130,13 @@ describe('erreurs réseau', () => {
     expect(networkErrorMessage(new AggregateError([timeout, refused], ''), 'SMA1.local')).toBe(
       'Onduleur injoignable (SMA1.local : ETIMEDOUT, ECONNREFUSED).',
     );
+    const down = Object.assign(new Error('connect EHOSTDOWN'), { code: 'EHOSTDOWN' });
+    expect(networkErrorMessage(new AggregateError([down, down], ''), '192.168.1.42')).toBe(
+      'Onduleur absent du réseau (192.168.1.42 : EHOSTDOWN) : appareil éteint ou déconnecté du Wi-Fi.',
+    );
+    expect(networkErrorMessage(new AggregateError([down, timeout], ''), 'SMA1.local')).toBe(
+      'Onduleur injoignable (SMA1.local : EHOSTDOWN, ETIMEDOUT).',
+    );
     const missing = Object.assign(new Error('getaddrinfo ENOTFOUND'), { code: 'ENOTFOUND' });
     expect(networkErrorMessage(missing, 'SMA1.local')).toBe('Onduleur introuvable sur le réseau (SMA1.local).');
     expect(networkErrorMessage(new Error(''), 'SMA1.local')).toBe(

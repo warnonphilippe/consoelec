@@ -74,6 +74,10 @@ export function networkErrorMessage(error: unknown, host: string, subject = 'Ond
   if (isNameNotFound(error)) {
     return `${subject} introuvable sur le réseau (${host}).`;
   }
+  if (codes.length > 0 && codes.every((c) => c === 'EHOSTDOWN')) {
+    // Personne ne répond à l'adresse sur le réseau local : l'appareil est éteint ou a quitté le Wi-Fi.
+    return `${subject} absent du réseau (${host} : EHOSTDOWN) : appareil éteint ou déconnecté du Wi-Fi.`;
+  }
   if (codes.length > 0) {
     return `${subject} injoignable (${host} : ${[...new Set(codes)].join(', ')}).`;
   }
