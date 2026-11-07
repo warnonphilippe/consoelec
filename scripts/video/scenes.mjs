@@ -63,6 +63,22 @@ export const scenes = [
     },
   },
   {
+    id: 'card-info',
+    say: "Chaque cadre a, à côté de son titre, une petite icône d'information : un clic ouvre une bulle qui explique ce que le cadre représente.",
+    caption: "Chaque cadre a son icône <b>ⓘ</b> : un clic explique <b>ce qu'il représente</b>.",
+    async run({ highlight, moveTo, scrollTo, click, at }) {
+      const card = `${DASH}:has(app-billing-cost-card)`;
+      await scrollTo(card);
+      await highlight(card);
+      await at(2.2);
+      await click(`${card} .card-info-btn`);
+      await highlight(`${card}, .card-info-bubble`);
+      await moveTo('.card-info-bubble');
+      await at(9);
+      await click(`${card} .card-info-btn`);
+    },
+  },
+  {
     id: 'production-live',
     say: "La page Production montre la puissance en direct et la courbe de la journée. Ici, une belle journée d'été : l'onduleur plafonne à cinq kilowatts.",
     caption:
@@ -107,12 +123,51 @@ export const scenes = [
   },
   {
     id: 'meters-live',
-    say: "La moyenne des cinq dernières minutes montre ce que la maison consomme ou injecte en ce moment, et le graphique suit l'évolution des index, jusqu'à la minute.",
-    caption: 'Moyennes des <b>5 dernières minutes</b> et évolution des index, à la minute près.',
-    async run({ highlight, scrollTo, hoverChart, at }) {
+    say: "La moyenne des cinq dernières minutes montre ce que la maison soutire ou injecte en ce moment, et les totaux du jour comptent depuis minuit.",
+    caption: 'Moyennes des <b>5 dernières minutes</b> et <b>totaux du jour</b>, depuis minuit.',
+    async run({ highlight, scrollTo, moveTo, at }) {
       await scrollTo('app-meter-recent-power-card');
-      await highlight('app-meter-recent-power-card');
-      await at(4);
+      await highlight('app-meter-recent-power-card, app-meter-today-energy-card');
+      await moveTo('app-meter-recent-power-card');
+      await at(5);
+      await moveTo('app-meter-today-energy-card');
+    },
+  },
+  {
+    id: 'meters-day',
+    say: "En dessous, le soutirage et l'injection de la journée, quart d'heure par quart d'heure : le soutirage vers le haut, l'injection vers le bas, avec la production de l'onduleur par-dessus.",
+    caption:
+      '<b>Soutirage et injection</b> de la journée, au quart d’heure, avec la production de l’onduleur.',
+    async run({ highlight, scrollTo, hoverChart, at }) {
+      await scrollTo('app-meter-profile-day-card');
+      await highlight('app-meter-profile-day-card');
+      await at(3.5);
+      await hoverChart('app-meter-profile-day-card', 0.1, 0.9);
+    },
+  },
+  {
+    id: 'meters-days',
+    say: "Et jour par jour, sur trente jours, trois mois ou un an : un clic ouvre le détail d'une journée. Le lecteur P un ne garde pas d'historique : Conso Élec garde le sien, et l'historique de l'application Home Wizard s'importe en un clic.",
+    caption:
+      'Jour par jour, sur 30 jours, 3 mois ou un an. L’<b>historique HomeWizard</b> s’importe en un clic.',
+    async run({ highlight, scrollTo, hoverChart, clickBar, at }) {
+      await scrollTo('app-meter-profile-days-card');
+      await highlight('app-meter-profile-days-card');
+      await hoverChart('app-meter-profile-days-card', 0.15, 0.55);
+      await at(5.5);
+      await clickBar('app-meter-profile-days-card', 0.55, 'app-meter-profile-day-card h2');
+      await scrollTo('app-meter-profile-day-card');
+      await highlight('app-meter-profile-day-card');
+      await at(10);
+      await scrollTo('app-meter-profile-days-card');
+      await highlight('app-meter-profile-days-card button.btn', 10);
+    },
+  },
+  {
+    id: 'meters-index',
+    say: "Plus bas, l'évolution des index, jusqu'à la minute.",
+    caption: 'Évolution des <b>index</b>, à la minute près.',
+    async run({ highlight, scrollTo, hoverChart }) {
       await scrollTo('app-meter-index-chart-card');
       await highlight('app-meter-index-chart-card');
       await hoverChart('app-meter-index-chart-card', 0.2, 0.9);
@@ -120,10 +175,21 @@ export const scenes = [
   },
   {
     id: 'meters-balance',
-    say: "Les soldes, par période tarifaire, permettent d'anticiper la facture de régularisation.",
-    caption: 'Les <b>soldes</b> par période tarifaire anticipent la facture de régularisation.',
-    async run({ highlight, scrollTo }) {
+    say: "Les soldes, par période tarifaire, permettent d'anticiper la facture de régularisation, sur un mois, trois mois, ou toute l'année.",
+    caption:
+      'Les <b>soldes</b> par période tarifaire anticipent la facture de régularisation : vue sur 1 mois, 3 mois ou toute l’année.',
+    async run({ highlight, scrollTo, clickText, at }) {
       await scrollTo('app-balance-card');
+      await highlight('app-balance-card');
+      await at(2.5);
+      await clickText('app-balance-card button', '3 mois');
+      await clickText('app-balance-card button', '+ 3 mois');
+      await at(5);
+      await clickText('app-balance-card button', '1 mois');
+      await clickText('app-balance-card button', '+ 1 mois');
+      await at(7.5);
+      await clickText('app-balance-card button', '1 an');
+      await clickText('app-balance-card button', '+ 12 mois');
       await highlight('app-balance-card, .balances');
     },
   },

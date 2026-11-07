@@ -176,6 +176,17 @@
     return points;
   }
 
+  /** Couverture nuageuse d'un jour passé : bruit de valeur lissé, un changement toutes les 40 minutes environ. */
+  function clouds(t, date) {
+    const k = t / (40 * MIN) + noise(date.length + Number(date.slice(-2))) * 50;
+    const i = Math.floor(k);
+    const f = k - i;
+    const u = f * f * (3 - 2 * f);
+    const a = noise(i);
+    const b = noise(i + 1);
+    return 0.4 + 0.6 * (a + (b - a) * u);
+  }
+
   /** Courbe d'une journée passée : même forme, ramenée à la production de ce jour, avec des nuages. */
   function pastCurve(date) {
     const day = config.data.pvDaily.find((d) => d.date === date);
@@ -186,7 +197,7 @@
       const h = (t - start) / 3_600_000;
       if (h <= rise || h >= set) continue;
       const s = Math.sin((Math.PI * (h - rise)) / (set - rise));
-      raw.push({ at: t, w: s * s * (0.45 + 0.55 * noise(t / (5 * MIN))) });
+      raw.push({ at: t, w: s * s * clouds(t, date) * (0.96 + 0.08 * noise(t / (5 * MIN))) });
     }
     const energy = raw.reduce((a, p) => a + (p.w * 5) / 60, 0);
     const scale = day && energy > 0 ? (day.dayKwh * 1000) / energy : 0;
@@ -195,14 +206,29 @@
 
   // --- Données enregistrées -----------------------------------------------------------------------------------
 
+  /** Profil au quart d'heure d'aujourd'hui : index totaux (Wh) à chaque quart d'heure écoulé, comme le lecteur P1 les a lus. */
+  function todayProfile(now) {
+    const start = midnightOf(now);
+    const importWh = Array(96).fill(null);
+    const exportWh = Array(96).fill(null);
+    for (let q = 0; q < 96 && start + q * 15 * MIN <= now; q++) {
+      const { idx } = stateAt(start + q * 15 * MIN);
+      importWh[q] = Math.round((idx.importPeak + idx.importOff) * 1000);
+      exportWh[q] = Math.round((idx.exportPeak + idx.exportOff) * 1000);
+    }
+    return { date: localIso(now).slice(0, 10), importWh, exportWh, estimated: [] };
+  }
+
   function initialContent() {
     const data = structuredClone(config.data);
-    const log = todayLog(Date.now());
+    const now = Date.now();
+    const log = todayLog(now);
     data.meterLog = {
       minutes: log.minutes,
       hours: log.hours,
       days: [...data.meterLog.days, log.day],
     };
+    data.meterProfile = [...data.meterProfile, todayProfile(now)];
     return JSON.stringify(data);
   }
 

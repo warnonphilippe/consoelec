@@ -50,10 +50,12 @@ Les paquets ne sont pas signés. Sur macOS, lever la quarantaine avec `xattr -dr
 ## Vidéo de présentation
 
 ```bash
-npm run video   # docs/video/consoelec-presentation.mp4 (≈ 2 min, voix off et sous-titres)
+npm run video   # docs/video/consoelec-presentation.mp4 (≈ 3 min, voix off et sous-titres)
 ```
 
 Playwright pilote l'interface dans Google Chrome avec des données de démo et des lectures Wi-Fi simulées (compteur P1, onduleur), un jour d'été vers 13 h. Il faut macOS (voix off par `say`) et ffmpeg (`brew install ffmpeg`) ; `ng serve` est lancé s'il ne tourne pas déjà. Le scénario (textes, gestes) est dans [`scripts/video/scenes.mjs`](scripts/video/scenes.mjs).
+
+Le MP4 n'est pas dans le dépôt (il est ignoré par git) : la dernière version est jointe à la [release `video-2026-11`](https://github.com/warnonphilippe/consoelec/releases/tag/video-2026-11).
 
 ## Widgets macOS et iPhone
 

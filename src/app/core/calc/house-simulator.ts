@@ -46,6 +46,10 @@ export interface SimDay {
   readonly ev: number;
   /** Consommation de la maison, radiateur et voiture compris. */
   readonly consumption: number;
+  /** Soutirage de chaque heure de la journée (kWh), heures pleines et creuses confondues. */
+  readonly hourlyImport: readonly number[];
+  /** Injection de chaque heure de la journée (kWh), heures pleines et creuses confondues. */
+  readonly hourlyExport: readonly number[];
 }
 
 /** Générateur pseudo-aléatoire reproductible (mulberry32). */
@@ -176,6 +180,8 @@ export function simulateHouse(config: SimConfig): SimDay[] {
       heater: day.heater,
       ev: day.ev,
       consumption: dayEnergy + day.heater + day.ev,
+      hourlyImport: day.importKwh,
+      hourlyExport: day.exportKwh,
     });
   }
   return result;

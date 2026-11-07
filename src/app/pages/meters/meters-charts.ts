@@ -670,6 +670,9 @@ export function dailyEnergyChart(days: readonly DayEnergy[], onPick: (date: stri
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        // Toute la colonne d'un jour réagit (survol et clic), pas seulement ses barres : l'écart entre deux barres et
+        // les barres très courtes ne doivent pas empêcher d'ouvrir un jour.
+        interaction: { mode: 'index', intersect: false },
         onClick: (_event, elements) => {
           const index = elements[0]?.index;
           const day = index === undefined ? undefined : days[index];

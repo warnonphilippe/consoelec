@@ -156,6 +156,40 @@ function helpers(page, sceneStart) {
       await loc.click();
       await sleep(900);
     },
+    /** Déplace le pointeur sur l'élément et clique. */
+    click: async (selector) => {
+      const loc = page.locator(selector).first();
+      await loc.waitFor({ state: 'visible', timeout: 10_000 });
+      const b = await loc.boundingBox();
+      await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 24 });
+      await sleep(250);
+      await page.mouse.down();
+      await sleep(90);
+      await page.mouse.up();
+      await sleep(900);
+    },
+    /**
+     * Clique une barre d'un graphique (abscisse relative `x`) : essaie plusieurs hauteurs jusqu'à ce que le texte de
+     * `watch` change, c'est-à-dire que le clic ait atteint la barre.
+     */
+    clickBar: async (selector, x, watch) => {
+      const b = await box(`${selector} canvas`);
+      const read = () => page.locator(watch).first().textContent();
+      const before = await read();
+      await page.mouse.move(b.x + b.width * x, b.y + b.height * 0.5, { steps: 24 });
+      await sleep(250);
+      for (const y of [0.42, 0.48, 0.36, 0.54, 0.3, 0.6, 0.24]) {
+        await page.mouse.move(b.x + b.width * x, b.y + b.height * y, { steps: 6 });
+        await page.mouse.down();
+        await sleep(90);
+        await page.mouse.up();
+        await sleep(500);
+        if ((await read()) !== before) {
+          await sleep(900);
+          return;
+        }
+      }
+    },
     typeInto: async (selector, value) => {
       await moveTo(selector);
       await page.locator(selector).click({ clickCount: 3 });
@@ -195,6 +229,10 @@ async function record(work, data) {
   );
   await sleep(1500);
   await page.mouse.move(SIZE.width / 2, SIZE.height / 2);
+  // La fenêtre de Chrome peut perdre quelques pixels de hauteur (barre d'information) : on remet la taille voulue.
+  await page.setViewportSize(SIZE);
+  const inner = await page.evaluate(() => [window.innerWidth, window.innerHeight]);
+  log(`fenêtre : ${inner[0]}×${inner[1]}`);
 
   const frames = await screencast(page, work);
   await sleep(500);
@@ -284,7 +322,7 @@ async function assemble({ list, end }) {
       '-t',
       end.toFixed(3),
       '-vf',
-      'fps=30,format=yuv420p',
+      `fps=30,scale=${SIZE.width}:${SIZE.height}:force_original_aspect_ratio=decrease,pad=${SIZE.width}:${SIZE.height}:(ow-iw)/2:(oh-ih)/2,format=yuv420p`,
       '-c:v',
       'libx264',
       '-preset',
