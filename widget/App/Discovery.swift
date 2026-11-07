@@ -1,9 +1,11 @@
 import Foundation
 import Network
+import SmaKit
 
 /// Cherche des appareils sur le réseau local par Bonjour et en déduit leur nom réseau.
-/// - onduleurs SMA : `_http._tcp`, « Website for SMA-Inverter: SMA<numéro de série> » → `SMA<n°>.local` ;
-/// - lecteurs P1 HomeWizard : `_hwenergy._tcp`, `p1meter-<6 caractères>` → `p1meter-xxxxxx.local`.
+/// - onduleurs SMA : `_http._tcp`, « Website for SMA-Inverter: SMA<numéro de série>[-N] » → `SMA<n°>[-N].local` ;
+/// - lecteurs P1 HomeWizard : `_hwenergy._tcp`, `p1meter-<6 caractères>[-N]` → `p1meter-xxxxxx[-N].local`.
+/// Le suffixe `-N` (ajouté par l'appareil après un conflit de nom) est gardé : il fait partie du nom réseau.
 @MainActor
 final class BonjourDiscovery: ObservableObject {
   @Published private(set) var hosts: [String] = []
@@ -21,13 +23,11 @@ final class BonjourDiscovery: ObservableObject {
   static func p1Meters() -> BonjourDiscovery { BonjourDiscovery(serviceType: "_hwenergy._tcp", hostFromName: p1Host) }
 
   nonisolated static func inverterHost(fromServiceName name: String) -> String? {
-    guard let range = name.range(of: #"SMA\d{6,}"#, options: .regularExpression) else { return nil }
-    return "\(name[range].uppercased()).local"
+    DeviceNames.inverterHost(fromServiceName: name)
   }
 
   nonisolated static func p1Host(fromServiceName name: String) -> String? {
-    guard let range = name.range(of: #"p1meter-[0-9A-Za-z]{6}"#, options: [.regularExpression, .caseInsensitive]) else { return nil }
-    return "\(name[range].lowercased()).local"
+    DeviceNames.p1Host(fromServiceName: name)
   }
 
   func search(seconds: Double = 4) async -> [String] {

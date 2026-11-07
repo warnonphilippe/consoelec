@@ -39,6 +39,18 @@ public final class SharedStore: @unchecked Sendable {
     set { defaults.set(newValue, forKey: "p1Host") }
   }
 
+  /// Dernière recherche de l'onduleur sur le réseau (reprise automatique après un changement de nom).
+  public var inverterSearchAt: Date? {
+    get { defaults.object(forKey: "inverterSearchAt") as? Date }
+    set { defaults.set(newValue, forKey: "inverterSearchAt") }
+  }
+
+  /// Dernière recherche du lecteur P1 sur le réseau.
+  public var p1SearchAt: Date? {
+    get { defaults.object(forKey: "p1SearchAt") as? Date }
+    set { defaults.set(newValue, forKey: "p1SearchAt") }
+  }
+
   /// Lectures du compteur de la dernière heure.
   public var meterHistory: MeterHistory {
     get { defaults.data(forKey: "meterHistory").flatMap { try? JSONDecoder().decode(MeterHistory.self, from: $0) } ?? MeterHistory() }
@@ -141,24 +153,45 @@ public enum ProductionReader {
     public var live: Bool
   }
 
-  public static func refresh(store: SharedStore, keychainGroup: String?, now: Date = Date()) async -> Outcome {
+  /// Lit l'onduleur. S'il est injoignable sous son nom, le cherche sur le réseau (même numéro de série, au plus toutes
+  /// les 10 minutes) : il a pu se renommer (`SMA…-2.local`) après un conflit de nom. Le nouveau nom n'est retenu qu'après
+  /// une lecture réussie, avec le même certificat épinglé.
+  public static func refresh(
+    store: SharedStore,
+    keychainGroup: String?,
+    now: Date = Date(),
+    discover: @Sendable () async -> [String] = { await BonjourBrowser.inverters() }
+  ) async -> Outcome {
     guard let secret = InverterKeychain.read(accessGroup: keychainGroup), !secret.isEmpty else {
       return Outcome(snapshot: store.last, curve: store.curve, error: InverterError.missingKey.errorDescription, live: false)
     }
-    let client = InverterClient(host: store.host, pinnedFingerprint: store.pinnedFingerprint)
     do {
-      let m = try await client.read(secret: secret)
-      if store.pinnedFingerprint == nil, let seen = client.seenFingerprint {
-        store.pinnedFingerprint = seen
+      return try await read(store: store, host: store.host, secret: secret, now: now)
+    } catch InverterError.unreachable(let host) where store.pinnedFingerprint != nil
+      && Relocation.shouldSearch(lastSearch: store.inverterSearchAt, now: now) {
+      store.inverterSearchAt = now
+      if let moved = DeviceNames.relocated(host, found: await discover(), identity: DeviceNames.smaSerial),
+         let outcome = try? await read(store: store, host: moved, secret: secret, now: now) {
+        store.host = moved
+        return outcome
       }
-      let snapshot = Snapshot(measurements: m, at: now)
-      var curve = store.curve
-      curve.add(powerW: m.powerW, at: now)
-      store.last = snapshot
-      store.curve = curve
-      return Outcome(snapshot: snapshot, curve: curve, error: nil, live: true)
+      return Outcome(snapshot: store.last, curve: store.curve, error: InverterError.unreachable(host).errorDescription, live: false)
     } catch {
       return Outcome(snapshot: store.last, curve: store.curve, error: error.localizedDescription, live: false)
     }
+  }
+
+  private static func read(store: SharedStore, host: String, secret: String, now: Date) async throws -> Outcome {
+    let client = InverterClient(host: host, pinnedFingerprint: store.pinnedFingerprint)
+    let m = try await client.read(secret: secret)
+    if store.pinnedFingerprint == nil, let seen = client.seenFingerprint {
+      store.pinnedFingerprint = seen
+    }
+    let snapshot = Snapshot(measurements: m, at: now)
+    var curve = store.curve
+    curve.add(powerW: m.powerW, at: now)
+    store.last = snapshot
+    store.curve = curve
+    return Outcome(snapshot: snapshot, curve: curve, error: nil, live: true)
   }
 }

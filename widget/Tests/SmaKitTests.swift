@@ -90,4 +90,38 @@ final class SmaKitTests: XCTestCase {
     history.add(MeterReading(at: t0.addingTimeInterval(61 * 60), importKwh: 102, exportKwh: 200))
     XCTAssertEqual(history.readings.count, 2)
   }
+
+  func testDeviceNamesKeepConflictSuffix() {
+    XCTAssertEqual(DeviceNames.inverterHost(fromServiceName: "Website for SMA-Inverter: SMA3087654321-2"), "SMA3087654321-2.local")
+    XCTAssertEqual(DeviceNames.inverterHost(fromServiceName: "Website for SMA-Inverter: SMA3012345678"), "SMA3012345678.local")
+    XCTAssertNil(DeviceNames.inverterHost(fromServiceName: "Imprimante du salon"))
+    XCTAssertEqual(DeviceNames.p1Host(fromServiceName: "p1meter-1A2B3C-2"), "p1meter-1a2b3c-2.local")
+  }
+
+  func testRelocatedDeviceKeepsItsIdentity() {
+    XCTAssertEqual(DeviceNames.smaSerial("sma3087654321-2.local"), "SMA3087654321")
+    XCTAssertNil(DeviceNames.smaSerial("192.168.1.42"))
+    XCTAssertEqual(DeviceNames.p1Identity("p1meter-1A2B3C-3.local"), "p1meter-1a2b3c")
+    let found = ["SMA3099999999.local", "SMA3087654321-2.local"]
+    XCTAssertEqual(DeviceNames.relocated("SMA3087654321.local", found: found, identity: DeviceNames.smaSerial), "SMA3087654321-2.local")
+    XCTAssertNil(DeviceNames.relocated("SMA3087654321-2.local", found: found, identity: DeviceNames.smaSerial))
+    XCTAssertNil(DeviceNames.relocated("SMA3087654321.local", found: ["SMA3099999999.local"], identity: DeviceNames.smaSerial))
+    XCTAssertNil(DeviceNames.relocated("192.168.1.42", found: found, identity: DeviceNames.smaSerial))
+  }
+
+  func testRelocationSearchesAtMostEveryTenMinutes() {
+    let t0 = Date(timeIntervalSince1970: 1_800_000_000)
+    XCTAssertTrue(Relocation.shouldSearch(lastSearch: nil, now: t0))
+    XCTAssertFalse(Relocation.shouldSearch(lastSearch: t0, now: t0.addingTimeInterval(5 * 60)))
+    XCTAssertTrue(Relocation.shouldSearch(lastSearch: t0, now: t0.addingTimeInterval(10 * 60)))
+  }
+
+  func testMeterReaderNotesSearchWhenUnreachable() async {
+    let store = SharedStore(appGroup: "consoelec.tests.\(UUID().uuidString)")
+    store.p1Host = "p1meter-000000.invalid"
+    let outcome = await MeterReader.refresh(store: store, discover: { [] })
+    XCTAssertFalse(outcome.live)
+    XCTAssertNotNil(store.p1SearchAt)
+    XCTAssertEqual(store.p1Host, "p1meter-000000.invalid")
+  }
 }

@@ -72,6 +72,7 @@ targets:
         ConsoElecKeychainGroup: $(AppIdentifierPrefix)io.github.warnonphilippe.consoelec.shared
         NSLocalNetworkUsageDescription: Lire la production de votre onduleur solaire et votre compteur électrique (lecteur P1) sur le réseau local.
         NSAppTransportSecurity: { NSAllowsLocalNetworking: true }
+        NSBonjourServices: [_http._tcp, _hwenergy._tcp]
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     entitlements:
@@ -139,6 +140,7 @@ targets:
         ConsoElecKeychainGroup: $(AppIdentifierPrefix)io.github.warnonphilippe.consoelec.shared
         NSLocalNetworkUsageDescription: Lire la production de votre onduleur solaire et votre compteur électrique (lecteur P1) sur le Wi-Fi de la maison.
         NSAppTransportSecurity: { NSAllowsLocalNetworking: true }
+        NSBonjourServices: [_http._tcp, _hwenergy._tcp]
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     entitlements:

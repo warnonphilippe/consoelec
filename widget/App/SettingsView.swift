@@ -44,7 +44,8 @@ struct SettingsView: View {
           Button(discovery.searching ? "Recherche…" : "Rechercher") {
             Task {
               let found = await discovery.search()
-              if let first = found.first {
+              let serial = DeviceNames.smaSerial(host)
+              if let first = found.first(where: { serial != nil && DeviceNames.smaSerial($0) == serial }) ?? found.first {
                 host = first
                 saveHost()
               } else {
@@ -146,9 +147,13 @@ struct SettingsView: View {
     let trimmed = host.trimmingCharacters(in: .whitespaces)
     let store = WidgetConfig.store
     if trimmed != store.host {
+      // Même onduleur sous un autre nom (suffixe `-N`) : l'empreinte épinglée reste valable.
+      let sameDevice = DeviceNames.smaSerial(trimmed).map { $0 == DeviceNames.smaSerial(store.host) } ?? false
       store.host = trimmed
-      store.pinnedFingerprint = nil
-      fingerprint = nil
+      if !sameDevice {
+        store.pinnedFingerprint = nil
+        fingerprint = nil
+      }
     }
     WidgetCenter.shared.reloadAllTimelines()
   }

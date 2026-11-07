@@ -138,16 +138,37 @@ public enum MeterReader {
     return Outcome(reading: history.readings.last, average: history.average(), error: nil, live: false)
   }
 
-  public static func refresh(store: SharedStore, now: Date = Date()) async -> Outcome {
+  /// Lit le compteur. Si le lecteur est injoignable sous son nom, le cherche sur le réseau sous le même identifiant
+  /// (au plus toutes les 10 minutes) : il a pu se renommer (`p1meter-…-2.local`) après un conflit de nom.
+  public static func refresh(
+    store: SharedStore,
+    now: Date = Date(),
+    discover: @Sendable () async -> [String] = { await BonjourBrowser.p1Meters() }
+  ) async -> Outcome {
     do {
-      let reading = try await P1Client.read(host: store.p1Host, now: now)
-      var history = store.meterHistory
-      history.add(reading)
-      store.meterHistory = history
-      return Outcome(reading: reading, average: history.average(), error: nil, live: true)
+      return try await read(store: store, host: store.p1Host, now: now)
+    } catch MeterError.unreachable(let host) where Relocation.shouldSearch(lastSearch: store.p1SearchAt, now: now) {
+      store.p1SearchAt = now
+      if let moved = DeviceNames.relocated(host, found: await discover(), identity: DeviceNames.p1Identity),
+         let outcome = try? await read(store: store, host: moved, now: now) {
+        store.p1Host = moved
+        return outcome
+      }
+      return failure(store: store, error: MeterError.unreachable(host))
     } catch {
-      let history = store.meterHistory
-      return Outcome(reading: history.readings.last, average: nil, error: error.localizedDescription, live: false)
+      return failure(store: store, error: error)
     }
+  }
+
+  private static func read(store: SharedStore, host: String, now: Date) async throws -> Outcome {
+    let reading = try await P1Client.read(host: host, now: now)
+    var history = store.meterHistory
+    history.add(reading)
+    store.meterHistory = history
+    return Outcome(reading: reading, average: history.average(), error: nil, live: true)
+  }
+
+  private static func failure(store: SharedStore, error: Error) -> Outcome {
+    Outcome(reading: store.meterHistory.readings.last, average: nil, error: error.localizedDescription, live: false)
   }
 }
