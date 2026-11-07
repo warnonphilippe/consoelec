@@ -4,6 +4,7 @@
  */
 
 import type { InverterBrand } from './inverter-brands';
+import type { P1ReaderKind } from './p1-readers';
 
 export type ThemeMode = 'system' | 'light' | 'dark';
 
@@ -23,7 +24,7 @@ export interface AiStatus {
   readonly hasKey: boolean;
 }
 
-export type SecretName = 'claudeApiKey' | 'inverterPsk';
+export type SecretName = 'claudeApiKey' | 'inverterPsk' | 'p1Token';
 
 export interface SecretsStatus {
   /** `keychain` : Trousseau macOS ; `file` : fichier chiffré par le système (hors macOS). */
@@ -91,11 +92,17 @@ export interface InverterReading {
 
 export interface P1Config {
   readonly enabled: boolean;
-  /** Nom ou adresse du lecteur P1 HomeWizard sur le réseau local (ex. `p1meter-1A2B3C.local`). */
+  /** Type de lecteur ; HomeWizard API v1 si absent. */
+  readonly kind?: P1ReaderKind;
+  /** Nom ou adresse du lecteur P1 sur le réseau local (ex. `p1meter-1A2B3C.local`). */
   readonly host: string;
+  /** Port ; `null` ou absent : celui du lecteur. */
+  readonly port?: number | null;
+  /** Empreinte du certificat épinglée (HomeWizard API v2). */
+  readonly certFingerprint?: string | null;
 }
 
-/** Lecture du compteur intelligent par le port P1 (lecteur HomeWizard, API locale v1). */
+/** Lecture du compteur intelligent par le port P1 (lecteur HomeWizard, Chargee, YouLess ou télégramme brut). */
 export interface P1Reading {
   /** Horodatage de la lecture (ms). */
   readonly at: number;
@@ -113,6 +120,8 @@ export interface P1Reading {
   /** Modèle du compteur annoncé par le lecteur (ex. `ISKRA 2MIE5T-200`). */
   readonly meterModel: string | null;
   readonly error: string | null;
+  /** Empreinte du certificat présenté (HomeWizard API v2), pour l'épingler. */
+  readonly certFingerprint?: string | null;
   /** Nouveau nom réseau sous lequel le lecteur a été retrouvé (à enregistrer dans les réglages). */
   readonly movedTo?: string;
 }
@@ -213,8 +222,13 @@ export interface ConsoElecApi {
     /** Lit tout de suite le compteur (aussi diffusé par `onReading`). */
     refresh(): Promise<P1Reading>;
     onReading(listener: (reading: P1Reading) => void): () => void;
-    /** Cherche les lecteurs P1 HomeWizard sur le réseau local ; renvoie leurs noms réseau. */
-    discover(): Promise<string[]>;
+    /** Cherche les lecteurs P1 du type donné sur le réseau local ; renvoie leurs noms réseau ou adresses. */
+    discover(kind?: P1ReaderKind): Promise<string[]>;
+    /**
+     * Associe le lecteur HomeWizard (API v2) configuré : attend l'appui sur son bouton (60 s au plus), range le jeton
+     * dans le Trousseau et renvoie l'empreinte du certificat à épingler. Lève une erreur lisible en cas d'échec.
+     */
+    pair(): Promise<{ readonly certFingerprint: string | null }>;
   };
   readonly ai: {
     status(): Promise<AiStatus>;
@@ -250,6 +264,7 @@ export const IPC = {
   p1Refresh: 'p1:refresh',
   p1Reading: 'p1:reading',
   p1Discover: 'p1:discover',
+  p1Pair: 'p1:pair',
   aiStatus: 'ai:status',
   aiTest: 'ai:test',
   aiChat: 'ai:chat',

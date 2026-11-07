@@ -34,6 +34,7 @@ import { StorageService } from '../../core/services/storage.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { ToastService } from '../../core/services/toast.service';
 import { FORMAT_PIPES } from '../../shared/format';
+import { P1_READERS, isP1ReaderKind } from '../../../../electron/shared/p1-readers';
 import {
   INVERTER_BRANDS,
   effectivePort,
@@ -325,16 +326,50 @@ export default class SettingsPage {
     }
   }
 
+  protected readonly p1Readers = P1_READERS;
+
+  protected setP1Kind(event: Event): void {
+    const kind = (event.target as HTMLSelectElement).value;
+    if (!isP1ReaderKind(kind) || kind === this.p1Settings().kind) {
+      return;
+    }
+    // Autre lecteur : son port et son certificat ne valent plus ; l'adresse est gardée (même appareil, autre API).
+    this.store.updateSettings({ p1: { ...this.p1Settings(), kind, port: null, certFingerprint: null } });
+    this.p1.live.set(null);
+  }
+
+  protected setP1Port(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const text = input.value.trim();
+    const value = text === '' ? null : Number(text);
+    if (value !== null && (!Number.isInteger(value) || value < 1 || value > 65535)) {
+      this.toast.show('Port invalide : un entier de 1 à 65535, ou vide pour le port habituel.', 'error');
+      input.value = String(this.p1Settings().port ?? '');
+      return;
+    }
+    this.store.updateSettings({ p1: { ...this.p1Settings(), port: value } });
+  }
+
+  protected async pairP1(): Promise<void> {
+    try {
+      await this.p1.pair();
+      this.toast.show('Lecteur P1 associé : jeton enregistré dans le Trousseau.', 'success');
+    } catch (error) {
+      this.toast.show(cleanError(error), 'error');
+    }
+  }
+
   protected setP1Host(event: Event): void {
     const host = (event.target as HTMLInputElement).value.trim();
-    this.store.updateSettings({ p1: { ...this.p1Settings(), host } });
+    // Autre appareil : l'ancien certificat épinglé ne vaut plus (HomeWizard API v2).
+    this.store.updateSettings({ p1: { ...this.p1Settings(), host, certFingerprint: null } });
   }
 
   protected async discoverP1(): Promise<void> {
     const hosts = await this.p1.discover(true);
     this.toast.show(
       hosts.length === 0
-        ? 'Aucun lecteur P1 HomeWizard trouvé sur le réseau : vérifiez qu’il est connecté au même Wi-Fi que ce Mac.'
+        ? `Aucun lecteur ${this.p1.reader().label} trouvé sur le réseau : vérifiez qu’il est connecté au même Wi-Fi que ce Mac.`
         : `Lecteur P1 trouvé : ${hosts.join(', ')}`,
       hosts.length === 0 ? 'warning' : 'success',
     );

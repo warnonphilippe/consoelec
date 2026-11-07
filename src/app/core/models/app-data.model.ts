@@ -1,4 +1,5 @@
 import type { InverterBrand } from '../../../../electron/shared/inverter-brands';
+import type { P1ReaderKind } from '../../../../electron/shared/p1-readers';
 import type { ThemeMode } from '../../../../electron/shared/ipc-contract';
 import { DEFAULT_DASHBOARD, type CardId } from './dashboard';
 
@@ -233,8 +234,14 @@ export interface InverterSettings {
 /** Lecture du compteur par le port P1 (lecteur HomeWizard sur le réseau local). */
 export interface P1Settings {
   enabled: boolean;
+  /** Type de lecteur (protocole). */
+  kind: P1ReaderKind;
   /** Nom réseau (`p1meter-XXXXXX.local`) ou adresse IP du lecteur. */
   host: string;
+  /** Port ; `null` : celui du lecteur. */
+  port: number | null;
+  /** Empreinte du certificat épinglée à l'association (HomeWizard API v2). */
+  certFingerprint: string | null;
 }
 
 /** Index du compteur lus par le port P1 à une minute donnée (kWh). */
@@ -336,7 +343,7 @@ export const DEFAULT_SETTINGS: Settings = {
     unitId: null,
     loggerSerial: null,
   },
-  p1: { enabled: false, host: '' },
+  p1: { enabled: false, kind: 'homewizard', host: '', port: null, certFingerprint: null },
   dashboard: [...DEFAULT_DASHBOARD],
 };
 

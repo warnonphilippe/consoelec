@@ -305,13 +305,22 @@ La clé API Claude et la clé de l'onduleur sont rangées dans le **Trousseau ma
 
 ## Lecture du compteur (port P1)
 
-Le compteur communicant (Iskra IE.5 d'AIEG, par exemple) a un **port P1** : une prise RJ12 qui diffuse ses index et sa puissance. ConsoElec le lit par un lecteur **HomeWizard Wi-Fi P1** branché sur cette prise.
+Le compteur communicant (Iskra IE.5 d'AIEG, par exemple) a un **port P1** : une prise RJ12 qui diffuse ses index et sa puissance chaque seconde. En Belgique, il suit la même norme (**e-MUCS**, dérivée de la norme néerlandaise DSMR 5) chez tous les gestionnaires de réseau (Fluvius, ORES, RESA, Sibelga, AIEG…) : ce qui compte, c'est le **lecteur** branché sur la prise, qui relaie les données sur votre Wi-Fi. ConsoElec en lit plusieurs :
+
+| Lecteur | Comment ConsoElec le lit | À faire |
+|---|---|---|
+| **HomeWizard Wi-Fi P1, API v2** (recommandé, logiciel 6.00 ou plus) | HTTPS, jeton, certificat épinglé | cliquer **Associer** puis appuyer sur le bouton du lecteur |
+| **HomeWizard Wi-Fi P1, API v1** | HTTP, `/api/v1/data` | activer l'**API locale** dans l'application HomeWizard Energy ; HomeWizard compte retirer cette version à terme |
+| **Chargee Sparky / Flint** | même API que HomeWizard v1 | rien (logiciels récents) |
+| **YouLess LS120** | page de données locale `/e` | rien (sans mot de passe) |
+| **Télégramme P1 brut** (SlimmeLezer et autres ESPHome, P1-dongle, passerelles série vers Wi-Fi…) | flux TCP du compteur, CRC vérifié | le lecteur doit diffuser le télégramme sur un port TCP (souvent 23 ou 8088) |
 
 1. Demandez l'**activation du port P1** à votre gestionnaire de réseau (il est désactivé par défaut en Belgique).
-2. Branchez le lecteur HomeWizard sur le port P1 (il clignote en blanc), puis raccordez-le à votre Wi-Fi avec l'application **HomeWizard Energy** (il passe au vert).
-3. Dans l'application HomeWizard Energy, activez l'**API locale** du lecteur (réglages du compteur P1).
-4. **Réglages → Compteur (port P1)** : cochez **Lire le compteur automatiquement**. L'adresse du lecteur (`p1meter-` + 6 caractères + `.local`) est trouvée sur le réseau ; sinon, cliquez sur **Rechercher sur le réseau** ou saisissez son adresse IP.
-5. **Tester la connexion** affiche le modèle du compteur et ses quatre index.
+2. Branchez le lecteur sur le port P1 et raccordez-le à votre Wi-Fi avec son application.
+3. **Réglages → Compteur (port P1)** : choisissez le **lecteur**, cochez **Lire le compteur automatiquement**, puis **Rechercher sur le réseau** (HomeWizard, Chargee, YouLess) ou saisissez son adresse IP. Laissez le port vide pour le port habituel du lecteur. Pour l'API v2 de HomeWizard, cliquez sur **Associer**, puis appuyez sur le bouton du lecteur dans la minute : ConsoElec reçoit un jeton, rangé dans le Trousseau.
+4. **Tester la connexion** affiche le modèle du compteur et ses quatre index.
+
+En Belgique, le tarif 1 des index est le tarif de jour (heures pleines, 1.8.1 et 2.8.1) et le tarif 2 celui de nuit (heures creuses, 1.8.2 et 2.8.2), à l'inverse des Pays-Bas. Le YouLess ne donne ni le tarif en cours ni la moyenne du quart d'heure.
 
 Ensuite, tant que l'application est ouverte, ConsoElec lit le compteur **chaque minute** :
 - le tableau de bord affiche le **compteur en direct** : soutirage ou injection du moment, moyenne du quart d'heure (base du tarif capacitaire), tarif en cours et index ;
@@ -324,7 +333,7 @@ Pour ne pas alourdir le fichier de données, ConsoElec garde :
 - la dernière lecture de chaque **jour** ;
 - le **profil au quart d'heure** : les index de soutirage et d'injection à chaque quart d'heure (00:00, 00:15…), en détail sur 400 jours, puis l'index de minuit seulement (totaux par jour).
 
-Les jours et le profil sont exportés et fusionnés avec le reste (voir [Partager entre plusieurs ordinateurs](#partager-entre-plusieurs-ordinateurs)). Le lecteur est interrogé directement sur le réseau local, sans passer par le cloud HomeWizard.
+Les jours et le profil sont exportés et fusionnés avec le reste (voir [Partager entre plusieurs ordinateurs](#partager-entre-plusieurs-ordinateurs)). Le lecteur est interrogé directement sur le réseau local, sans passer par le cloud de son fabricant.
 
 ### Soutirage et injection au quart d'heure
 

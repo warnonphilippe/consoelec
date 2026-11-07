@@ -24,7 +24,7 @@ describe('client du lecteur P1', () => {
   });
 
   const client = (host = '127.0.0.1'): P1Client => {
-    const c = new P1Client(port);
+    const c = new P1Client(() => null, port);
     c.configure({ enabled: true, host });
     return c;
   };
@@ -37,7 +37,7 @@ describe('client du lecteur P1', () => {
     };
 
   it("n'est actif qu'avec une adresse et l'option cochée", () => {
-    const c = new P1Client(port);
+    const c = new P1Client(() => null, port);
     expect(c.enabled).toBe(false);
     c.configure({ enabled: true, host: '' });
     expect(c.enabled).toBe(false);
@@ -87,7 +87,7 @@ describe('client du lecteur P1', () => {
   });
 
   it('demande une adresse', async () => {
-    const c = new P1Client(port);
+    const c = new P1Client(() => null, port);
     expect((await c.read()).error).toMatch(/non renseignée/);
   });
 
@@ -96,7 +96,7 @@ describe('client du lecteur P1', () => {
     await new Promise<void>((resolve) => closed.listen(0, '127.0.0.1', resolve));
     const free = (closed.address() as AddressInfo).port;
     await new Promise<void>((resolve) => closed.close(() => resolve()));
-    const c = new P1Client(free);
+    const c = new P1Client(() => null, free);
     c.configure({ enabled: true, host: '127.0.0.1' });
     expect((await c.read()).error).toMatch(/Lecteur P1 injoignable/);
   });

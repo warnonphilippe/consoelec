@@ -64,45 +64,103 @@ export const SOLARMAN_EMULATOR_SERIAL = '2712345678';
 interface Variant {
   readonly label: string;
   readonly brand: InverterBrand;
-  readonly start: (model: SolarModel, port: number, host: string) => Promise<Omit<EmulatorSettings, 'brand' | 'host'> & { running: Running }>;
+  readonly start: (
+    model: SolarModel,
+    port: number,
+    host: string,
+  ) => Promise<Omit<EmulatorSettings, 'brand' | 'host'> & { running: Running }>;
 }
 
-const modbus = (kind: BankKind, unitId: number, delayMs = 0): Variant['start'] =>
+const modbus =
+  (kind: BankKind, unitId: number, delayMs = 0): Variant['start'] =>
   async (model, port, host) => {
-    const running = await startModbusTcp({ unitId, provider: bankProvider(kind, model), delayMs }, port, host);
-    return { running, port: running.port, unitId, loggerSerial: null, secret: null, fingerprint: null };
+    const running = await startModbusTcp(
+      { unitId, provider: bankProvider(kind, model), delayMs },
+      port,
+      host,
+    );
+    return {
+      running,
+      port: running.port,
+      unitId,
+      loggerSerial: null,
+      secret: null,
+      fingerprint: null,
+    };
   };
 
-const solarman = (kind: BankKind): Variant['start'] => async (model, port, host) => {
-  const running = await startSolarman(
-    { loggerSerial: Number(SOLARMAN_EMULATOR_SERIAL), unitId: 1, provider: bankProvider(kind, model) },
-    port,
-    host,
-  );
-  return { running, port: running.port, unitId: 1, loggerSerial: SOLARMAN_EMULATOR_SERIAL, secret: null, fingerprint: null };
-};
+const solarman =
+  (kind: BankKind): Variant['start'] =>
+  async (model, port, host) => {
+    const running = await startSolarman(
+      {
+        loggerSerial: Number(SOLARMAN_EMULATOR_SERIAL),
+        unitId: 1,
+        provider: bankProvider(kind, model),
+      },
+      port,
+      host,
+    );
+    return {
+      running,
+      port: running.port,
+      unitId: 1,
+      loggerSerial: SOLARMAN_EMULATOR_SERIAL,
+      secret: null,
+      fingerprint: null,
+    };
+  };
 
-const goodwe = (kind: BankKind, unitId: number): Variant['start'] => async (model, port, host) => {
-  const running = await startGoodWe({ unitId, provider: bankProvider(kind, model) }, port, host);
-  return { running, port: running.port, unitId, loggerSerial: null, secret: null, fingerprint: null };
-};
+const goodwe =
+  (kind: BankKind, unitId: number): Variant['start'] =>
+  async (model, port, host) => {
+    const running = await startGoodWe({ unitId, provider: bankProvider(kind, model) }, port, host);
+    return {
+      running,
+      port: running.port,
+      unitId,
+      loggerSerial: null,
+      secret: null,
+      fingerprint: null,
+    };
+  };
 
-const sma = (auth: 'srp' | 'password'): Variant['start'] => async (model, port, host) => {
-  const tls = selfSignedCert('SMA3999999999');
-  const secret = auth === 'srp' ? SMA_EMULATOR_KEY : SMA_EMULATOR_PASSWORD;
-  const running = await startSma(model, tls, { secret, auth }, port, host);
-  return { running, port: running.port, unitId: null, loggerSerial: null, secret, fingerprint: tls.fingerprint };
-};
+const sma =
+  (auth: 'srp' | 'password'): Variant['start'] =>
+  async (model, port, host) => {
+    const tls = selfSignedCert('SMA3999999999');
+    const secret = auth === 'srp' ? SMA_EMULATOR_KEY : SMA_EMULATOR_PASSWORD;
+    const running = await startSma(model, tls, { secret, auth }, port, host);
+    return {
+      running,
+      port: running.port,
+      unitId: null,
+      loggerSerial: null,
+      secret,
+      fingerprint: tls.fingerprint,
+    };
+  };
 
 export const EMULATORS: Record<EmulatorId, Variant> = {
   sma: { label: 'SMA WebConnect (connexion SRP)', brand: 'sma', start: sma('srp') },
-  'sma-ancien': { label: 'SMA WebConnect ancien (mot de passe)', brand: 'sma', start: sma('password') },
+  'sma-ancien': {
+    label: 'SMA WebConnect ancien (mot de passe)',
+    brand: 'sma',
+    start: sma('password'),
+  },
   fronius: {
     label: 'Fronius Symo (Datamanager)',
     brand: 'fronius',
     start: async (model, port, host) => {
       const running = await startFronius(model, {}, port, host);
-      return { running, port: running.port, unitId: null, loggerSerial: null, secret: null, fingerprint: null };
+      return {
+        running,
+        port: running.port,
+        unitId: null,
+        loggerSerial: null,
+        secret: null,
+        fingerprint: null,
+      };
     },
   },
   'fronius-gen24': {
@@ -110,19 +168,54 @@ export const EMULATORS: Record<EmulatorId, Variant> = {
     brand: 'fronius',
     start: async (model, port, host) => {
       const running = await startFronius(model, { gen24: true }, port, host);
-      return { running, port: running.port, unitId: null, loggerSerial: null, secret: null, fingerprint: null };
+      return {
+        running,
+        port: running.port,
+        unitId: null,
+        loggerSerial: null,
+        secret: null,
+        fingerprint: null,
+      };
     },
   },
-  solaredge: { label: 'SolarEdge (SunSpec, entiers)', brand: 'solaredge', start: modbus('sunspec-int', 1) },
-  kostal: { label: 'Kostal Plenticore (SunSpec, identifiant 71)', brand: 'kostal', start: modbus('sunspec-int', 71) },
-  'sunspec-float': { label: 'SunSpec flottant (modèle 113, type Fronius)', brand: 'sunspec', start: modbus('sunspec-float', 1) },
+  solaredge: {
+    label: 'SolarEdge (SunSpec, entiers)',
+    brand: 'solaredge',
+    start: modbus('sunspec-int', 1),
+  },
+  kostal: {
+    label: 'Kostal Plenticore (SunSpec, identifiant 71)',
+    brand: 'kostal',
+    start: modbus('sunspec-int', 71),
+  },
+  'sunspec-float': {
+    label: 'SunSpec flottant (modèle 113, type Fronius)',
+    brand: 'sunspec',
+    start: modbus('sunspec-float', 1),
+  },
   huawei: { label: 'Huawei SUN2000 (SDongle)', brand: 'huawei', start: modbus('huawei', 1, 20) },
-  'sungrow-sg': { label: 'Sungrow SG (WiNet-S)', brand: 'sungrow-sg', start: modbus('sungrow-sg', 1) },
-  'sungrow-sh': { label: 'Sungrow SH hybride (WiNet-S)', brand: 'sungrow-sh', start: modbus('sungrow-sh', 1) },
+  'sungrow-sg': {
+    label: 'Sungrow SG (WiNet-S)',
+    brand: 'sungrow-sg',
+    start: modbus('sungrow-sg', 1),
+  },
+  'sungrow-sh': {
+    label: 'Sungrow SH hybride (WiNet-S)',
+    brand: 'sungrow-sh',
+    start: modbus('sungrow-sh', 1),
+  },
   solis: { label: 'Solis par clé Solarman', brand: 'solis', start: solarman('solis') },
   'solis-modbus': { label: 'Solis par Modbus TCP', brand: 'solis', start: modbus('solis', 1) },
-  'goodwe-et': { label: 'GoodWe ET hybride (UDP)', brand: 'goodwe-et', start: goodwe('goodwe-et', 0xf7) },
-  'goodwe-dt': { label: 'GoodWe DT réseau (UDP)', brand: 'goodwe-dt', start: goodwe('goodwe-dt', 0x7f) },
+  'goodwe-et': {
+    label: 'GoodWe ET hybride (UDP)',
+    brand: 'goodwe-et',
+    start: goodwe('goodwe-et', 0xf7),
+  },
+  'goodwe-dt': {
+    label: 'GoodWe DT réseau (UDP)',
+    brand: 'goodwe-dt',
+    start: goodwe('goodwe-dt', 0x7f),
+  },
   deye: { label: 'Deye SUN-G par clé Solarman', brand: 'deye', start: solarman('deye') },
   sofar: { label: 'Sofar KTL-X par clé LSW-3', brand: 'sofar', start: solarman('sofar') },
   enphase: {

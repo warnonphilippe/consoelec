@@ -1,3 +1,4 @@
+import { isP1ReaderKind } from '../../../../electron/shared/p1-readers';
 import { isInverterBrand } from '../../../../electron/shared/inverter-brands';
 import {
   type AnnualBill,
@@ -298,9 +299,14 @@ function normalizeInverter(raw: unknown): InverterSettings {
 
 function normalizeP1(raw: unknown): P1Settings {
   const r = isObject(raw) ? raw : {};
+  const port = r['port'];
+  const fp = r['certFingerprint'];
   return {
     enabled: bool(r['enabled'], DEFAULT_SETTINGS.p1.enabled),
+    kind: isP1ReaderKind(r['kind']) ? r['kind'] : DEFAULT_SETTINGS.p1.kind,
     host: str(r['host'], DEFAULT_SETTINGS.p1.host).trim(),
+    port: typeof port === 'number' && Number.isInteger(port) && port >= 1 && port <= 65535 ? port : null,
+    certFingerprint: typeof fp === 'string' && /^[0-9A-Fa-f:]{64,95}$/.test(fp) ? fp : null,
   };
 }
 

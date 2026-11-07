@@ -37,7 +37,7 @@ describe('Secrets', () => {
     expect(secrets.get('inverterPsk')).toBe('ABCDEFGH12345678');
     expect(secrets.status()).toEqual({
       storage: 'keychain',
-      secrets: { claudeApiKey: false, inverterPsk: true },
+      secrets: { claudeApiKey: false, inverterPsk: true, p1Token: false },
       legacyVault: false,
     });
     await secrets.set('claudeApiKey', '  sk-ant-api03-AbC_dEf-123456\n');

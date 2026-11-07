@@ -200,8 +200,13 @@ describe('normalizeData', () => {
     const data = normalizeData({
       settings: { p1: { enabled: true, host: ' p1meter-ABCDEF.local ' } },
     });
-    expect(data.settings.p1).toEqual({ enabled: true, host: 'p1meter-ABCDEF.local' });
-    expect(normalizeData({ readings: [] }).settings.p1).toEqual({ enabled: false, host: '' });
+    const defaults = { kind: 'homewizard', port: null, certFingerprint: null };
+    expect(data.settings.p1).toEqual({ enabled: true, host: 'p1meter-ABCDEF.local', ...defaults });
+    expect(normalizeData({ readings: [] }).settings.p1).toEqual({ enabled: false, host: '', ...defaults });
+    const p1 = (raw: Record<string, unknown>) =>
+      normalizeData({ settings: { p1: { enabled: true, host: 'x', ...raw } } }).settings.p1;
+    expect(p1({ kind: 'dsmr-tcp', port: 8088 })).toMatchObject({ kind: 'dsmr-tcp', port: 8088 });
+    expect(p1({ kind: 'inconnu', port: 0 })).toMatchObject({ kind: 'homewizard', port: null });
   });
 
   it('garde les points valides du journal des index, triés et sans doublon', () => {

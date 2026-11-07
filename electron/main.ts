@@ -17,6 +17,7 @@ import { APP_HOST, APP_SCHEME, assetFileUrl, buildContentSecurityPolicy } from '
 import { AiService, type FetchLike } from './ai';
 import { convertToJpeg } from './image';
 import {
+  discoverBonjourHosts,
   discoverEnphaseGateways,
   discoverP1Meters,
   discoverSmaInverters,
@@ -27,7 +28,9 @@ import {
 import { HostRecovery } from './host-recovery';
 import { InverterHub } from './inverters/hub';
 import { scanInverters } from './inverters/scan';
-import { P1Client } from './p1';
+import { P1Client, pairHomeWizard } from './p1';
+import { localNetworks, scanPort } from './inverters/scan';
+import { DEFAULT_P1_READER, isP1ReaderKind, p1Reader, type P1ReaderKind } from './shared/p1-readers';
 import { SECRET_NAMES, Secrets, fileBackend, keychainBackend } from './secret-store';
 import { EncryptedFileSecrets } from './secrets';
 import { DataFileStore } from './storage';
@@ -281,7 +284,43 @@ function assertP1Config(value: unknown): P1Config {
   if (host.length > 0 && !/^[A-Za-z0-9.-]{1,253}$/.test(host)) {
     throw new Error('Adresse du lecteur P1 invalide.');
   }
-  return { enabled: c.enabled, host };
+  const kind = c.kind ?? DEFAULT_P1_READER;
+  if (!isP1ReaderKind(kind)) {
+    throw new Error('Type de lecteur P1 inconnu.');
+  }
+  const port = c.port ?? null;
+  if (port !== null && (typeof port !== 'number' || !Number.isInteger(port) || port < 1 || port > 65535)) {
+    throw new Error('Port du lecteur P1 invalide.');
+  }
+  const fp = c.certFingerprint ?? null;
+  if (fp !== null && (typeof fp !== 'string' || !/^[0-9A-Fa-f:]{64,95}$/.test(fp))) {
+    throw new Error('Empreinte de certificat invalide.');
+  }
+  return { enabled: c.enabled, kind, host, port, certFingerprint: fp };
+}
+
+/** Cherche les lecteurs P1 du type donné : Bonjour, ou balayage du réseau local confirmé par une lecture. */
+async function discoverP1Readers(kind: P1ReaderKind, port: number | null): Promise<string[]> {
+  const info = p1Reader(kind);
+  if (kind === 'homewizard') {
+    return discoverP1Meters();
+  }
+  if (info.bonjour !== null) {
+    return discoverBonjourHosts(info.bonjour);
+  }
+  if (!info.scan) {
+    return [];
+  }
+  const tcpPort = port ?? info.defaultPort;
+  const open = await scanPort(localNetworks().flatMap((n) => n.hosts), tcpPort);
+  const confirmed = await Promise.all(
+    open.map(async (host) => {
+      const client = new P1Client();
+      client.configure({ enabled: true, kind, host, port: tcpPort });
+      return (await client.read()).error === null;
+    }),
+  );
+  return open.filter((_, i) => confirmed[i]);
 }
 
 function registerIpc(
@@ -395,7 +434,26 @@ function registerIpc(
     p1.configure(assertP1Config(config));
     pollP1();
   });
-  handle(IPC.p1Discover, () => discoverP1Meters());
+  handle(IPC.p1Discover, (value) => {
+    const kind = value === undefined || value === null ? DEFAULT_P1_READER : value;
+    if (!isP1ReaderKind(kind)) {
+      throw new Error('Type de lecteur P1 inconnu.');
+    }
+    const current = p1.settings;
+    return discoverP1Readers(kind, (current.kind ?? DEFAULT_P1_READER) === kind ? (current.port ?? null) : null);
+  });
+  handle(IPC.p1Pair, async () => {
+    const current = p1.settings;
+    if (p1.kind !== 'homewizard-v2' || !current.host) {
+      throw new Error('Choisissez « HomeWizard (API v2) » et renseignez l’adresse du lecteur avant de l’associer.');
+    }
+    await secretsReady;
+    const result = await pairHomeWizard(current.host, current.port ?? p1Reader('homewizard-v2').defaultPort);
+    await secrets.set('p1Token', result.token);
+    p1.configure({ ...current, certFingerprint: result.fingerprint });
+    pollP1();
+    return { certFingerprint: result.fingerprint };
+  });
   handle(IPC.p1Refresh, async () => {
     const reading = await p1.read();
     mainWindow?.webContents.send(IPC.p1Reading, reading);
@@ -569,10 +627,10 @@ function bootstrap(): void {
       }
     });
   };
-  const p1 = new P1Client();
+  const p1 = new P1Client(() => secrets.get('p1Token'));
   let p1Timer: ReturnType<typeof setInterval> | null = null;
   // Lecteur P1 introuvable sous son nom : on le cherche sur le réseau, sous le même identifiant uniquement.
-  const p1Recovery = new HostRecovery(discoverP1Meters, (current, found) =>
+  const p1Recovery = new HostRecovery(() => discoverP1Readers(p1.kind, null), (current, found) =>
     relocatedHost(current, found, p1Identity),
   );
   const readP1 = async (): Promise<P1Reading> => {
@@ -586,14 +644,15 @@ function bootstrap(): void {
     if (candidate === null || p1.host !== previous) {
       return reading;
     }
-    p1.configure({ enabled: true, host: candidate });
+    const settings = p1.settings;
+    p1.configure({ ...settings, enabled: true, host: candidate });
     const moved = await p1.read();
     if (moved.error === null) {
       p1Recovery.reset();
       return { ...moved, movedTo: candidate };
     }
     if (p1.host === candidate) {
-      p1.configure({ enabled: true, host: previous });
+      p1.configure({ ...settings, enabled: true, host: previous });
     }
     return reading;
   };

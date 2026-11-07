@@ -121,12 +121,17 @@ export async function discoverP1Meters(): Promise<string[]> {
  * Cherche les passerelles Enphase IQ Gateway (Bonjour `_enphase-envoy._tcp`) ; renvoie leurs noms réseau
  * (`envoy.local` en général).
  */
-export async function discoverEnphaseGateways(): Promise<string[]> {
-  const output = await browse('_enphase-envoy._tcp');
-  const instances = addedInstances(output, '_enphase-envoy._tcp');
+export function discoverEnphaseGateways(): Promise<string[]> {
+  return discoverBonjourHosts('_enphase-envoy._tcp');
+}
+
+/** Noms réseau des appareils annonçant un service Bonjour (chaque annonce est résolue). */
+export async function discoverBonjourHosts(serviceType: string): Promise<string[]> {
+  const output = await browse(serviceType);
+  const instances = addedInstances(output, serviceType);
   const resolved = await Promise.all(
     instances.map(async (instance) =>
-      parseResolvedHost(await runDnsSd(['-L', instance, '_enphase-envoy._tcp', 'local.'], RESOLVE_MS)),
+      parseResolvedHost(await runDnsSd(['-L', instance, serviceType, 'local.'], RESOLVE_MS)),
     ),
   );
   return [...new Set(resolved.filter((h): h is string => h !== null))];

@@ -20,7 +20,11 @@ export interface Running {
   close(): Promise<void>;
 }
 
-const listenTcp = (server: net.Server | http.Server, port: number, host: string): Promise<Running> =>
+const listenTcp = (
+  server: net.Server | http.Server,
+  port: number,
+  host: string,
+): Promise<Running> =>
   new Promise((resolve, reject) => {
     server.once('error', reject);
     server.listen(port, host, () => {
@@ -67,14 +71,23 @@ function modbusPdu(fn: number, address: number, count: number, provider: Registe
 }
 
 /** Réponse RTU complète (adresse + PDU + CRC) à une requête RTU, ou `null` si elle ne s'adresse pas à cet appareil. */
-export function rtuReply(request: Buffer, unitId: number, provider: RegisterProvider): Buffer | null {
+export function rtuReply(
+  request: Buffer,
+  unitId: number,
+  provider: RegisterProvider,
+): Buffer | null {
   if (request.length < 8 || crc16(request.subarray(0, 6)) !== request.readUInt16LE(6)) {
     return null;
   }
   if (request.readUInt8(0) !== unitId) {
     return null;
   }
-  const pdu = modbusPdu(request.readUInt8(1), request.readUInt16BE(2), request.readUInt16BE(4), provider);
+  const pdu = modbusPdu(
+    request.readUInt8(1),
+    request.readUInt16BE(2),
+    request.readUInt16BE(4),
+    provider,
+  );
   const frame = Buffer.concat([Buffer.from([unitId]), pdu, Buffer.alloc(2)]);
   frame.writeUInt16LE(crc16(frame.subarray(0, frame.length - 2)), frame.length - 2);
   return frame;
@@ -88,7 +101,11 @@ export interface ModbusTcpEmulator {
 }
 
 /** Serveur Modbus TCP : répond aux lectures de l'identifiant `unitId` (exception 11 pour un autre). */
-export function startModbusTcp(options: ModbusTcpEmulator, port = 0, host = '127.0.0.1'): Promise<Running> {
+export function startModbusTcp(
+  options: ModbusTcpEmulator,
+  port = 0,
+  host = '127.0.0.1',
+): Promise<Running> {
   const server = net.createServer((socket) => {
     let buffer = Buffer.alloc(0);
     socket.on('error', () => undefined);
@@ -151,7 +168,11 @@ export interface SolarmanEmulator {
  * Clé Wi-Fi Solarman : trames V5 enveloppant du Modbus RTU. Envoie un « battement de cœur » à la connexion, comme
  * les vraies clés. Un numéro de série erroné reçoit une réponse sans trame Modbus.
  */
-export function startSolarman(options: SolarmanEmulator, port = 0, host = '127.0.0.1'): Promise<Running> {
+export function startSolarman(
+  options: SolarmanEmulator,
+  port = 0,
+  host = '127.0.0.1',
+): Promise<Running> {
   const server = net.createServer((socket) => {
     let buffer = Buffer.alloc(0);
     socket.on('error', () => undefined);
@@ -174,7 +195,14 @@ export function startSolarman(options: SolarmanEmulator, port = 0, host = '127.0
         if (serial === options.loggerSerial) {
           rtu = rtuReply(frame.subarray(26, length - 2), options.unitId, options.provider);
         }
-        socket.write(v5Frame(0x1510, sequence, options.loggerSerial, Buffer.concat([header, rtu ?? Buffer.alloc(0)])));
+        socket.write(
+          v5Frame(
+            0x1510,
+            sequence,
+            options.loggerSerial,
+            Buffer.concat([header, rtu ?? Buffer.alloc(0)]),
+          ),
+        );
       }
     });
   });
@@ -221,14 +249,20 @@ export function startFronius(
   port = 0,
   host = '127.0.0.1',
 ): Promise<Running> {
-  const head = { RequestArguments: {}, Status: { Code: 0, Reason: '', UserMessage: '' }, Timestamp: new Date().toISOString() };
+  const head = {
+    RequestArguments: {},
+    Status: { Code: 0, Reason: '', UserMessage: '' },
+    Timestamp: new Date().toISOString(),
+  };
   const server = http.createServer((req, res) => {
     const s = model.state();
     const night = s.powerW === 0;
     const url = req.url ?? '';
     res.setHeader('Content-Type', 'application/json');
     if (url.startsWith('/solar_api/GetAPIVersion.cgi')) {
-      res.end(JSON.stringify({ APIVersion: 1, BaseURL: '/solar_api/v1/', CompatibilityRange: '1.8-1' }));
+      res.end(
+        JSON.stringify({ APIVersion: 1, BaseURL: '/solar_api/v1/', CompatibilityRange: '1.8-1' }),
+      );
     } else if (url.startsWith('/solar_api/v1/GetPowerFlowRealtimeData.fcgi')) {
       res.end(
         JSON.stringify({
@@ -244,7 +278,14 @@ export function startFronius(
                 E_Year: options.gen24 ? null : s.dayWh * 120,
                 E_Total: s.totalWh,
               },
-              Inverters: { '1': { DT: 1, P: s.powerW, E_Day: options.gen24 ? null : s.dayWh, E_Total: s.totalWh } },
+              Inverters: {
+                '1': {
+                  DT: 1,
+                  P: s.powerW,
+                  E_Day: options.gen24 ? null : s.dayWh,
+                  E_Total: s.totalWh,
+                },
+              },
               Version: '12',
             },
           },
@@ -332,7 +373,15 @@ function srpServer(role: string, secret: string) {
       const hN = hash('sha256', toBuf(SRP_N));
       const hG = hash('sha256', toBuf(SRP_G));
       for (let i = 0; i < hN.length; i++) hN[i] = hN[i]! ^ hG[i]!;
-      const M1 = hash('sha256', hN, hash('sha256', Buffer.from(role)), strip(salt), strip(A), strip(B), K);
+      const M1 = hash(
+        'sha256',
+        hN,
+        hash('sha256', Buffer.from(role)),
+        strip(salt),
+        strip(A),
+        strip(B),
+        K,
+      );
       const M2 = hash('sha256', strip(A), M1, K);
       return { ok: M1.toString('hex') === M1hex, M2: M2.toString('hex') };
     },
@@ -384,7 +433,12 @@ export function startSma(
         send(200, srp.first);
       } else if (path === '/dyn/authYAPFinish.json' && options.auth === 'srp') {
         const r = srp.finish(pendingA, String(json['M1'] ?? ''));
-        send(200, r.ok ? { M2: r.M2, result: { sid: open() } } : { error: { code: -28607 }, result: { res: -28607 } });
+        send(
+          200,
+          r.ok
+            ? { M2: r.M2, result: { sid: open() } }
+            : { error: { code: -28607 }, result: { res: -28607 } },
+        );
       } else if (path === '/dyn/login.json' && options.auth === 'password') {
         send(200, json['pass'] === options.secret ? { result: { sid: open() } } : { err: 401 });
       } else if (path === '/dyn/logout.json') {

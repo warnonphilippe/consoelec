@@ -31,7 +31,12 @@ export class RegisterBank {
     return this.u16(fn, address, Math.round(value) < 0 ? Math.round(value) + 0x10000 : value);
   }
 
-  u32(fn: 3 | 4, address: number, value: number, order: 'high-first' | 'low-first' = 'high-first'): this {
+  u32(
+    fn: 3 | 4,
+    address: number,
+    value: number,
+    order: 'high-first' | 'low-first' = 'high-first',
+  ): this {
     const v = Math.round(value) >>> 0;
     const high = (v >>> 16) & 0xffff;
     const low = v & 0xffff;
@@ -86,7 +91,9 @@ function sunspec(s: SolarState, float: boolean): RegisterBank {
   for (let i = 0; i < 66; i++) {
     b.u16(3, 40004 + i, 0);
   }
-  b.text(3, 40004, 'ConsoElec', 16).text(3, 40020, 'Emulateur SunSpec', 16).text(3, 40052, 'EMU123456', 16);
+  b.text(3, 40004, 'ConsoElec', 16)
+    .text(3, 40020, 'Emulateur SunSpec', 16)
+    .text(3, 40052, 'EMU123456', 16);
   let a = 40070;
   if (float) {
     b.u16(3, a, 113).u16(3, a + 1, 60);
@@ -95,7 +102,9 @@ function sunspec(s: SolarState, float: boolean): RegisterBank {
       b.u16(3, d + i, 0);
     }
     b.f32(3, d + 0, s.powerW / 690); // A
-    b.f32(3, d + 14, 230).f32(3, d + 16, 230).f32(3, d + 18, 230); // PhV
+    b.f32(3, d + 14, 230)
+      .f32(3, d + 16, 230)
+      .f32(3, d + 18, 230); // PhV
     b.f32(3, d + 20, s.powerW); // W
     b.f32(3, d + 22, 50); // Hz
     b.f32(3, d + 30, s.totalWh); // WH
@@ -108,7 +117,10 @@ function sunspec(s: SolarState, float: boolean): RegisterBank {
     }
     // W avec un facteur d'échelle 0 la journée, comme SolarEdge ; WH en Wh (facteur 0).
     b.u16(3, d + 0, Math.round((s.powerW / 690) * 100)).i16(3, d + 4, -2); // A, A_SF
-    b.u16(3, d + 8, 2300).u16(3, d + 9, 2300).u16(3, d + 10, 2300).i16(3, d + 11, -1); // PhV, V_SF
+    b.u16(3, d + 8, 2300)
+      .u16(3, d + 9, 2300)
+      .u16(3, d + 10, 2300)
+      .i16(3, d + 11, -1); // PhV, V_SF
     b.i16(3, d + 12, s.powerW).i16(3, d + 13, 0); // W, W_SF
     b.u16(3, d + 14, 5000).i16(3, d + 15, -2); // Hz, Hz_SF
     b.u32(3, d + 22, s.totalWh).i16(3, d + 24, 0); // WH, WH_SF

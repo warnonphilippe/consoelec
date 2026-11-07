@@ -47,7 +47,8 @@ const api: ConsoElecApi = {
   p1: {
     configure: (config) => ipcRenderer.invoke('p1:configure', config),
     refresh: () => ipcRenderer.invoke('p1:refresh'),
-    discover: () => ipcRenderer.invoke('p1:discover'),
+    discover: (kind) => ipcRenderer.invoke('p1:discover', kind),
+    pair: () => ipcRenderer.invoke('p1:pair'),
     onReading: (listener) => {
       const handler = (_event: unknown, payload: P1Reading): void => listener(payload);
       ipcRenderer.on('p1:reading', handler);

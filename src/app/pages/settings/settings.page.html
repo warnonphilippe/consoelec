@@ -624,12 +624,10 @@
       </div>
     } @else {
       <p class="muted small">
-        Un lecteur <strong>HomeWizard Wi-Fi P1</strong> branché sur le port P1 du compteur donne ses
-        index sur votre réseau local. ConsoElec les lit chaque minute quand l'application est
-        ouverte : les relevés encodés à la main deviennent facultatifs. Activez d'abord l'<strong
-          >API locale</strong
-        >
-        dans l'application HomeWizard Energy.
+        Un lecteur branché sur le port P1 du compteur numérique donne ses index sur votre réseau
+        local. ConsoElec les lit chaque minute quand l'application est ouverte : les relevés encodés
+        à la main deviennent facultatifs. Le port P1 suit la même norme (e-MUCS) chez tous les
+        gestionnaires de réseau belges : seul le lecteur compte.
       </p>
       <label class="check">
         <input type="checkbox" [checked]="p1Settings().enabled" (change)="setP1Enabled($event)" />
@@ -637,28 +635,77 @@
       </label>
       <div class="form-grid inverter-grid">
         <div class="field">
+          <label for="p1kind">Lecteur P1</label>
+          <select id="p1kind" class="input" (change)="setP1Kind($event)">
+            @for (r of p1Readers; track r.id) {
+              <option [value]="r.id" [selected]="r.id === p1Settings().kind">{{ r.label }}</option>
+            }
+          </select>
+          <span class="help">{{ p1.reader().models }}.</span>
+        </div>
+        <div class="callout">
+          <app-icon name="info" />
+          <div><strong>À activer :</strong> {{ p1.reader().setup }}</div>
+        </div>
+        <div class="field">
           <label for="p1host">Adresse du lecteur P1</label>
           <input
             id="p1host"
-            placeholder="p1meter- + 6 caractères + .local, ex. p1meter-abc123.local"
+            [placeholder]="p1.reader().hostPlaceholder"
             class="input mono"
             spellcheck="false"
             [value]="p1Settings().host"
             (change)="setP1Host($event)"
           />
-          <button
-            type="button"
-            class="btn sm discover"
-            [disabled]="p1.discovering()"
-            (click)="discoverP1()"
-          >
-            <app-icon name="refresh" [size]="14" />
-            {{ p1.discovering() ? 'Recherche…' : 'Rechercher sur le réseau' }}
-          </button>
-          <span class="help"
-            >Nom réseau du lecteur (p1meter-…, suivi de .local) ou adresse IP.</span
-          >
+          @if (p1.reader().bonjour !== null || p1.reader().scan) {
+            <button
+              type="button"
+              class="btn sm discover"
+              [disabled]="p1.discovering()"
+              (click)="discoverP1()"
+            >
+              <app-icon name="refresh" [size]="14" />
+              {{ p1.discovering() ? 'Recherche…' : 'Rechercher sur le réseau' }}
+            </button>
+          }
+          <span class="help">Nom réseau (p1meter-….local pour HomeWizard) ou adresse IP.</span>
         </div>
+        <div class="field">
+          <label for="p1port">Port</label>
+          <input
+            id="p1port"
+            class="input mono"
+            inputmode="numeric"
+            placeholder="{{ p1.reader().defaultPort }}"
+            [value]="p1Settings().port ?? ''"
+            (change)="setP1Port($event)"
+          />
+          <span class="help">Laissez vide pour le port habituel du lecteur.</span>
+        </div>
+        @if (p1.reader().pairing) {
+          <div class="field">
+            <label for="p1pair">Association</label>
+            <div class="row">
+              <button
+                id="p1pair"
+                type="button"
+                class="btn primary"
+                [disabled]="p1.pairing() || p1Settings().host === ''"
+                (click)="pairP1()"
+              >
+                <app-icon name="key" [size]="14" />
+                {{ p1.pairing() ? 'Appuyez sur le bouton du lecteur…' : 'Associer' }}
+              </button>
+              @if (secrets.has('p1Token')) {
+                <span class="badge success"><app-icon name="check" [size]="12" /> Jeton enregistré</span>
+              }
+            </div>
+            <span class="help"
+              >Après « Associer », appuyez sur le bouton du lecteur (attente d'une minute au plus).
+              Le jeton est rangé dans le Trousseau, le certificat du lecteur est épinglé.</span
+            >
+          </div>
+        }
       </div>
       <div class="row">
         <button

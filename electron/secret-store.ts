@@ -5,7 +5,7 @@ import type { EncryptedFileSecrets } from './secrets';
 import type { SecretName, SecretsStatus } from './shared/ipc-contract';
 import { Vault, signChallenge } from './vault';
 
-export const SECRET_NAMES: readonly SecretName[] = ['claudeApiKey', 'inverterPsk'];
+export const SECRET_NAMES: readonly SecretName[] = ['claudeApiKey', 'inverterPsk', 'p1Token'];
 
 /** Où les secrets sont rangés : lecture, écriture et suppression par nom. */
 export interface SecretBackend {
@@ -19,6 +19,7 @@ const SERVICE = 'io.github.warnonphilippe.consoelec';
 const ITEMS: Record<SecretName, KeychainItem> = {
   claudeApiKey: { service: SERVICE, account: 'claude-api-key', label: 'ConsoElec — clé API Claude' },
   inverterPsk: { service: SERVICE, account: 'inverter-psk', label: 'ConsoElec — clé de l’onduleur' },
+  p1Token: { service: SERVICE, account: 'p1-token', label: 'ConsoElec — jeton du lecteur P1' },
 };
 
 /** Trousseau macOS : un élément visible dans Trousseau d'accès par secret. */
@@ -95,7 +96,11 @@ export class Secrets {
   status(): SecretsStatus {
     return {
       storage: this.backend.kind,
-      secrets: { claudeApiKey: this.has('claudeApiKey'), inverterPsk: this.has('inverterPsk') },
+      secrets: {
+        claudeApiKey: this.has('claudeApiKey'),
+        inverterPsk: this.has('inverterPsk'),
+        p1Token: this.has('p1Token'),
+      },
       legacyVault: existsSync(this.vaultPath),
     };
   }
@@ -109,7 +114,8 @@ export class Secrets {
     await vault.unlock(passphrase);
     const imported: SecretName[] = [];
     try {
-      for (const name of SECRET_NAMES) {
+      // L'ancien coffre ne connaissait que la clé Claude et celle de l'onduleur.
+      for (const name of ['claudeApiKey', 'inverterPsk'] as const) {
         const value = vault.get(name);
         if (value) {
           await this.set(name, value);

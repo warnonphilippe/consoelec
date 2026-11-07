@@ -271,17 +271,17 @@
     secrets: {
       status: async () => ({
         storage: 'keychain',
-        secrets: { claudeApiKey: false, inverterPsk: true },
+        secrets: { claudeApiKey: false, inverterPsk: true, p1Token: false },
         legacyVault: false,
       }),
       setSecret: async () => ({
         storage: 'keychain',
-        secrets: { claudeApiKey: false, inverterPsk: true },
+        secrets: { claudeApiKey: false, inverterPsk: true, p1Token: false },
         legacyVault: false,
       }),
       importVault: async () => ({
         storage: 'keychain',
-        secrets: { claudeApiKey: false, inverterPsk: true },
+        secrets: { claudeApiKey: false, inverterPsk: true, p1Token: false },
         legacyVault: false,
       }),
     },
@@ -302,6 +302,7 @@
       refresh: async () => p1Reading(),
       onReading: (fn) => subscribe(listeners.p1, fn),
       discover: async () => [settings.p1.host],
+      pair: async () => ({ certFingerprint: null }),
     },
     ai: {
       status: async () => ({ hasKey: false }),
