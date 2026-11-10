@@ -1,5 +1,4 @@
 import { AiService, type FetchLike } from './ai';
-import { METER_TOOL_NAME } from './ai-core';
 import type { AiStreamEvent } from './shared/ipc-contract';
 
 const KEY = 'sk-ant-api03-cle-de-test-assez-longue';
@@ -115,23 +114,31 @@ describe('AiService', () => {
     expect(result).toEqual({ ok: false, message: expect.stringContaining('connexion') });
   });
 
-  it('lit les index d’une photo via l’outil forcé', async () => {
+  it('lit les index d’une photo via la sortie structurée', async () => {
     await secrets.set(KEY);
     const fetchImpl: FetchLike = async () =>
       new Response(
         JSON.stringify({
+          stop_reason: 'end_turn',
           content: [
             {
-              type: 'tool_use',
-              name: METER_TOOL_NAME,
-              input: {
+              type: 'text',
+              text: JSON.stringify({
                 importPeak: 12345.6,
                 importOff: 6789,
                 exportPeak: null,
                 exportOff: null,
-                confidence: { importPeak: 'high', importOff: 'low' },
+                pvTotal: null,
+                displayedDate: null,
+                confidence: {
+                  importPeak: 'high',
+                  importOff: 'low',
+                  exportPeak: null,
+                  exportOff: null,
+                  pvTotal: null,
+                },
                 notes: '',
-              },
+              }),
             },
           ],
         }),

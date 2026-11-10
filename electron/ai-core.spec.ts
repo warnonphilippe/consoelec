@@ -1,12 +1,12 @@
 import {
-  METER_TOOL_NAME,
   SseParser,
   buildChatBody,
   buildMeterBody,
   httpErrorMessage,
   parseMeterInput,
   stepOf,
-  toolInputOf,
+  meterOutputOf,
+  meterOutputSchema,
 } from './ai-core';
 
 describe('flux SSE', () => {
@@ -52,9 +52,13 @@ describe('requêtes', () => {
     expect(body['messages']).toEqual([{ role: 'user', content: 'Salut' }]);
   });
 
-  it('force l’outil de lecture du compteur avec les images', () => {
+  it('demande les index en sortie structurée (sans outil forcé) avec les images', () => {
     const body = buildMeterBody('claude-sonnet-5-5', [{ mediaType: 'image/jpeg', base64: 'AAAA' }]);
-    expect(body['tool_choice']).toEqual({ type: 'tool', name: METER_TOOL_NAME });
+    expect(body['tool_choice']).toBeUndefined();
+    expect(body['tools']).toBeUndefined();
+    expect(body['output_config']).toEqual({
+      format: { type: 'json_schema', schema: meterOutputSchema() },
+    });
     const content = (body['messages'] as { content: { type: string }[] }[])[0]!.content;
     expect(content.map((c) => c.type)).toEqual(['image', 'text']);
   });
@@ -105,16 +109,31 @@ describe('lecture de photo', () => {
     expect(() => parseMeterInput('n’importe quoi')).toThrow();
   });
 
-  it('retrouve l’entrée de l’outil dans la réponse', () => {
-    const input = { importPeak: 1 };
+  it('lit le JSON de la sortie structurée', () => {
     expect(
-      toolInputOf({
+      meterOutputOf({
+        stop_reason: 'end_turn',
         content: [
-          { type: 'text', text: 'x' },
-          { type: 'tool_use', name: METER_TOOL_NAME, input },
+          { type: 'thinking', thinking: '' },
+          { type: 'text', text: '{"importPeak":1,"notes":""}' },
         ],
       }),
-    ).toBe(input);
-    expect(() => toolInputOf({ content: [] })).toThrow();
+    ).toEqual({ importPeak: 1, notes: '' });
+    expect(() => meterOutputOf({ content: [] })).toThrow('valeurs exploitables');
+    expect(() => meterOutputOf({ content: [{ type: 'text', text: 'pas du JSON' }] })).toThrow();
+    expect(() => meterOutputOf({ stop_reason: 'refusal', content: [] })).toThrow('refusé');
+    expect(() => meterOutputOf({ stop_reason: 'max_tokens', content: [] })).toThrow('coupée');
+  });
+
+  it('ferme tous les objets du schéma et rend chaque champ requis', () => {
+    const check = (schema: Record<string, unknown>): void => {
+      if (schema['type'] === 'object') {
+        expect(schema['additionalProperties']).toBe(false);
+        const props = schema['properties'] as Record<string, Record<string, unknown>>;
+        expect([...(schema['required'] as string[])].sort()).toEqual(Object.keys(props).sort());
+        Object.values(props).forEach(check);
+      }
+    };
+    check(meterOutputSchema());
   });
 });

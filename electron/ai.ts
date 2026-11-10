@@ -6,9 +6,9 @@ import {
   buildMeterBody,
   buildTestBody,
   httpErrorMessage,
+  meterOutputOf,
   parseMeterInput,
   stepOf,
-  toolInputOf,
 } from './ai-core';
 import type {
   AiChatRequest,
@@ -90,7 +90,7 @@ export class AiService {
 
   async readMeter(model: string, photos: readonly MeterPhoto[]): Promise<PhotoReading> {
     const response = await this.post(buildMeterBody(model, photos));
-    return parseMeterInput(toolInputOf(await response.json()));
+    return parseMeterInput(meterOutputOf(await response.json()));
   }
 
   private async post(body: Record<string, unknown>, signal?: AbortSignal): Promise<Response> {

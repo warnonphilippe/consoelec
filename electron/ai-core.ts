@@ -165,51 +165,85 @@ Une photo peut aussi être une capture d'écran de l'application de l'onduleur (
 
 Règles : ne devine jamais. Si un registre n'est pas visible ou pas lisible avec certitude, mets null. Indique ta confiance (high : chiffres nets, medium : un doute sur un chiffre, low : lecture incertaine). Si l'écran montre une date et une heure, rapporte-les. Signale dans notes tout ce qui peut gêner (reflet, photo floue, registre ambigu).`;
 
-export function buildMeterBody(
-  model: string,
-  photos: readonly MeterPhoto[],
-): Record<string, unknown> {
+/** Schéma des valeurs lues, tel que décrit à l'outil de lecture (repris par le moteur OpenAI). */
+export function meterInputSchema(): Record<string, unknown> {
   const confidence = { type: ['string', 'null'], enum: ['high', 'medium', 'low', null] };
   const value = {
     type: ['number', 'null'],
     description: 'Index en kWh, ou null si illisible/absent',
   };
   return {
-    model,
-    max_tokens: 1024,
-    tools: [
-      {
-        name: METER_TOOL_NAME,
-        description: 'Rapporte les index lus sur les photos du compteur.',
-        input_schema: {
-          type: 'object',
-          properties: {
-            importPeak: value,
-            importOff: value,
-            exportPeak: value,
-            exportOff: value,
-            pvTotal: value,
-            displayedDate: {
-              type: ['string', 'null'],
-              description: 'Date/heure affichées, au format AAAA-MM-JJTHH:mm, ou null',
-            },
-            confidence: {
-              type: 'object',
-              properties: {
-                importPeak: confidence,
-                importOff: confidence,
-                exportPeak: confidence,
-                exportOff: confidence,
-                pvTotal: confidence,
-              },
-            },
-            notes: { type: 'string' },
-          },
-          required: ['importPeak', 'importOff', 'exportPeak', 'exportOff', 'notes'],
+    type: 'object',
+    properties: {
+      importPeak: value,
+      importOff: value,
+      exportPeak: value,
+      exportOff: value,
+      pvTotal: value,
+      displayedDate: {
+        type: ['string', 'null'],
+        description: 'Date/heure affichées, au format AAAA-MM-JJTHH:mm, ou null',
+      },
+      confidence: {
+        type: 'object',
+        properties: {
+          importPeak: confidence,
+          importOff: confidence,
+          exportPeak: confidence,
+          exportOff: confidence,
+          pvTotal: confidence,
         },
       },
-    ],
-    tool_choice: { type: 'tool', name: METER_TOOL_NAME },
+      notes: { type: 'string' },
+    },
+    required: ['importPeak', 'importOff', 'exportPeak', 'exportOff', 'notes'],
+  };
+}
+
+const REGISTERS = ['importPeak', 'importOff', 'exportPeak', 'exportOff', 'pvTotal'] as const;
+
+/**
+ * Même schéma au format des sorties structurées de Claude : tous les champs requis (null quand ils sont illisibles),
+ * objets fermés (`additionalProperties: false`), valeurs facultatives en `anyOf`.
+ */
+export function meterOutputSchema(): Record<string, unknown> {
+  const nullable = (schema: Record<string, unknown>) => ({ anyOf: [schema, { type: 'null' }] });
+  const value = nullable({ type: 'number', description: 'Index en kWh' });
+  const confidence = nullable({ type: 'string', enum: ['high', 'medium', 'low'] });
+  return {
+    type: 'object',
+    properties: {
+      ...Object.fromEntries(REGISTERS.map((r) => [r, value])),
+      displayedDate: nullable({
+        type: 'string',
+        description: 'Date/heure affichées, au format AAAA-MM-JJTHH:mm',
+      }),
+      confidence: {
+        type: 'object',
+        properties: Object.fromEntries(REGISTERS.map((r) => [r, confidence])),
+        required: [...REGISTERS],
+        additionalProperties: false,
+      },
+      notes: { type: 'string' },
+    },
+    required: [...REGISTERS, 'displayedDate', 'confidence', 'notes'],
+    additionalProperties: false,
+  };
+}
+
+/**
+ * Lecture des index sur photo : la réponse est un JSON conforme au schéma (sortie structurée). L'outil forcé
+ * (`tool_choice: tool`) n'est plus accepté par Claude Sonnet 5.5, Opus 5.5 et Fable 5.1.
+ */
+export function buildMeterBody(
+  model: string,
+  photos: readonly MeterPhoto[],
+): Record<string, unknown> {
+  return {
+    model,
+    // Le modèle réfléchit avant de répondre : le budget comprend cette réflexion.
+    max_tokens: 8000,
+    output_config: { format: { type: 'json_schema', schema: meterOutputSchema() } },
     messages: [
       {
         role: 'user',
@@ -279,12 +313,24 @@ export function parseMeterInput(input: unknown): PhotoReading {
   return reading;
 }
 
-/** Extrait l'`input` du bloc tool_use d'une réponse non streamée. */
-export function toolInputOf(response: unknown): unknown {
-  if (isRecord(response) && Array.isArray(response['content'])) {
-    for (const block of response['content']) {
-      if (isRecord(block) && block['type'] === 'tool_use' && block['name'] === METER_TOOL_NAME) {
-        return block['input'];
+/** Extrait les valeurs (JSON du premier bloc texte) d'une réponse non streamée à sortie structurée. */
+export function meterOutputOf(response: unknown): unknown {
+  if (isRecord(response)) {
+    if (response['stop_reason'] === 'refusal') {
+      throw new Error('Claude a refusé de lire cette photo.');
+    }
+    if (response['stop_reason'] === 'max_tokens') {
+      throw new Error('La réponse de Claude a été coupée : réessayez avec moins de photos.');
+    }
+    if (Array.isArray(response['content'])) {
+      for (const block of response['content']) {
+        if (isRecord(block) && block['type'] === 'text' && typeof block['text'] === 'string') {
+          try {
+            return JSON.parse(block['text']);
+          } catch {
+            break;
+          }
+        }
       }
     }
   }

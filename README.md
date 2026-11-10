@@ -107,7 +107,7 @@ electron/                  Process principal (TypeScript → dist-electron/)
   p1-core.ts, p1.ts         lecteur P1 : HomeWizard API v1 et v2 (association par le bouton), Chargee, YouLess,
   p1-readers/              télégramme P1 brut sur TCP (dsmr.ts : norme e-MUCS / DSMR, CRC), formats JSON
   discovery.ts             recherche Bonjour de l'onduleur SMA, de la passerelle Enphase et du lecteur P1
-  ai-core.ts               API Claude : requêtes, flux SSE, outil de lecture de photo, erreurs (pur, testé)
+  ai-core.ts               API Claude : requêtes, flux SSE, lecture de photo (sortie structurée), erreurs (pur, testé)
   ai.ts                    appels réseau depuis le process principal uniquement
   openai-core.ts, openai.ts API OpenAI (Responses) : requêtes, flux SSE, appel de fonction pour la photo (pur, testé)
   local-llm.ts             modèle Qwen local (node-llama-cpp) : téléchargement, réponses en flux, une à la fois

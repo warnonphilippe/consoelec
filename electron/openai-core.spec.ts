@@ -1,4 +1,4 @@
-import { METER_TOOL_NAME, buildMeterBody } from './ai-core';
+import { METER_TOOL_NAME, meterInputSchema } from './ai-core';
 import {
   NO_CREDIT_MESSAGE,
   buildOpenAiChatBody,
@@ -46,8 +46,7 @@ describe('openai-core', () => {
     ]);
     const tools = body['tools'] as Record<string, unknown>[];
     expect(tools[0]).toMatchObject({ type: 'function', name: METER_TOOL_NAME });
-    const claudeTools = buildMeterBody('m', [])['tools'] as Record<string, unknown>[];
-    expect(tools[0]!['parameters']).toEqual(claudeTools[0]!['input_schema']);
+    expect(tools[0]!['parameters']).toEqual(meterInputSchema());
     expect(body['tool_choice']).toEqual({ type: 'function', name: METER_TOOL_NAME });
     const input = body['input'] as { content: Record<string, unknown>[] }[];
     expect(input[0]!.content[0]).toMatchObject({

@@ -5,8 +5,8 @@
 import {
   METER_PROMPT,
   METER_TOOL_NAME,
-  buildMeterBody,
   isRecord,
+  meterInputSchema,
   type SseEvent,
   type StreamStep,
 } from './ai-core';
@@ -63,7 +63,7 @@ export function buildOpenAiMeterBody(
         type: 'function',
         name: METER_TOOL_NAME,
         description: 'Rapporte les index lus sur les photos du compteur.',
-        parameters: meterSchema(),
+        parameters: meterInputSchema(),
         strict: false,
       },
     ],
@@ -82,13 +82,6 @@ export function buildOpenAiMeterBody(
       },
     ],
   };
-}
-
-/** Schéma JSON des valeurs du compteur, repris tel quel de la requête Claude. */
-function meterSchema(): unknown {
-  const tools = buildMeterBody('', [])['tools'];
-  const tool: unknown = Array.isArray(tools) ? tools[0] : null;
-  return isRecord(tool) ? tool['input_schema'] : {};
 }
 
 /** Interprète un événement du flux Responses : texte à afficher, fin, ou rien. Lève une erreur en cas d'échec. */
