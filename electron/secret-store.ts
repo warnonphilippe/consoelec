@@ -5,7 +5,12 @@ import type { EncryptedFileSecrets } from './secrets';
 import type { SecretName, SecretsStatus } from './shared/ipc-contract';
 import { Vault, signChallenge } from './vault';
 
-export const SECRET_NAMES: readonly SecretName[] = ['claudeApiKey', 'inverterPsk', 'p1Token'];
+export const SECRET_NAMES: readonly SecretName[] = [
+  'claudeApiKey',
+  'inverterPsk',
+  'p1Token',
+  'openaiApiKey',
+];
 
 /** Où les secrets sont rangés : lecture, écriture et suppression par nom. */
 export interface SecretBackend {
@@ -20,6 +25,7 @@ const ITEMS: Record<SecretName, KeychainItem> = {
   claudeApiKey: { service: SERVICE, account: 'claude-api-key', label: 'ConsoElec — clé API Claude' },
   inverterPsk: { service: SERVICE, account: 'inverter-psk', label: 'ConsoElec — clé de l’onduleur' },
   p1Token: { service: SERVICE, account: 'p1-token', label: 'ConsoElec — jeton du lecteur P1' },
+  openaiApiKey: { service: SERVICE, account: 'openai-api-key', label: 'ConsoElec — clé API OpenAI' },
 };
 
 /** Trousseau macOS : un élément visible dans Trousseau d'accès par secret. */
@@ -100,6 +106,7 @@ export class Secrets {
         claudeApiKey: this.has('claudeApiKey'),
         inverterPsk: this.has('inverterPsk'),
         p1Token: this.has('p1Token'),
+        openaiApiKey: this.has('openaiApiKey'),
       },
       legacyVault: existsSync(this.vaultPath),
     };

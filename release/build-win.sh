@@ -24,6 +24,15 @@ if [ ! -f node_modules/.package-lock.json ] || [ package-lock.json -nt node_modu
 fi
 
 npm test
+
+# Moteur du modèle Qwen local : binaires précompilés de node-llama-cpp pour Windows x64 (npm n'installe que ceux de
+# la machine qui construit). Sans eux, l'application Windows fonctionne, mais le moteur Qwen y est indisponible.
+LLAMA_VERSION="$(node -p "require('./node_modules/node-llama-cpp/package.json').version")"
+if [ ! -d node_modules/@node-llama-cpp/win-x64 ]; then
+  echo "→ binaires node-llama-cpp pour Windows x64"
+  npm install --no-save --force --no-audit --no-fund --os=win32 --cpu=x64 "@node-llama-cpp/win-x64@${LLAMA_VERSION}"
+fi
+
 npm run dist:win
 
 VERSION="$(node -p "require('./package.json').version")"

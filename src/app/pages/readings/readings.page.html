@@ -100,7 +100,7 @@
           }
         }
         @if (photoBusy()) {
-          <div class="small muted">Claude lit la photo…</div>
+          <div class="small muted">{{ ai.providerLabel() }} lit la photo…</div>
         }
       </div>
       @if (!canReadPhoto() && photos().length === 0) {
@@ -108,6 +108,12 @@
           @if (!ai.available) {
             La lecture automatique des photos nécessite l'application de bureau et une clé API
             Claude.
+          } @else if (ai.provider() === 'qwen') {
+            Le modèle Qwen local ne lit pas les photos : pour la lecture automatique,
+            <a routerLink="/reglages" fragment="ia">ajoutez une clé API Claude ou OpenAI</a>.
+          } @else if (ai.provider() === 'openai') {
+            Pour qu'OpenAI lise la photo,
+            <a routerLink="/reglages" fragment="ia">ajoutez votre clé API</a>.
           } @else {
             Pour que Claude lise la photo,
             <a routerLink="/reglages" fragment="ia">ajoutez votre clé API</a>.
@@ -124,7 +130,7 @@
         <div class="callout" [class.warning]="hasProblem()">
           <app-icon name="sparkles" />
           <div>
-            Valeurs lues par Claude — <strong>vérifiez-les avant d'enregistrer</strong>.
+            Valeurs lues par {{ ai.providerLabel() }} — <strong>vérifiez-les avant d'enregistrer</strong>.
             @if (r.notes) {
               <span class="muted"> {{ r.notes }}</span>
             }

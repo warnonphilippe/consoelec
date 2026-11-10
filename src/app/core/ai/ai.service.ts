@@ -1,6 +1,9 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
+import { LOCAL_MODELS, localModelInfo } from '../../../../electron/shared/ai-models';
 import type {
+  AiProvider,
   AiStreamEvent,
+  LocalModelStatus,
   MeterPhoto,
   PhotoReading,
 } from '../../../../electron/shared/ipc-contract';
@@ -16,7 +19,16 @@ export interface ChatMessage {
   readonly error?: boolean;
 }
 
-/** Assistant Claude : état de la conversation, clé API (jamais lue côté page) et lecture de photos. */
+export const PROVIDER_LABELS: Readonly<Record<AiProvider, string>> = {
+  claude: 'Claude',
+  openai: 'OpenAI',
+  qwen: 'Qwen',
+};
+
+/**
+ * Assistant IA : état de la conversation, clés API (jamais lues côté page), modèle Qwen local et lecture de photos.
+ * Moteurs : Claude (recommandé), OpenAI, ou Qwen exécuté sur l'ordinateur sans clé.
+ */
 @Injectable({ providedIn: 'root' })
 export class AiService {
   private readonly store = inject(DataStore);
@@ -25,8 +37,39 @@ export class AiService {
 
   /** Les appels à Claude passent par l'application de bureau ; pas disponibles dans un simple navigateur. */
   readonly available = this.api !== null;
-  /** Une clé API est enregistrée dans le Trousseau. */
+  /** Une clé API Claude est enregistrée dans le Trousseau. */
   readonly hasKey = computed(() => this.secrets.has('claudeApiKey'));
+  /** Une clé API OpenAI est enregistrée dans le Trousseau. */
+  readonly hasOpenAiKey = computed(() => this.secrets.has('openaiApiKey'));
+  /** État de chaque modèle Qwen local, par identifiant. */
+  readonly localStatuses = signal<Readonly<Record<string, LocalModelStatus>>>({});
+  /** Modèle Qwen choisi. */
+  readonly localModel = computed(() => localModelInfo(this.store.settings().localModel));
+  /** État du modèle Qwen choisi (`null` tant qu'il n'est pas connu). */
+  readonly localStatus = computed(() => this.localStatuses()[this.localModel().id] ?? null);
+  /** Modèle Qwen en cours de téléchargement, s'il y en a un. */
+  readonly downloading = computed(
+    () => Object.values(this.localStatuses()).find((s) => s.downloading) ?? null,
+  );
+
+  /** Moteur choisi dans les réglages (Claude par défaut). */
+  readonly provider = computed<AiProvider>(() => this.store.settings().aiProvider);
+  readonly providerLabel = computed(() => PROVIDER_LABELS[this.provider()]);
+  /** Le moteur choisi peut répondre : clé enregistrée, ou modèle Qwen téléchargé et utilisable. */
+  readonly ready = computed(() => {
+    switch (this.provider()) {
+      case 'claude':
+        return this.hasKey();
+      case 'openai':
+        return this.hasOpenAiKey();
+      case 'qwen': {
+        const status = this.localStatus();
+        return status !== null && status.installed && status.supported;
+      }
+    }
+  });
+  /** La lecture des photos demande Claude ou OpenAI (le modèle Qwen local ne lit pas les images). */
+  readonly canReadPhoto = computed(() => this.ready() && this.provider() !== 'qwen');
 
   readonly open = signal(false);
   readonly messages = signal<ChatMessage[]>([]);
@@ -35,25 +78,74 @@ export class AiService {
 
   constructor() {
     if (this.api !== null) {
-      const off = this.api.onEvent((event) => this.onEvent(event));
-      inject(DestroyRef).onDestroy(off);
+      const api = this.api;
+      const off = api.onEvent((event) => this.onEvent(event));
+      const offLocal = api.local.onStatus((status) => this.setLocalStatus(status));
+      const destroyRef = inject(DestroyRef);
+      destroyRef.onDestroy(off);
+      destroyRef.onDestroy(offLocal);
+      // État de chaque modèle Qwen (téléchargé ou non), pour les cartes des réglages.
+      for (const m of LOCAL_MODELS) {
+        void api.local.status(m.id).then(
+          (status) => this.setLocalStatus(status),
+          () => undefined,
+        );
+      }
     }
   }
 
-  async setKey(key: string): Promise<void> {
-    await this.secrets.setSecret('claudeApiKey', key.trim());
+  async setKey(key: string, provider: 'claude' | 'openai' = 'claude'): Promise<void> {
+    await this.secrets.setSecret(provider === 'openai' ? 'openaiApiKey' : 'claudeApiKey', key.trim());
   }
 
-  async clearKey(): Promise<void> {
-    await this.secrets.setSecret('claudeApiKey', null);
+  async clearKey(provider: 'claude' | 'openai' = 'claude'): Promise<void> {
+    await this.secrets.setSecret(provider === 'openai' ? 'openaiApiKey' : 'claudeApiKey', null);
   }
 
-  test(): Promise<{ ok: boolean; message: string }> {
-    return this.require().test(this.store.settings().aiModel);
+  /** Teste le moteur donné (par défaut celui qui est utilisé). */
+  test(provider: AiProvider = this.provider()): Promise<{ ok: boolean; message: string }> {
+    if (provider === 'claude') {
+      return this.require().test(this.store.settings().aiModel);
+    }
+    return this.require().test(this.modelOf(provider), provider);
   }
 
   async readMeter(photos: readonly MeterPhoto[]): Promise<PhotoReading> {
-    return this.require().readMeter(this.store.settings().aiModel, photos);
+    const provider = this.provider();
+    if (provider === 'claude') {
+      return this.require().readMeter(this.store.settings().aiModel, photos);
+    }
+    return this.require().readMeter(this.modelOf(provider), photos, provider);
+  }
+
+  async downloadLocal(): Promise<void> {
+    this.setLocalStatus(await this.require().local.download(this.localModel().id));
+  }
+
+  async cancelLocal(): Promise<void> {
+    const id = this.downloading()?.id ?? this.localModel().id;
+    this.setLocalStatus(await this.require().local.cancel(id));
+  }
+
+  async removeLocal(): Promise<void> {
+    this.setLocalStatus(await this.require().local.remove(this.localModel().id));
+  }
+
+  private setLocalStatus(status: LocalModelStatus): void {
+    this.localStatuses.update((all) => ({ ...all, [status.id]: status }));
+  }
+
+  /** Modèle du moteur donné, choisi dans les réglages. */
+  private modelOf(provider: AiProvider): string {
+    const settings = this.store.settings();
+    switch (provider) {
+      case 'openai':
+        return settings.openaiModel;
+      case 'qwen':
+        return settings.localModel;
+      default:
+        return settings.aiModel;
+    }
   }
 
   async send(text: string): Promise<void> {
@@ -73,10 +165,12 @@ export class AiService {
     const history = this.messages()
       .filter((m) => !m.error && m.id !== requestId)
       .map((m) => ({ role: m.role, content: m.content }));
+    const provider = this.provider();
     try {
       await api.chat({
         requestId,
-        model: this.store.settings().aiModel,
+        ...(provider === 'claude' ? {} : { provider }),
+        model: this.modelOf(provider),
         system: buildSystemPrompt(this.store.data(), this.store.analysis(), this.store.now()),
         messages: history,
       });

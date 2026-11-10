@@ -15,6 +15,8 @@ import {
 import type { IpcMainInvokeEvent } from 'electron';
 import { APP_HOST, APP_SCHEME, assetFileUrl, buildContentSecurityPolicy } from './app-protocol';
 import { AiService, type FetchLike } from './ai';
+import { LocalLlmService } from './local-llm';
+import { OpenAiService } from './openai';
 import { convertToJpeg } from './image';
 import {
   discoverBonjourHosts,
@@ -43,6 +45,8 @@ import {
 import {
   IPC,
   type AiChatRequest,
+  type AiProvider,
+  type AiStreamEvent,
   type ExportKind,
   type InverterConfig,
   type InverterFound,
@@ -60,6 +64,8 @@ const DEV_ORIGIN = DEV_URL === null ? null : new URL(DEV_URL).origin;
 const RENDERER_ROOT = join(__dirname, '..', 'dist', 'consoelec', 'browser');
 /** Développement uniquement : serveur local simulant l'API Claude (jamais honoré dans l'application packagée). */
 const DEV_API_URL = !app.isPackaged ? process.env['CONSOELEC_API_URL'] : undefined;
+/** Développement uniquement : serveur local simulant l'API OpenAI. */
+const DEV_OPENAI_API_URL = !app.isPackaged ? process.env['CONSOELEC_OPENAI_API_URL'] : undefined;
 const APP_ORIGIN = `${APP_SCHEME}://${APP_HOST}`;
 const CSP = buildContentSecurityPolicy(DEV_ORIGIN);
 const MAX_CONTENT_LENGTH = 50 * 1024 * 1024;
@@ -118,6 +124,17 @@ function assertModel(value: unknown): string {
   return model;
 }
 
+/** Moteur de l'assistant ; absent : Claude, comme avant l'arrivée des autres moteurs. */
+function assertProvider(value: unknown): AiProvider {
+  if (value === undefined || value === null) {
+    return 'claude';
+  }
+  if (value !== 'claude' && value !== 'openai' && value !== 'qwen') {
+    throw new Error('Paramètre invalide : provider');
+  }
+  return value;
+}
+
 function assertPhotos(value: unknown): MeterPhoto[] {
   if (!Array.isArray(value) || value.length < 1 || value.length > 4) {
     throw new Error('Paramètre invalide : photos');
@@ -162,6 +179,7 @@ function assertChat(value: unknown): AiChatRequest {
   }
   return {
     requestId: assertString(request.requestId, 'requestId'),
+    provider: assertProvider(request.provider),
     model: assertModel(request.model),
     system,
     messages,
@@ -326,6 +344,7 @@ async function discoverP1Readers(kind: P1ReaderKind, port: number | null): Promi
 function registerIpc(
   store: DataFileStore,
   ai: AiService,
+  engines: { readonly openai: OpenAiService; readonly local: LocalLlmService },
   secrets: Secrets,
   secretsReady: Promise<void>,
   inverter: InverterHub,
@@ -463,22 +482,55 @@ function registerIpc(
     await secretsReady;
     return { hasKey: secrets.has('claudeApiKey') };
   });
-  handle(IPC.aiTest, (model) => ai.test(assertModel(model)));
-  handle(IPC.aiAbort, (requestId) => ai.abort(assertString(requestId, 'requestId')));
-  handle(IPC.aiReadMeter, (model, photos) =>
-    ai.readMeter(assertModel(model), assertPhotos(photos)),
-  );
+  handle(IPC.aiTest, (model, provider) => {
+    switch (assertProvider(provider)) {
+      case 'openai':
+        return engines.openai.test(assertModel(model));
+      case 'qwen':
+        return engines.local.test(assertModel(model));
+      default:
+        return ai.test(assertModel(model));
+    }
+  });
+  handle(IPC.aiAbort, (requestId) => {
+    const id = assertString(requestId, 'requestId');
+    ai.abort(id);
+    engines.openai.abort(id);
+    engines.local.abort(id);
+  });
+  handle(IPC.aiReadMeter, (model, photos, provider) => {
+    switch (assertProvider(provider)) {
+      case 'openai':
+        return engines.openai.readMeter(assertModel(model), assertPhotos(photos));
+      case 'qwen':
+        return engines.local.readMeter();
+      default:
+        return ai.readMeter(assertModel(model), assertPhotos(photos));
+    }
+  });
+  handle(IPC.aiLocalStatus, (model) => engines.local.status(assertModel(model)));
+  handle(IPC.aiLocalDownload, (model) => engines.local.startDownload(assertModel(model)));
+  handle(IPC.aiLocalCancel, (model) => engines.local.cancelDownload(assertModel(model)));
+  handle(IPC.aiLocalRemove, (model) => engines.local.remove(assertModel(model)));
   ipcMain.handle(IPC.aiChat, (event, request: unknown) => {
     if (!fromApp(event)) {
       throw new Error('Appel refusé');
     }
     const chat = assertChat(request);
     // Le flux est relayé à la page qui l'a demandé ; la promesse se termine à la fin du flux.
-    return ai.chat(chat, (payload) => {
+    const emit = (payload: AiStreamEvent): void => {
       if (!event.sender.isDestroyed()) {
         event.sender.send(IPC.aiEvent, payload);
       }
-    });
+    };
+    switch (chat.provider) {
+      case 'openai':
+        return engines.openai.chat(chat, emit);
+      case 'qwen':
+        return engines.local.chat(chat, emit);
+      default:
+        return ai.chat(chat, emit);
+    }
   });
 
   handle(IPC.theme, (mode) => {
@@ -570,6 +622,19 @@ function bootstrap(): void {
     ((url, init) => net.fetch(url, init)) as FetchLike,
     DEV_API_URL,
   );
+  const openai = new OpenAiService(
+    async () => {
+      await secretsReady;
+      return secrets.get('openaiApiKey');
+    },
+    ((url, init) => net.fetch(url, init)) as FetchLike,
+    DEV_OPENAI_API_URL,
+  );
+  // Modèle Qwen local : fichiers dans userData/models, moteur natif chargé au premier usage.
+  const local = new LocalLlmService(join(userData, 'models'), (status) => {
+    mainWindow?.webContents.send(IPC.aiLocalEvent, status);
+  });
+  setTimeout(() => void local.probe(), 5000);
   const inverter = new InverterHub(() => secrets.get('inverterPsk'));
   /** Le secret de l'onduleur est présent, ou la marque n'en demande pas. */
   const inverterSecretReady = (): boolean =>
@@ -681,8 +746,9 @@ function bootstrap(): void {
       clearInterval(p1Timer);
     }
     void inverter.close();
+    void local.dispose();
   });
-  registerIpc(store, ai, secrets, secretsReady, inverter, pollInverter, p1, pollP1);
+  registerIpc(store, ai, { openai, local }, secrets, secretsReady, inverter, pollInverter, p1, pollP1);
 
   const openWindow = (): void => {
     mainWindow = createWindow();

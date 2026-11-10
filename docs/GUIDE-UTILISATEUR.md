@@ -1,6 +1,6 @@
 # Guide utilisateur de ConsoElec
 
-ConsoElec suit la consommation et la production d'électricité d'une maison équipée de panneaux solaires. Il lit les index de votre **compteur intelligent**, calcule ce que la maison soutire et injecte chaque mois, la compare à une maison belge type et prévoit l'année à venir — avec ou sans voiture électrique. Un **assistant IA** (Claude) peut analyser toutes vos données.
+ConsoElec suit la consommation et la production d'électricité d'une maison équipée de panneaux solaires. Il lit les index de votre **compteur intelligent**, calcule ce que la maison soutire et injecte chaque mois, la compare à une maison belge type et prévoit l'année à venir — avec ou sans voiture électrique. Un **assistant IA** peut analyser toutes vos données : Claude (recommandé), OpenAI, ou Qwen, un modèle gratuit qui fonctionne sur l'ordinateur sans clé API.
 
 ![Tableau de bord](img/dashboard.png)
 
@@ -132,11 +132,11 @@ Dans l'**historique**, chaque relevé montre l'augmentation de chaque index depu
 Au lieu de taper les index, **déposez une photo** du compteur dans la zone prévue (ou cliquez sur « choisissez-les »). Comme l'écran du compteur fait défiler les registres, vous pouvez déposer **jusqu'à quatre photos** : une par écran.
 
 1. Photographiez l'écran de près, sans reflet, de façon que le code (1.8.1, 1.8.2, 2.8.1, 2.8.2) et les chiffres soient nets.
-2. Déposez les photos : Claude lit les index et **pré-remplit le formulaire**.
+2. Déposez les photos : l'IA (Claude ou OpenAI) lit les index et **pré-remplit le formulaire**.
 3. **Vérifiez chaque valeur** : celles dont la lecture est incertaine sont entourées en orange ou en rouge.
 4. Corrigez au besoin, puis enregistrez.
 
-Rien n'est enregistré sans votre validation, et la photo n'est pas conservée. Les photos au format HEIC des iPhone sont acceptées. La lecture demande l'application de bureau et une [clé API Claude](#assistant-ia).
+Rien n'est enregistré sans votre validation, et la photo n'est pas conservée. Les photos au format HEIC des iPhone sont acceptées. La lecture demande l'application de bureau et une [clé API Claude ou OpenAI](#assistant-ia) ; le modèle Qwen local ne lit pas les photos.
 
 ### Factures annuelles des années passées
 
@@ -279,26 +279,51 @@ Le bouton **Assistant IA** de la barre latérale ouvre un panneau, disponible su
 
 ![Assistant IA](img/assistant.png)
 
-### Activer l'assistant
+### Choisir le moteur
+
+Dans **Réglages → Assistant IA**, les boutons **Moteur** proposent :
+
+| Moteur | Ce qu'il faut | Photo du compteur | Données |
+| --- | --- | --- | --- |
+| **Claude** (recommandé) | une clé API Anthropic | oui | envoyées à Anthropic à chaque question |
+| **OpenAI** | une clé API OpenAI | oui | envoyées à OpenAI à chaque question |
+| **Open source (sans clé)** : Qwen | rien : le modèle se télécharge une fois (1,3 à 2,7 Go) | non | restent sur l'ordinateur |
+
+Claude est le moteur par défaut et donne les réponses les plus fiables ; le modèle open source dépanne quand on n'a pas de clé API. Seul le bloc du moteur choisi est affiché.
+
+### Activer Claude
 
 1. Créez une clé API sur [console.anthropic.com](https://console.anthropic.com/).
 2. Dans **Réglages → Assistant IA**, collez-la et cliquez sur **Enregistrer**, puis sur **Tester la connexion**.
 3. Choisissez le modèle Claude à utiliser (modifiable à tout moment).
 
+### Activer OpenAI
+
+1. Créez une clé API sur [platform.openai.com](https://platform.openai.com/api-keys).
+2. Dans **Réglages → Assistant IA**, bloc **OpenAI**, collez-la, cliquez sur **Enregistrer** puis sur **Tester la connexion**, et choisissez le modèle.
+
+### Utiliser Qwen sans clé
+
+1. Dans **Réglages → Assistant IA**, choisissez le moteur **Open source (sans clé)**.
+2. Choisissez le modèle en cliquant sur sa carte : **Qwen 3.5 4B** (recommandé, 2,7 Go) ou **Qwen 3.5 2B** (léger, 1,3 Go), puis cliquez sur **Télécharger**. La progression s'affiche ; le téléchargement se fait une seule fois et peut être annulé. Un badge **Téléchargé** marque les modèles prêts.
+3. **Tester le modèle** vérifie qu'il fonctionne sur cet ordinateur. **Supprimer le modèle** libère la place.
+
+Qwen est un modèle open source (licence Apache 2.0) exécuté par ConsoElec lui-même : rien à installer, rien n'est envoyé sur internet. La première réponse d'une conversation prend un moment (le modèle lit toutes vos données) ; ses réponses sont moins sûres que celles de Claude, vérifiez les chiffres. Il ne lit pas les photos du compteur.
+
 ### Confidentialité et coût
 
-- La clé est rangée dans le **Trousseau macOS**. Elle n'est **jamais exposée à la page**, n'est **pas exportée** et n'est **pas synchronisée** avec vos données.
-- Vos données ne quittent l'ordinateur que **lorsque vous posez une question** ou déposez une photo : elles sont envoyées à Claude (Anthropic) via votre clé.
-- Les appels sont **facturés par Anthropic** selon votre usage ; la lecture d'une photo et une question coûtent chacune quelques centimes au plus.
+- Les clés sont rangées dans le **Trousseau macOS**. Elles ne sont **jamais exposées à la page**, ne sont **pas exportées** et ne sont **pas synchronisées** avec vos données.
+- Avec Claude ou OpenAI, vos données ne quittent l'ordinateur que **lorsque vous posez une question** ou déposez une photo : elles sont envoyées au service choisi via votre clé. Avec Qwen, elles ne quittent jamais l'ordinateur.
+- Les appels Claude et OpenAI sont **facturés par Anthropic ou OpenAI** selon votre usage ; la lecture d'une photo et une question coûtent chacune quelques centimes au plus. Qwen est gratuit.
 - L'assistant donne des ordres de grandeur et des pistes, pas de conseil financier ni juridique. Vérifiez ses chiffres sur le tableau de bord.
 
 ## Clés dans le Trousseau macOS
 
-La clé API Claude et la clé de l'onduleur sont rangées dans le **Trousseau macOS**, comme les mots de passe du Mac.
+Les clés API Claude et OpenAI et la clé de l'onduleur sont rangées dans le **Trousseau macOS**, comme les mots de passe du Mac.
 
 - **Saisie** : dans **Réglages → Assistant IA** et **Réglages → Onduleur**. **Réglages → Clés** indique lesquelles sont enregistrées.
 - **Au démarrage**, ConsoElec les lit sans rien demander : la production en direct s'affiche tout de suite.
-- **Où les voir** : dans l'app **Trousseau d'accès**, éléments « ConsoElec — clé API Claude » et « ConsoElec — clé de l'onduleur ». Vous pouvez les y consulter ou les supprimer ; une clé supprimée se ressaisit dans les réglages.
+- **Où les voir** : dans l'app **Trousseau d'accès**, éléments « ConsoElec — clé API Claude », « ConsoElec — clé API OpenAI » et « ConsoElec — clé de l'onduleur ». Vous pouvez les y consulter ou les supprimer ; une clé supprimée se ressaisit dans les réglages.
 - **Sauvegarde** : les clés ne sont ni exportées ni synchronisées avec vos données. Sur un autre Mac, ressaisissez-les dans les réglages.
 - **Ancien coffre SSH** : les versions précédentes chiffraient les clés avec votre clé SSH (`secrets.vault`). S'il existe encore, **Réglages → Clés** propose de l'importer : saisissez une dernière fois la phrase de passe de la clé SSH, les clés passent dans le Trousseau et le coffre est supprimé.
 - **Windows** : les clés sont rangées dans un fichier chiffré par le système (`secrets.bin`).

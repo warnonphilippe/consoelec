@@ -6,6 +6,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type {
   AiStreamEvent,
+  LocalModelStatus,
   ConsoElecApi,
   InverterReading,
   P1Reading,
@@ -57,14 +58,26 @@ const api: ConsoElecApi = {
   },
   ai: {
     status: () => ipcRenderer.invoke('ai:status'),
-    test: (model) => ipcRenderer.invoke('ai:test', model),
+    test: (model, provider) => ipcRenderer.invoke('ai:test', model, provider),
     chat: (request) => ipcRenderer.invoke('ai:chat', request),
     abort: (requestId) => ipcRenderer.invoke('ai:abort', requestId),
-    readMeter: (model, photos) => ipcRenderer.invoke('ai:readMeter', model, photos),
+    readMeter: (model, photos, provider) =>
+      ipcRenderer.invoke('ai:readMeter', model, photos, provider),
     onEvent: (listener) => {
       const handler = (_event: unknown, payload: AiStreamEvent): void => listener(payload);
       ipcRenderer.on('ai:event', handler);
       return () => ipcRenderer.removeListener('ai:event', handler);
+    },
+    local: {
+      status: (model) => ipcRenderer.invoke('ai:local:status', model),
+      download: (model) => ipcRenderer.invoke('ai:local:download', model),
+      cancel: (model) => ipcRenderer.invoke('ai:local:cancel', model),
+      remove: (model) => ipcRenderer.invoke('ai:local:remove', model),
+      onStatus: (listener) => {
+        const handler = (_event: unknown, payload: LocalModelStatus): void => listener(payload);
+        ipcRenderer.on('ai:local:event', handler);
+        return () => ipcRenderer.removeListener('ai:local:event', handler);
+      },
     },
   },
 };

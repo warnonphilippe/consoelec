@@ -24,7 +24,30 @@ export interface AiStatus {
   readonly hasKey: boolean;
 }
 
-export type SecretName = 'claudeApiKey' | 'inverterPsk' | 'p1Token';
+export type SecretName = 'claudeApiKey' | 'inverterPsk' | 'p1Token' | 'openaiApiKey';
+
+/**
+ * Moteur de l'assistant : Claude (clé API Anthropic, recommandé), OpenAI (clé API OpenAI) ou Qwen (modèle open source
+ * exécuté sur l'ordinateur, sans clé). Absent des requêtes : Claude.
+ */
+export type AiProvider = 'claude' | 'openai' | 'qwen';
+
+/** État du modèle Qwen local (téléchargé à la demande dans le dossier de l'application). */
+export interface LocalModelStatus {
+  readonly id: string;
+  readonly label: string;
+  /** Taille du fichier à télécharger (Mo). */
+  readonly sizeMb: number;
+  readonly installed: boolean;
+  /** Le moteur natif se charge sur cet ordinateur (faux s'il a échoué). */
+  readonly supported: boolean;
+  readonly downloading: boolean;
+  readonly progressPct?: number;
+  /** Octets reçus et taille totale du téléchargement en cours. */
+  readonly receivedBytes?: number;
+  readonly totalBytes?: number;
+  readonly error?: string;
+}
 
 export interface SecretsStatus {
   /** `keychain` : Trousseau macOS ; `file` : fichier chiffré par le système (hors macOS). */
@@ -134,6 +157,8 @@ export interface AiMessage {
 export interface AiChatRequest {
   /** Identifiant choisi par la page pour rattacher les événements de flux à la conversation. */
   readonly requestId: string;
+  /** Moteur ; Claude si absent. */
+  readonly provider?: AiProvider;
   readonly model: string;
   /** Contexte : rôle de l'assistant et instantané des données. */
   readonly system: string;
@@ -232,14 +257,26 @@ export interface ConsoElecApi {
   };
   readonly ai: {
     status(): Promise<AiStatus>;
-    /** Petit appel de contrôle pour vérifier la clé et le modèle. */
-    test(model: string): Promise<AiTestResult>;
+    /** Petit appel de contrôle pour vérifier la clé et le modèle (Claude si `provider` est absent). */
+    test(model: string, provider?: AiProvider): Promise<AiTestResult>;
     /** Lance une réponse en flux ; les morceaux arrivent par `onEvent`. */
     chat(request: AiChatRequest): Promise<void>;
     abort(requestId: string): Promise<void>;
     onEvent(listener: (event: AiStreamEvent) => void): () => void;
     /** Lit les index d'un compteur sur 1 à 4 photos. Lève une erreur lisible en cas d'échec. */
-    readMeter(model: string, photos: readonly MeterPhoto[]): Promise<PhotoReading>;
+    readMeter(
+      model: string,
+      photos: readonly MeterPhoto[],
+      provider?: AiProvider,
+    ): Promise<PhotoReading>;
+    /** Modèle Qwen local : état, téléchargement, suppression. */
+    readonly local: {
+      status(model: string): Promise<LocalModelStatus>;
+      download(model: string): Promise<LocalModelStatus>;
+      cancel(model: string): Promise<LocalModelStatus>;
+      remove(model: string): Promise<LocalModelStatus>;
+      onStatus(listener: (status: LocalModelStatus) => void): () => void;
+    };
   };
 }
 
@@ -271,4 +308,9 @@ export const IPC = {
   aiAbort: 'ai:abort',
   aiReadMeter: 'ai:readMeter',
   aiEvent: 'ai:event',
+  aiLocalStatus: 'ai:local:status',
+  aiLocalDownload: 'ai:local:download',
+  aiLocalCancel: 'ai:local:cancel',
+  aiLocalRemove: 'ai:local:remove',
+  aiLocalEvent: 'ai:local:event',
 } as const;

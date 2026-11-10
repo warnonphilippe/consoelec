@@ -2,15 +2,15 @@
 
 Application de bureau (**Angular 21 + Electron**) pour suivre la consommation et la production d'électricité d'une maison belge équipée de panneaux solaires :
 
-- **Compteur intelligent** : les quatre index (soutirage et injection, heures pleines et creuses) saisis à la main ou lus par Claude sur une **photo** du compteur ; vue détaillée des quatre sous-compteurs.
+- **Compteur intelligent** : les quatre index (soutirage et injection, heures pleines et creuses) saisis à la main ou lus par l'IA (Claude ou OpenAI) sur une **photo** du compteur ; vue détaillée des quatre sous-compteurs.
 - **Statistiques** par mois, par saison et par année, avec comparaison à une maison belge type (la chaudière au mazout et le poêle à bois ne consomment pas d'électricité).
 - **Installation solaire** : panneaux, onduleur (écrêtage), radiateur d'appoint sur le surplus ; si l'index de production est encodé, autoconsommation, autarcie et consommation réelle de la maison.
 - **Prévisions** selon la saison : statistique belge, statistique recalée sur la maison (avec prudence quand les données sont courtes), historique réel ; fiabilité mesurée par rétro-test sur les mois passés. Scénario **voiture électrique** (avec / sans).
 - **Plusieurs ordinateurs** : export JSON, puis import qui fusionne. Seuls les relevés absents sont ajoutés ; rien n'est modifié ni supprimé. Export et import CSV des relevés (Excel).
 - **Compteur par le port P1** (norme belge e-MUCS) : lecteur HomeWizard Wi-Fi P1 (API v1 ou v2), Chargee, YouLess LS120 ou télégramme brut sur TCP, lu chaque minute sur le réseau local ; les index alimentent les calculs sans relevé manuel, journal compact (minutes de la dernière heure, heures du jour, un point par jour), compteur en direct et courbe du jour.
 - **Onduleur** : lecture locale de la puissance, de la production du jour et de l'index total, relevés pré-remplis, rendement mesuré. SMA (WebConnect, connexion SRP ou mot de passe, avec historique quotidien), Fronius (Solar API), SolarEdge, Kostal et autres SunSpec (Modbus TCP), Huawei, Sungrow, Solis, Deye, Sofar (Modbus TCP ou clé Solarman), GoodWe (UDP), Enphase (IQ Gateway).
-- **Clés dans le Trousseau macOS** (clé API Claude, clé de l'onduleur), lues au démarrage sans rien demander ; fichier chiffré par le système sous Windows.
-- **Assistant IA** : panneau Claude qui voit toutes les données (clé API dans le Trousseau, jamais exposée à la page).
+- **Clés dans le Trousseau macOS** (clés API Claude et OpenAI, clé de l'onduleur), lues au démarrage sans rien demander ; fichier chiffré par le système sous Windows.
+- **Assistant IA** qui voit toutes les données, au choix : **Claude** (recommandé) ou **OpenAI** avec une clé API (dans le Trousseau, jamais exposée à la page), ou **Qwen 3.5**, modèle open source exécuté par l'application elle-même (node-llama-cpp, Metal), téléchargé depuis les réglages, sans clé ni envoi de données.
 - Thèmes **clair / sombre / système**, interface en CSS natif, sans bibliothèque de composants.
 
 Le mode d'emploi complet est dans **[docs/GUIDE-UTILISATEUR.md](docs/GUIDE-UTILISATEUR.md)**. Il est aussi lisible dans l'application, page *Aide*.
@@ -109,10 +109,13 @@ electron/                  Process principal (TypeScript → dist-electron/)
   discovery.ts             recherche Bonjour de l'onduleur SMA, de la passerelle Enphase et du lecteur P1
   ai-core.ts               API Claude : requêtes, flux SSE, outil de lecture de photo, erreurs (pur, testé)
   ai.ts                    appels réseau depuis le process principal uniquement
+  openai-core.ts, openai.ts API OpenAI (Responses) : requêtes, flux SSE, appel de fonction pour la photo (pur, testé)
+  local-llm.ts             modèle Qwen local (node-llama-cpp) : téléchargement, réponses en flux, une à la fois
   image.ts                 conversion d'image en JPEG (HEIC des iPhone via sips sur macOS)
   shared/ipc-contract.ts   types partagés avec l'interface
   shared/inverter-brands.ts marques d'onduleurs : protocole, réglages par défaut, conseils de mise en service
   shared/p1-readers.ts     lecteurs P1 : protocole, port, recherche, mise en service
+  shared/ai-models.ts      modèles OpenAI et Qwen proposés, choix automatique du moteur
 src/app/
   core/models/             modèle de données, validation et fusion des fichiers importés (merge.ts)
   core/calc/               calculs purs et testés :
@@ -142,9 +145,9 @@ Toutes les données sont dans un seul fichier JSON :
 - macOS : `~/Library/Application Support/ConsoElec/consoelec.json`
 - Windows : `%APPDATA%\ConsoElec\consoelec.json`
 
-Les secrets (clé API Claude, clé de l'onduleur) sont dans le Trousseau macOS (service `io.github.warnonphilippe.consoelec`) ; sous Windows, dans `secrets.bin`, chiffré par le système. Ils ne sont ni exportés ni synchronisés.
+Les secrets (clés API Claude et OpenAI, clé de l'onduleur) sont dans le Trousseau macOS (service `io.github.warnonphilippe.consoelec`) ; sous Windows, dans `secrets.bin`, chiffré par le système. Ils ne sont ni exportés ni synchronisés.
 
-En développement, `CONSOELEC_USER_DATA=/un/dossier` isole les données. `CONSOELEC_API_URL=http://127.0.0.1:…/v1/messages` redirige les appels Claude vers un serveur de test local (ignoré dans l'application packagée).
+En développement, `CONSOELEC_USER_DATA=/un/dossier` isole les données. `CONSOELEC_API_URL=http://127.0.0.1:…/v1/messages` redirige les appels Claude vers un serveur de test local, et `CONSOELEC_OPENAI_API_URL=http://127.0.0.1:…/v1/responses` ceux d'OpenAI (ignorés dans l'application packagée). Les modèles Qwen téléchargés sont dans `<userData>/models`.
 
 ### Les quatre index du compteur
 

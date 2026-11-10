@@ -152,7 +152,7 @@ export function httpErrorMessage(status: number, body: string): string {
   }
 }
 
-const METER_PROMPT = `Tu lis les index d'un compteur d'électricité communicant belge (compteur numérique à écran LCD, par exemple un Iskra IE.5) d'après une ou plusieurs photos.
+export const METER_PROMPT = `Tu lis les index d'un compteur d'électricité communicant belge (compteur numérique à écran LCD, par exemple un Iskra IE.5) d'après une ou plusieurs photos.
 
 Les registres à reporter sont :
 - 1.8.1 : énergie soutirée du réseau en heures pleines (icône soleil, tarif T1) → importPeak

@@ -9,14 +9,21 @@ directories:
   output: release
   buildResources: build
 
-# esbuild embarque déjà tout le front dans dist/ ; le process principal n'a aucune dépendance
-# (Angular, Chart.js… sont en devDependencies et ne sont donc pas empaquetés).
+# esbuild embarque déjà tout le front dans dist/ (Angular, Chart.js… sont en devDependencies et ne sont donc pas
+# empaquetés). Seule dépendance du process principal : node-llama-cpp, moteur du modèle Qwen local.
 files:
   - dist/consoelec/browser/**/*
   - dist-electron/**/*.js
   - package.json
+  # Sources de llama.cpp (recompilation) : inutiles, l'application n'utilise que les binaires précompilés.
+  - '!**/node_modules/node-llama-cpp/llama/gitRelease.bundle'
+  - '!**/node_modules/node-llama-cpp/llama/llama.cpp/**'
 asar: true
-# Aucun module natif à recompiler pour Electron.
+# Modèle Qwen local (node-llama-cpp) : binaires natifs et Metal hors de l'archive asar.
+asarUnpack:
+  - '**/node_modules/node-llama-cpp/**'
+  - '**/node_modules/@node-llama-cpp/**'
+# Les binaires de node-llama-cpp sont précompilés pour Electron comme pour Node : rien à recompiler.
 npmRebuild: false
 # Avant la signature : UUID Mach-O propre à l'app, sans quoi macOS confond l'autorisation « Réseau local » de
 # toutes les apps Electron de même version (voir scripts/mac-uuid.mjs).

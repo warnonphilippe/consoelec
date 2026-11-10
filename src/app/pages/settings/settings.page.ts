@@ -8,6 +8,8 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { LOCAL_MODELS, OPENAI_MODELS } from '../../../../electron/shared/ai-models';
+import type { AiProvider } from '../../../../electron/shared/ipc-contract';
 import { AiService } from '../../core/ai/ai.service';
 import { parseReadingsCsv } from '../../core/calc/csv-import';
 import { intervalsCsv, monthlyCsv, readingsCsv } from '../../core/calc/csv';
@@ -79,6 +81,8 @@ export default class SettingsPage {
   protected readonly monthShort = MONTH_SHORT;
   protected readonly degreeDays = UCCLE_DEGREE_DAYS;
   protected readonly models = AI_MODELS;
+  protected readonly openAiModels = OPENAI_MODELS;
+  protected readonly localModels = LOCAL_MODELS;
   protected readonly presences: { value: Presence; label: string; hint: string }[] = [
     { value: 'absent', label: 'Absents', hint: 'Personne à la maison en journée (école, travail)' },
     { value: 'partial', label: 'Partiellement', hint: 'Quelqu’un de temps en temps' },
@@ -114,7 +118,12 @@ export default class SettingsPage {
   // --- Clé API ---
   protected readonly keyDraft = signal('');
   protected readonly keyBusy = signal(false);
-  protected readonly testResult = signal<{ ok: boolean; message: string } | null>(null);
+  protected readonly openAiKeyDraft = signal('');
+  protected readonly testResult = signal<{
+    provider: AiProvider;
+    ok: boolean;
+    message: string;
+  } | null>(null);
 
   constructor() {
     effect(() => {
@@ -195,6 +204,26 @@ export default class SettingsPage {
   protected setModel(event: Event): void {
     this.store.updateSettings({ aiModel: (event.target as HTMLSelectElement).value });
     this.testResult.set(null);
+  }
+
+  protected setProvider(provider: AiProvider): void {
+    this.store.updateSettings({ aiProvider: provider });
+    this.testResult.set(null);
+  }
+
+  protected setOpenAiModel(event: Event): void {
+    this.store.updateSettings({ openaiModel: (event.target as HTMLSelectElement).value });
+    this.testResult.set(null);
+  }
+
+  protected setLocalModel(id: string): void {
+    this.store.updateSettings({ localModel: id });
+    this.testResult.set(null);
+  }
+
+  /** Taille en Go, une décimale (« 2,7 Go »). */
+  protected gigabytes(bytes: number): string {
+    return `${(bytes / 1e9).toFixed(1).replace('.', ',')} Go`;
   }
 
   // --- Clés ---
@@ -409,18 +438,80 @@ export default class SettingsPage {
     }
   }
 
-  protected async testKey(): Promise<void> {
+  protected async testKey(provider: AiProvider = 'claude'): Promise<void> {
     this.keyBusy.set(true);
     this.testResult.set(null);
     try {
-      this.testResult.set(await this.ai.test());
+      this.testResult.set({ provider, ...(await this.ai.test(provider)) });
     } catch (error) {
       this.testResult.set({
+        provider,
         ok: false,
         message: error instanceof Error ? error.message : String(error),
       });
     } finally {
       this.keyBusy.set(false);
+    }
+  }
+
+  // --- Clé OpenAI ---
+  protected async saveOpenAiKey(): Promise<void> {
+    const key = this.openAiKeyDraft().trim();
+    if (key === '') {
+      return;
+    }
+    this.keyBusy.set(true);
+    try {
+      await this.ai.setKey(key, 'openai');
+      this.openAiKeyDraft.set('');
+      this.testResult.set(null);
+      this.toast.show('Clé API OpenAI enregistrée (chiffrée sur cet ordinateur).');
+    } catch (error) {
+      this.toast.show(error instanceof Error ? error.message : String(error), 'error');
+    } finally {
+      this.keyBusy.set(false);
+    }
+  }
+
+  protected async removeOpenAiKey(): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: 'Supprimer la clé API OpenAI ?',
+      message: 'Le moteur OpenAI sera désactivé jusqu’à ce que vous enregistriez une nouvelle clé.',
+      confirmLabel: 'Supprimer',
+      danger: true,
+    });
+    if (ok) {
+      await this.ai.clearKey('openai');
+      this.testResult.set(null);
+      this.toast.show('Clé API OpenAI supprimée.', 'info');
+    }
+  }
+
+  // --- Modèle Qwen local ---
+  protected async downloadLocal(): Promise<void> {
+    try {
+      await this.ai.downloadLocal();
+    } catch (error) {
+      this.toast.show(error instanceof Error ? error.message : String(error), 'error');
+    }
+  }
+
+  protected async cancelLocal(): Promise<void> {
+    await this.ai.cancelLocal();
+    this.toast.show('Téléchargement annulé.', 'info');
+  }
+
+  protected async removeLocal(): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: 'Supprimer le modèle Qwen ?',
+      message: 'Le fichier du modèle est effacé de cet ordinateur ; il faudra le télécharger à nouveau pour l’utiliser.',
+      confirmLabel: 'Supprimer',
+      danger: true,
+    });
+    if (ok) {
+      await this.ai.removeLocal();
+      this.testResult.set(null);
+      this.toast.show('Modèle Qwen supprimé.', 'info');
     }
   }
 

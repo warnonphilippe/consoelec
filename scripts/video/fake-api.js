@@ -234,6 +234,15 @@
 
   let saved = null;
   const listeners = { p1: new Set(), inverter: new Set(), ai: new Set() };
+  /** Modèle Qwen local : jamais téléchargé dans la démo. */
+  const localStatus = (model) => ({
+    id: model,
+    label: 'Qwen 3.5 4B (recommandé)',
+    sizeMb: 2740,
+    installed: false,
+    supported: true,
+    downloading: false,
+  });
   const subscribe = (set, fn) => {
     set.add(fn);
     return () => set.delete(fn);
@@ -271,17 +280,17 @@
     secrets: {
       status: async () => ({
         storage: 'keychain',
-        secrets: { claudeApiKey: false, inverterPsk: true, p1Token: false },
+        secrets: { claudeApiKey: false, inverterPsk: true, p1Token: false, openaiApiKey: false },
         legacyVault: false,
       }),
       setSecret: async () => ({
         storage: 'keychain',
-        secrets: { claudeApiKey: false, inverterPsk: true, p1Token: false },
+        secrets: { claudeApiKey: false, inverterPsk: true, p1Token: false, openaiApiKey: false },
         legacyVault: false,
       }),
       importVault: async () => ({
         storage: 'keychain',
-        secrets: { claudeApiKey: false, inverterPsk: true, p1Token: false },
+        secrets: { claudeApiKey: false, inverterPsk: true, p1Token: false, openaiApiKey: false },
         legacyVault: false,
       }),
     },
@@ -312,6 +321,13 @@
       onEvent: (fn) => subscribe(listeners.ai, fn),
       readMeter: async () => {
         throw new Error('Indisponible dans la démo');
+      },
+      local: {
+        status: async (model) => localStatus(model),
+        download: async (model) => localStatus(model),
+        cancel: async (model) => localStatus(model),
+        remove: async (model) => localStatus(model),
+        onStatus: () => () => {},
       },
     },
   };

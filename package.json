@@ -55,5 +55,8 @@
   },
   "engines": {
     "node": ">=22.12"
+  },
+  "dependencies": {
+    "node-llama-cpp": "^3.22.3"
   }
 }

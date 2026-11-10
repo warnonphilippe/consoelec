@@ -1,5 +1,7 @@
 import { isP1ReaderKind } from '../../../../electron/shared/p1-readers';
 import { isInverterBrand } from '../../../../electron/shared/inverter-brands';
+import { LOCAL_MODELS } from '../../../../electron/shared/ai-models';
+import type { AiProvider } from '../../../../electron/shared/ipc-contract';
 import {
   type AnnualBill,
   AI_MODELS,
@@ -167,11 +169,16 @@ function normalizeEv(raw: Raw): ElectricVehicle {
   };
 }
 
+const AI_PROVIDERS: readonly AiProvider[] = ['claude', 'openai', 'qwen'];
+
 function normalizeSettings(raw: Raw): Settings {
   const preset = raw['referencePreset'];
   const theme = raw['theme'];
   const presence = raw['presence'];
   const model = str(raw['aiModel'], DEFAULT_SETTINGS.aiModel);
+  const provider = raw['aiProvider'];
+  const openaiModel = str(raw['openaiModel'], DEFAULT_SETTINGS.openaiModel);
+  const localModel = raw['localModel'];
   return {
     referencePreset: PRESETS.includes(preset as ReferencePreset)
       ? (preset as ReferencePreset)
@@ -199,6 +206,13 @@ function normalizeSettings(raw: Raw): Settings {
       model.length > 0 && model.length < 80
         ? model
         : (AI_MODELS[0]?.id ?? DEFAULT_SETTINGS.aiModel),
+    aiProvider: AI_PROVIDERS.includes(provider as AiProvider)
+      ? (provider as AiProvider)
+      : DEFAULT_SETTINGS.aiProvider,
+    openaiModel: /^[\w.:-]{3,80}$/.test(openaiModel) ? openaiModel : DEFAULT_SETTINGS.openaiModel,
+    localModel: LOCAL_MODELS.some((m) => m.id === localModel)
+      ? (localModel as string)
+      : DEFAULT_SETTINGS.localModel,
     inverter: normalizeInverter(raw['inverter']),
     p1: normalizeP1(raw['p1']),
     dashboard: normalizeDashboard(raw['dashboard']),

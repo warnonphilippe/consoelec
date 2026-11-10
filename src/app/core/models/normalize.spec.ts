@@ -161,6 +161,30 @@ describe('normalizeData', () => {
     ]);
   });
 
+  it('valide le moteur de l’assistant et ses modèles', () => {
+    const defaults = normalizeData({ readings: [] }).settings;
+    expect(defaults.aiProvider).toBe('claude');
+    expect(defaults.aiModel).toBe('claude-sonnet-5-5');
+    expect(defaults.openaiModel).toBe('gpt-6-astra');
+    expect(defaults.localModel).toBe('qwen3.5-4b');
+    const chosen = normalizeData({
+      settings: { aiProvider: 'qwen', openaiModel: 'gpt-6.1-sol', localModel: 'qwen3.5-2b' },
+    }).settings;
+    expect(chosen).toMatchObject({
+      aiProvider: 'qwen',
+      openaiModel: 'gpt-6.1-sol',
+      localModel: 'qwen3.5-2b',
+    });
+    const invalid = normalizeData({
+      settings: { aiProvider: 'auto', openaiModel: 'x', localModel: 'llama' },
+    }).settings;
+    expect(invalid).toMatchObject({
+      aiProvider: 'claude',
+      openaiModel: 'gpt-6-astra',
+      localModel: 'qwen3.5-4b',
+    });
+  });
+
   it('valide les réglages de l’onduleur', () => {
     const data = normalizeData({
       settings: {

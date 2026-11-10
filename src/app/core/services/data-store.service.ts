@@ -324,8 +324,17 @@ export class DataStore {
 }
 
 /** Préférences propres à cet ordinateur, gardées quand les données sont remplacées. */
-function localSettings(s: Settings): Pick<Settings, 'theme' | 'aiModel' | 'dashboard'> {
-  return { theme: s.theme, aiModel: s.aiModel, dashboard: s.dashboard };
+function localSettings(
+  s: Settings,
+): Pick<Settings, 'theme' | 'aiModel' | 'aiProvider' | 'openaiModel' | 'localModel' | 'dashboard'> {
+  return {
+    theme: s.theme,
+    aiModel: s.aiModel,
+    aiProvider: s.aiProvider,
+    openaiModel: s.openaiModel,
+    localModel: s.localModel,
+    dashboard: s.dashboard,
+  };
 }
 
 function upsert<T extends { id: string }>(list: T[], entry: T): T[] {

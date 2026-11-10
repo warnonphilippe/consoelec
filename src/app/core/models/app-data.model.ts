@@ -1,4 +1,6 @@
 import type { InverterBrand } from '../../../../electron/shared/inverter-brands';
+import { DEFAULT_LOCAL_MODEL, DEFAULT_OPENAI_MODEL } from '../../../../electron/shared/ai-models';
+import type { AiProvider } from '../../../../electron/shared/ipc-contract';
 import type { P1ReaderKind } from '../../../../electron/shared/p1-readers';
 import type { ThemeMode } from '../../../../electron/shared/ipc-contract';
 import { DEFAULT_DASHBOARD, type CardId } from './dashboard';
@@ -173,6 +175,12 @@ export interface Settings {
   theme: ThemeMode;
   /** Modèle Claude utilisé par l'assistant et la lecture de photo. */
   aiModel: string;
+  /** Moteur de l'assistant : Claude (recommandé, par défaut), OpenAI ou Qwen exécuté sur l'ordinateur. */
+  aiProvider: AiProvider;
+  /** Modèle OpenAI (moteur OpenAI). */
+  openaiModel: string;
+  /** Modèle Qwen exécuté sur l'ordinateur (moteur Qwen). */
+  localModel: string;
   inverter: InverterSettings;
   p1: P1Settings;
   /** Cadres du tableau de bord, dans l'ordre (préférence locale, comme le thème). */
@@ -334,6 +342,9 @@ export const DEFAULT_SETTINGS: Settings = {
   priceHc: 0.24,
   theme: 'system',
   aiModel: DEFAULT_AI_MODEL,
+  aiProvider: 'claude',
+  openaiModel: DEFAULT_OPENAI_MODEL,
+  localModel: DEFAULT_LOCAL_MODEL,
   inverter: {
     enabled: false,
     brand: 'sma',

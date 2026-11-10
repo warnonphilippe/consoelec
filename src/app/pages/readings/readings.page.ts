@@ -170,7 +170,7 @@ export default class ReadingsPage {
   protected readonly photoError = signal<string | null>(null);
   protected readonly photoResult = signal<PhotoReading | null>(null);
   protected readonly dragging = signal(false);
-  protected readonly canReadPhoto = computed(() => this.ai.available && this.ai.hasKey());
+  protected readonly canReadPhoto = computed(() => this.ai.available && this.ai.canReadPhoto());
 
   protected confidenceOf(key: FormKey): Confidence | null {
     return this.photoResult()?.confidence[key] ?? null;
