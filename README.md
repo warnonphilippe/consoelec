@@ -149,6 +149,16 @@ Les secrets (clés API Claude et OpenAI, clé de l'onduleur) sont dans le Trouss
 
 En développement, `CONSOELEC_USER_DATA=/un/dossier` isole les données. `CONSOELEC_API_URL=http://127.0.0.1:…/v1/messages` redirige les appels Claude vers un serveur de test local, et `CONSOELEC_OPENAI_API_URL=http://127.0.0.1:…/v1/responses` ceux d'OpenAI (ignorés dans l'application packagée). Les modèles Qwen téléchargés sont dans `<userData>/models`.
 
+### Dossier des modèles partagé
+
+Les fichiers GGUF peuvent être partagés avec les autres applications locales (ConsoElec, ConsoMazout, Assistant RAG, Plan Rando) pour ne télécharger qu'une fois un même modèle. Le dossier est choisi dans cet ordre :
+
+1. variable d'environnement `LOCAL_MODELS_DIR` (chemin absolu, `~` accepté) ;
+2. clé `modelsDir` du fichier commun `~/.config/local-models/config.json`, par exemple `{ "modelsDir": "~/models" }` ;
+3. sinon le dossier propre à l'application, `<userData>/models` (comportement historique).
+
+Le fichier commun est conseillé sur macOS : une application lancée depuis le Finder ne voit pas les variables du terminal. Dans un dossier partagé, supprimer un modèle depuis une application le supprime pour toutes.
+
 ### Les quatre index du compteur
 
 Un relevé contient les quatre index cumulés en kWh : soutirage heures pleines (1.8.1) et creuses (1.8.2), injection heures pleines (2.8.1) et creuses (2.8.2), plus, en option, l'index de production solaire de l'onduleur. La consommation entre deux relevés est la différence des index. Elle est répartie jour par jour au prorata d'un poids saisonnier propre à chaque registre (soutirage : consommation avec part hivernale ; injection et production : profil solaire), de sorte que les totaux mensuels restent réalistes même avec des relevés espacés. Un mois n'entre dans les moyennes que s'il est entièrement couvert.

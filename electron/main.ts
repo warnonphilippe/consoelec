@@ -16,6 +16,7 @@ import type { IpcMainInvokeEvent } from 'electron';
 import { APP_HOST, APP_SCHEME, assetFileUrl, buildContentSecurityPolicy } from './app-protocol';
 import { AiService, type FetchLike } from './ai';
 import { LocalLlmService } from './local-llm';
+import { resolveModelsDir } from './models-dir';
 import { OpenAiService } from './openai';
 import { convertToJpeg } from './image';
 import {
@@ -630,8 +631,9 @@ function bootstrap(): void {
     ((url, init) => net.fetch(url, init)) as FetchLike,
     DEV_OPENAI_API_URL,
   );
-  // Modèle Qwen local : fichiers dans userData/models, moteur natif chargé au premier usage.
-  const local = new LocalLlmService(join(userData, 'models'), (status) => {
+  // Modèle Qwen local : dossier partagé (LOCAL_MODELS_DIR ou ~/.config/local-models/config.json), sinon
+  // userData/models ; moteur natif chargé au premier usage.
+  const local = new LocalLlmService(resolveModelsDir(join(userData, 'models')), (status) => {
     mainWindow?.webContents.send(IPC.aiLocalEvent, status);
   });
   setTimeout(() => void local.probe(), 5000);
