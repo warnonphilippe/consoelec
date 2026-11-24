@@ -8,6 +8,7 @@ import type {
   PhotoReading,
 } from '../../../../electron/shared/ipc-contract';
 import { newId } from '../models/normalize';
+import { LinkService } from '../link/link.service';
 import { DataStore } from '../services/data-store.service';
 import { SecretsService } from '../services/secrets.service';
 import { buildSystemPrompt } from './ai-context';
@@ -33,6 +34,7 @@ export const PROVIDER_LABELS: Readonly<Record<AiProvider, string>> = {
 export class AiService {
   private readonly store = inject(DataStore);
   private readonly secrets = inject(SecretsService);
+  private readonly link = inject(LinkService);
   private readonly api = typeof window !== 'undefined' ? (window.consoElec?.ai ?? null) : null;
 
   /** Les appels à Claude passent par l'application de bureau ; pas disponibles dans un simple navigateur. */
@@ -162,6 +164,8 @@ export class AiService {
       { id: requestId, role: 'assistant', content: '' },
     ]);
     this.busy.set(true);
+    // Résumé de ConsoMazout à jour pour le contexte (sans effet s'il n'a pas changé).
+    await this.link.refreshPeer();
     const history = this.messages()
       .filter((m) => !m.error && m.id !== requestId)
       .map((m) => ({ role: m.role, content: m.content }));
@@ -171,7 +175,12 @@ export class AiService {
         requestId,
         ...(provider === 'claude' ? {} : { provider }),
         model: this.modelOf(provider),
-        system: buildSystemPrompt(this.store.data(), this.store.analysis(), this.store.now()),
+        system: buildSystemPrompt(
+          this.store.data(),
+          this.store.analysis(),
+          this.store.now(),
+          this.link.peer(),
+        ),
         messages: history,
       });
     } catch (error) {

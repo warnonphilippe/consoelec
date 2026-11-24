@@ -50,6 +50,7 @@ export const DASHBOARD_CARD_IDS = [
   'forecast-reliability',
   'forecast-profiles',
   'forecast-year-ends',
+  'link-mazout',
 ] as const;
 
 export type CardId = (typeof DASHBOARD_CARD_IDS)[number];

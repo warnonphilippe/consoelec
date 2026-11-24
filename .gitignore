@@ -69,3 +69,6 @@ Thumbs.db
 
 # Vidéo de présentation (npm run video)
 /docs/video/*.mp4
+
+# Serveur MCP conso-maison
+/mcp/node_modules

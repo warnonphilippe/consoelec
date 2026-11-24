@@ -96,4 +96,6 @@ export const CARD_DESCRIPTIONS: Record<CardId, string> = {
     'Prévisions des différents profils sur les 12 prochains mois, côte à côte, avec les coefficients de recalage tirés des relevés.',
   'forecast-year-ends':
     "Index des sous-compteurs projetés au 31 décembre de l'année en cours et de la suivante, selon le profil de prévision choisi.",
+  'link-mazout':
+    "Consommation annuelle de mazout de la maison, publiée par l'application ConsoMazout sur cet ordinateur (dossier ~/.config/conso-maison) : estimation en litres et en kWh (1 L ≈ 10 kWh), coût au dernier prix, consommation des 12 derniers mois et date limite de commande. La date de mise à jour passe en orange au-delà de 60 jours.",
 };

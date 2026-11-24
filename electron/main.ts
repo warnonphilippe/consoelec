@@ -16,6 +16,7 @@ import type { IpcMainInvokeEvent } from 'electron';
 import { APP_HOST, APP_SCHEME, assetFileUrl, buildContentSecurityPolicy } from './app-protocol';
 import { AiService, type FetchLike } from './ai';
 import { LocalLlmService } from './local-llm';
+import { HouseholdLink, isLinkedApp, resolveLinkDir } from './household-link';
 import { resolveModelsDir } from './models-dir';
 import { OpenAiService } from './openai';
 import { convertToJpeg } from './image';
@@ -540,6 +541,17 @@ function registerIpc(
   });
 }
 
+/** Résumés échangés avec ConsoMazout (dossier `~/.config/conso-maison`, lu aussi par le serveur MCP). */
+function registerLinkIpc(link: HouseholdLink): void {
+  handle(IPC.linkPublish, (content) => link.publish(assertString(content, 'content')));
+  handle(IPC.linkRead, (target) => {
+    if (!isLinkedApp(target) || target === link.self) {
+      throw new Error('Paramètre invalide : app');
+    }
+    return link.read(target);
+  });
+}
+
 function createWindow(): BrowserWindow {
   const window = new BrowserWindow({
     width: 1400,
@@ -751,6 +763,7 @@ function bootstrap(): void {
     void local.dispose();
   });
   registerIpc(store, ai, { openai, local }, secrets, secretsReady, inverter, pollInverter, p1, pollP1);
+  registerLinkIpc(new HouseholdLink(resolveLinkDir({ dev: !app.isPackaged }), 'consoelec'));
 
   const openWindow = (): void => {
     mainWindow = createWindow();

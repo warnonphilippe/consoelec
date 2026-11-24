@@ -48,6 +48,9 @@
         @for (k of kpis; track k.kind) {
           <app-forecast-kpi-card [kind]="k.kind" [appCard]="k.id" />
         }
+        @if (mazout()) {
+          <app-mazout-link-card appCard="link-mazout" />
+        }
       </div>
 
       <div class="section">

@@ -300,6 +300,8 @@ export interface AppData {
   /** Profil de soutirage et d'injection au quart d'heure (lecteur P1 et exports HomeWizard). */
   meterProfile: MeterProfileDay[];
   settings: Settings;
+  /** Données de démonstration : jamais publiées vers les autres applications de la maison. */
+  demo?: true;
 }
 
 export const REFERENCE_PRESETS: Record<

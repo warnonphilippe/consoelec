@@ -201,6 +201,9 @@ export interface PhotoReading {
   readonly notes: string;
 }
 
+/** Application de la maison avec laquelle ConsoElec échange un résumé (dossier `~/.config/conso-maison`). */
+export type LinkedApp = 'consoelec' | 'consomazout';
+
 export interface ConsoElecApi {
   readonly platform: string;
   readonly data: {
@@ -215,6 +218,13 @@ export interface ConsoElecApi {
   };
   readonly theme: {
     set(mode: ThemeMode): Promise<void>;
+  };
+  /** Résumés échangés avec les autres applications de la maison (ConsoMazout). */
+  readonly link: {
+    /** Publie le résumé JSON de ConsoElec. */
+    publish(content: string): Promise<void>;
+    /** Résumé publié par l'autre application, ou `null`. */
+    read(app: LinkedApp): Promise<unknown>;
   };
   readonly image: {
     /** Décode une image que Chromium ne lit pas (HEIC d'iPhone…) avec les codecs du système, réduite et en JPEG. */
@@ -287,6 +297,8 @@ export const IPC = {
   importFile: 'data:import',
   reveal: 'data:reveal',
   theme: 'theme:set',
+  linkPublish: 'link:publish',
+  linkRead: 'link:read',
   imageToJpeg: 'image:toJpeg',
   secretsStatus: 'secrets:status',
   secretsSet: 'secrets:set',

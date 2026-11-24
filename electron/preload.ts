@@ -25,6 +25,10 @@ const api: ConsoElecApi = {
   theme: {
     set: (mode) => ipcRenderer.invoke('theme:set', mode),
   },
+  link: {
+    publish: (content) => ipcRenderer.invoke('link:publish', content),
+    read: (app) => ipcRenderer.invoke('link:read', app),
+  },
   image: {
     toJpeg: (data) => ipcRenderer.invoke('image:toJpeg', data),
   },

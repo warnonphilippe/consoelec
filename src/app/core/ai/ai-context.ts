@@ -2,6 +2,12 @@ import type { FullAnalysis } from '../calc/analysis';
 import { type Values } from '../calc/consumption';
 import { derive } from '../calc/stats';
 import { dayNumberToDate, toLocalIso } from '../calc/time';
+import {
+  MAZOUT_KWH_PER_LITER,
+  STALE_AFTER_DAYS,
+  summaryAgeDays,
+  type MazoutSummary,
+} from '../link/household-summary';
 import { REGISTER_KEYS, type AppData, type RegisterKey } from '../models/app-data.model';
 
 const MAX_READINGS = 400;
@@ -210,7 +216,26 @@ Glossaire :
 
 Règles : ne devine pas ; si une donnée manque ou est trop incertaine, dis-le. Signale les relevés suspects (index en baisse, valeurs aberrantes, longues périodes sans relevé). Donne des conseils concrets (décaler des usages vers le solaire ou les heures creuses, dimensionnement d'une batterie ou d'une borne de recharge, etc.) sans promettre d'économies précises ni donner de conseil financier ou juridique garanti.`;
 
-/** Contexte complet (rôle + données) passé en `system` à Claude. */
-export function buildSystemPrompt(data: AppData, analysis: FullAnalysis, now: number): string {
-  return `${ROLE}\n\n<donnees>\n${JSON.stringify(buildDataSnapshot(data, analysis, now))}\n</donnees>`;
+const LINK_ROLE = `Données de ConsoMazout (bloc <donnees_consomazout>, quand il est présent) : résumé publié par ConsoMazout, l'application de suivi de la cuve à mazout de la même maison. Clés : « estimationAnnuelle » = consommation de mazout attendue sur une année (litres, équivalent kWh, profil ou période utilisée, coût au dernier prix), « derniers12Mois » = reconstitué à partir des relevés de la cuve, « consommationAnnuelle » et « consommationMensuelle » = historique, « previsionParMoisLitres » = de janvier à décembre, « eauChaudeLitresParAn » = part de la référence consacrée à l'eau chaude, « cuve » = contenu estimé et date limite de commande. Ce sont des estimations d'une autre application, à citer comme telles avec leur date (« genereLe ») ; signale-les comme anciennes au-delà de ${STALE_AFTER_DAYS} jours.
+Pour comparer les deux énergies : 1 litre de mazout ≈ ${MAZOUT_KWH_PER_LITER} kWh d'énergie (pouvoir calorifique inférieur) et la chaudière en restitue environ 85 % en chaleur utile. Raisonne en croisant les deux quand c'est utile : part du mazout dans l'énergie totale de la maison, coût par kWh utile du mazout et de l'électricité (prix HP / HC des réglages), effet de l'hiver sur les deux, intérêt du radiateur d'appoint alimenté par le surplus solaire, d'une pompe à chaleur (≈ 3 kWh de chaleur par kWh électrique : chiffre la hausse de soutirage qu'elle entraînerait) ou d'une voiture électrique. Sans ce bloc, ConsoMazout n'a encore rien partagé : ne l'invente pas.`;
+
+/** Bloc des données de ConsoMazout, avec leur âge, ou chaîne vide sans résumé. */
+function peerBlock(peer: MazoutSummary | null, nowMs: number): string {
+  if (peer === null) {
+    return '';
+  }
+  const age = summaryAgeDays(peer, nowMs);
+  return `\n\n<donnees_consomazout ageJours="${age}">\n${JSON.stringify(peer)}\n</donnees_consomazout>`;
+}
+
+/** Contexte complet (rôle + données, et résumé de ConsoMazout s'il existe) passé en `system` à Claude. */
+export function buildSystemPrompt(
+  data: AppData,
+  analysis: FullAnalysis,
+  now: number,
+  peer: MazoutSummary | null = null,
+): string {
+  const snapshot = JSON.stringify(buildDataSnapshot(data, analysis, now));
+  const nowMs = dayNumberToDate(now).getTime();
+  return `${ROLE}\n\n${LINK_ROLE}\n\n<donnees>\n${snapshot}\n</donnees>${peerBlock(peer, nowMs)}`;
 }

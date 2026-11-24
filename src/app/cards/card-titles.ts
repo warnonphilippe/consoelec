@@ -49,4 +49,5 @@ export const CARD_TITLES: Record<CardId, string> = {
   'forecast-reliability': 'Fiabilité observée',
   'forecast-profiles': 'Comparaison des profils',
   'forecast-year-ends': "Index projetés aux changements d'année",
+  'link-mazout': 'Chauffage au mazout',
 };

@@ -1,0 +1,21 @@
+{
+  "name": "conso-maison-mcp",
+  "version": "1.0.0",
+  "description": "Serveur MCP (stdio, lecture seule) qui expose les résumés publiés par ConsoElec et ConsoMazout dans ~/.config/conso-maison",
+  "author": "Philippe Warnon",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "conso-maison-mcp": "server.mjs"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2"
+  }
+}

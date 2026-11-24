@@ -22,6 +22,7 @@ import {
   MeterTodayEnergyCard,
   MeterTotalCard,
 } from './meters/meters-cards';
+import { MazoutLinkCard } from './link/link-cards';
 import { MeterProfileDayCard, MeterProfileDaysCard } from './meters/profile-cards';
 import { ProductionDayCard, ProductionHistoryCard, ProductionKpiCard } from './production/production-cards';
 import {
@@ -88,4 +89,5 @@ export const CARDS: Record<CardId, CardDef> = {
   'forecast-reliability': { component: ForecastReliabilityCard, wide: true },
   'forecast-profiles': { component: ForecastProfilesCard, wide: true },
   'forecast-year-ends': { component: ForecastYearEndsCard, wide: true },
+  'link-mazout': { component: MazoutLinkCard },
 };

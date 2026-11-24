@@ -12,6 +12,8 @@ import {
   type ForecastKpi,
 } from '../../cards/forecast/forecast-cards';
 import { ForecastView } from '../../cards/forecast/forecast-view';
+import { MazoutLinkCard } from '../../cards/link/link-cards';
+import { LinkService } from '../../core/link/link.service';
 import type { CardId } from '../../core/models/dashboard';
 import { DataStore } from '../../core/services/data-store.service';
 import { FORMAT_PIPES } from '../../shared/format';
@@ -30,6 +32,7 @@ import { IconComponent } from '../../shared/icon.component';
     ForecastReliabilityCard,
     ForecastProfilesCard,
     ForecastYearEndsCard,
+    MazoutLinkCard,
     ...FORMAT_PIPES,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -38,6 +41,8 @@ import { IconComponent } from '../../shared/icon.component';
 })
 export default class ForecastPage {
   protected readonly analysis = inject(DataStore).analysis;
+  /** Résumé de ConsoMazout : le cadre « Chauffage au mazout » n'apparaît qu'une fois ce résumé publié. */
+  protected readonly mazout = inject(LinkService).peer;
   protected readonly v = inject(ForecastView);
   protected readonly kpis: readonly { kind: ForecastKpi; id: CardId }[] = [
     { kind: 'import', id: 'forecast-import' },

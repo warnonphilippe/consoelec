@@ -159,6 +159,12 @@ Les fichiers GGUF peuvent être partagés avec les autres applications locales (
 
 Le fichier commun est conseillé sur macOS : une application lancée depuis le Finder ne voit pas les variables du terminal. Dans un dossier partagé, supprimer un modèle depuis une application le supprime pour toutes.
 
+### Lien avec ConsoMazout
+
+ConsoElec et ConsoMazout échangent un résumé de leurs estimations par le dossier `~/.config/conso-maison` (`consoelec.json`, `consomazout.json` ; `~/.config/conso-maison-dev` pour `npm run dev`, ou la variable `CONSO_MAISON_DIR`). Chaque application publie le sien à chaque changement (jamais les données de démonstration) et lit celui de l'autre : l'assistant IA le reçoit dans son contexte et peut croiser électricité et mazout (1 L ≈ 10 kWh), et le cadre « Chauffage au mazout » (page Prévisions, plaçable sur le tableau de bord) le résume. Le format est décrit dans `src/app/core/link/household-summary.ts`, recopié à l'identique dans ConsoMazout.
+
+Le serveur MCP `mcp/` expose ces deux résumés à Claude Desktop ou Claude Code : voir [mcp/README.md](mcp/README.md).
+
 ### Les quatre index du compteur
 
 Un relevé contient les quatre index cumulés en kWh : soutirage heures pleines (1.8.1) et creuses (1.8.2), injection heures pleines (2.8.1) et creuses (2.8.2), plus, en option, l'index de production solaire de l'onduleur. La consommation entre deux relevés est la différence des index. Elle est répartie jour par jour au prorata d'un poids saisonnier propre à chaque registre (soutirage : consommation avec part hivernale ; injection et production : profil solaire), de sorte que les totaux mensuels restent réalistes même avec des relevés espacés. Un mois n'entre dans les moyennes que s'il est entièrement couvert.

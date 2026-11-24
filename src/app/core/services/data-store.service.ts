@@ -276,6 +276,7 @@ export class DataStore {
     const demo = buildDemoData(new Date());
     this.update((d) => ({
       ...demo,
+      demo: true,
       settings: { ...demo.settings, ...localSettings(d.settings) },
     }));
   }

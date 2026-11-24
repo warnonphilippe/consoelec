@@ -78,6 +78,7 @@ export function normalizeData(input: unknown): AppData {
         ? normalizeMeterProfile(input['meterProfile'])
         : profileFromLog(meterLog),
     settings: isObject(input['settings']) ? normalizeSettings(input['settings']) : base.settings,
+    ...(input['demo'] === true ? { demo: true as const } : {}),
   };
 }
 
