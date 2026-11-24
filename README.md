@@ -57,17 +57,71 @@ Playwright pilote l'interface dans Google Chrome avec des données de démo et d
 
 Le MP4 n'est pas dans le dépôt (il est ignoré par git) : la dernière version est jointe à la [release `video-2026-11`](https://github.com/warnonphilippe/consoelec/releases/tag/video-2026-11).
 
-## Émulateurs d'onduleurs
+## Émulateurs d'onduleurs et de lecteurs P1
 
-Pour essayer une marque qu'on n'a pas, `npm run emulate` lance sur le Mac de faux onduleurs et de faux lecteurs P1 (HomeWizard v1 et v2, Chargee, YouLess, télégramme brut d'un compteur e-MUCS) qui parlent chacun le protocole de leur marque, avec une journée solaire simulée à l'heure du Mac, et affiche les réglages à saisir dans ConsoElec (marque, adresse, port, identifiant Modbus, clé) :
+Pour essayer une marque qu'on n'a pas, `npm run emulate` lance sur le Mac de faux onduleurs et de faux lecteurs P1. Chacun parle le protocole de sa marque. Au démarrage, la commande affiche les réglages à saisir dans ConsoElec : marque ou type de lecteur, adresse, port, et selon le cas identifiant Modbus, numéro de série de la clé Wi-Fi, clé, mot de passe ou jeton.
 
 ```bash
-npm run emulate                   # tous, sur 127.0.0.1, ports 15001 et suivants
-npm run emulate -- huawei solis   # seulement ceux-là
-npm run emulate -- p1-dsmr        # un lecteur P1 (port 15101 et suivants)
-npm run emulate -- --lan deye     # sur l'adresse IP du Mac, avec réponse à la recherche des clés Wi-Fi
-npm run emulate -- --list
+npm run emulate                    # tous, sur 127.0.0.1
+npm run emulate -- huawei solis    # seulement ceux-là
+npm run emulate -- p1-dsmr         # un seul lecteur P1
+npm run emulate -- --lan deye      # sur l'adresse IP du Mac, avec réponse à la recherche des clés Wi-Fi
+npm run emulate -- --list          # liste des émulateurs
 ```
+
+Ctrl+C arrête tous les émulateurs. La commande compile `scripts/emulators/` avec esbuild dans un dossier temporaire, sans rien écrire dans le dépôt. Les émulateurs HTTPS génèrent leur certificat avec `/usr/bin/openssl`.
+
+### Onduleurs
+
+Chaque émulateur garde toujours le même port, qu'on le lance seul ou avec les autres.
+
+| Nom | Port | Ce qui est émulé | Réglages à saisir |
+|---|---|---|---|
+| `sma` | 15001 | SMA WebConnect en HTTPS, connexion SRP | clé affichée au démarrage |
+| `sma-ancien` | 15002 | SMA WebConnect ancien, connexion par mot de passe | mot de passe affiché au démarrage |
+| `fronius` | 15003 | Fronius Symo, Solar API (HTTP) | — |
+| `fronius-gen24` | 15004 | Fronius GEN24, sans production du jour dans la réponse | — |
+| `solaredge` | 15005 | SolarEdge, Modbus TCP SunSpec (entiers et facteurs d'échelle) | identifiant 1 |
+| `kostal` | 15006 | Kostal Plenticore, Modbus TCP SunSpec | identifiant 71 |
+| `sunspec-float` | 15007 | SunSpec en flottants (modèle 113), comme certains Fronius | identifiant 1 |
+| `huawei` | 15008 | Huawei SUN2000 par SDongle, Modbus TCP, réponses retardées de 20 ms | identifiant 1 |
+| `sungrow-sg` | 15009 | Sungrow SG par WiNet-S, Modbus TCP | identifiant 1 |
+| `sungrow-sh` | 15010 | Sungrow SH hybride par WiNet-S, Modbus TCP | identifiant 1 |
+| `solis` | 15011 | Solis par clé Solarman (protocole V5) | n° de série 2712345678 |
+| `solis-modbus` | 15012 | Solis en Modbus TCP direct | identifiant 1 |
+| `goodwe-et` | 15013 | GoodWe ET hybride (UDP) | identifiant 247 (0xF7) |
+| `goodwe-dt` | 15014 | GoodWe DT réseau (UDP) | identifiant 127 (0x7F) |
+| `deye` | 15015 | Deye SUN-G par clé Solarman | n° de série 2712345678 |
+| `sofar` | 15016 | Sofar KTL-X par clé LSW-3 (Solarman) | n° de série 2712345678 |
+| `enphase` | 15017 | Enphase IQ Gateway en HTTPS | jeton affiché au démarrage |
+
+Dans ConsoElec : *Réglages › Onduleur*, choisir la marque, puis saisir l'adresse, le port et les réglages de la dernière colonne.
+
+Tous les onduleurs partagent une journée solaire simulée à l'heure du Mac. La puissance suit une cloche entre 7 h et 20 h, avec une crête de 4 800 W et quelques passages nuageux réguliers, et elle est nulle la nuit. La production du jour et l'index total (environ 21 345 kWh) avancent en cohérence avec la puissance. Les valeurs sont déterministes : deux lectures au même instant donnent le même résultat.
+
+### Lecteurs P1
+
+| Nom | Port | Ce qui est émulé |
+|---|---|---|
+| `p1-homewizard` | 15101 | HomeWizard Wi-Fi P1, API v1 (HTTP) |
+| `p1-homewizard-v2` | 15102 | HomeWizard Wi-Fi P1, API v2 (HTTPS, association par le bouton) |
+| `p1-chargee` | 15103 | Chargee Sparky |
+| `p1-youless` | 15104 | YouLess LS120 |
+| `p1-dsmr` | 15105 | Télégramme P1 brut sur TCP, d'un compteur Fluvius e-MUCS |
+
+Dans ConsoElec : *Réglages › Compteur*, choisir le type de lecteur, puis saisir l'adresse et le port. Pour la HomeWizard v2, cliquer sur « Associer ». L'émulateur simule l'appui sur le bouton de l'appareil à la troisième demande, puis délivre le jeton.
+
+Le compteur simulé soustrait la production solaire (le même modèle que les onduleurs) de la consommation d'une maison : talon, repas, soirée et quelques pointes. Le surplus part en injection et le manque en soutirage. Les index avancent sur le tarif 1 (jour) ou 2 (nuit de 22 h à 7 h et week-ends). Le télégramme donne aussi la moyenne du quart d'heure en cours, qui sert au tarif capacitaire.
+
+### Sur le réseau local (`--lan`)
+
+Avec `--lan`, les émulateurs écoutent sur toutes les interfaces et affichent l'adresse IP du Mac. Un autre ordinateur du réseau peut alors les lire. Si un émulateur à clé Wi-Fi est lancé (Solis, Deye, Sofar ou GoodWe), le premier de la liste répond aussi à la recherche de clés Wi-Fi de ConsoElec (diffusion WIFIKIT sur le port UDP 48899). Une seule réponse est possible, et rien n'est annoncé si le port est déjà pris. La recherche Bonjour (SMA, Enphase, lecteur P1) n'est pas émulée : il faut saisir l'adresse à la main.
+
+### Certificats épinglés
+
+Les émulateurs HTTPS (`sma`, `sma-ancien`, `enphase`, `p1-homewizard-v2`) créent un nouveau certificat auto-signé à chaque lancement. Pour l'onduleur, ConsoElec épingle le certificat à la première connexion, donc la connexion est refusée après un redémarrage de l'émulateur. Il faut alors cliquer sur « Oublier le certificat épinglé » dans *Réglages › Onduleur*, puis tester à nouveau la connexion.
+
+### Tests et limites
 
 Les mêmes émulateurs ([`scripts/emulators/`](scripts/emulators)) servent aux tests de bout en bout (`electron/inverters/inverters.spec.ts`, `electron/p1-readers/p1-readers.spec.ts`). Leurs registres sont écrits d'après la documentation des fabricants, indépendamment des tables du client : ils vérifient le transport, le décodage et les échelles, pas la documentation elle-même. Seul l'onduleur SMA a été essayé sur un vrai appareil.
 
