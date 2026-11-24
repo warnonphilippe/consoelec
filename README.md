@@ -176,3 +176,13 @@ Un relevé contient les quatre index cumulés en kWh : soutirage heures pleines 
 - Saisonnalité de la consommation : degrés-jours 15/15 normaux à Uccle (IRM).
 
 Ce sont des ordres de grandeur, tous modifiables dans les réglages.
+
+## Licence
+
+Le code source est disponible sous licence [PolyForm Noncommercial 1.0.0](LICENSE) :
+
+- ✅ télécharger, installer et utiliser l'application pour un usage personnel ou non commercial ;
+- ✅ lire, modifier et partager le code à des fins non commerciales, en conservant la licence ;
+- ❌ vendre l'application, ou réutiliser tout ou partie du code dans un produit ou un service commercial.
+
+Pour un autre usage, contactez l'auteur.

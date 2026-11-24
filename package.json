@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "description": "Suivi de la consommation et de la production d'électricité de la maison : compteur intelligent (heures pleines/creuses, injection), statistiques, prévisions et assistant IA",
   "author": "Philippe Warnon",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "private": true,
   "type": "commonjs",
   "main": "dist-electron/main.js",
