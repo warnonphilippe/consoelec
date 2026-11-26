@@ -1,5 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { evAnnualKwh } from '../../core/calc/ev';
+import type { Values } from '../../core/calc/consumption';
 import type { Forecast, ProfileKey } from '../../core/calc/forecast';
 import { DataStore } from '../../core/services/data-store.service';
 
@@ -35,23 +36,20 @@ export class ForecastView {
   readonly profiles = computed(() => this.set().profiles);
   readonly bestKey = computed(() => this.set().best?.profile.key ?? null);
 
+  /**
+   * Prévision des 12 prochains mois par compteur : heures pleines (1.8.1 / 2.8.1) et heures creuses (1.8.2 / 2.8.2).
+   * Les deux périodes se facturent séparément (l'injection en heures creuses ne compense pas le soutirage en heures
+   * pleines) : aucun total HP + HC n'est donc affiché.
+   */
   readonly summary = computed(() => {
     const f = this.selected();
     if (!f) {
       return null;
     }
-    const n = f.next12;
-    const imp = n.importPeak + n.importOff;
-    const exp = n.exportPeak + n.exportOff;
     const last = this.analysis().last365;
     return {
-      import: imp,
-      export: exp,
-      net: imp - exp,
-      offPeakPct: imp > 0 ? (n.importOff / imp) * 100 : null,
-      lastImport: last?.derived.import ?? null,
-      lastExport: last?.derived.export ?? null,
-      lastNet: last?.derived.net ?? null,
+      next: byPeriod(f.next12),
+      last: last ? byPeriod(last.values) : null,
       profile: f.profile.label,
     };
   });
@@ -64,12 +62,27 @@ export class ForecastView {
     if (!base || !car) {
       return null;
     }
-    const sum = (f: Forecast, ...keys: (keyof Forecast['next12'])[]): number =>
-      keys.reduce((s, k) => s + f.next12[k], 0);
+    const delta = (k: keyof Forecast['next12']): number => car.next12[k] - base.next12[k];
     return {
-      importDelta: sum(car, 'importPeak', 'importOff') - sum(base, 'importPeak', 'importOff'),
-      exportDelta: sum(car, 'exportPeak', 'exportOff') - sum(base, 'exportPeak', 'exportOff'),
-      offDelta: car.next12.importOff - base.next12.importOff,
+      hp: { import: delta('importPeak'), export: delta('exportPeak') },
+      hc: { import: delta('importOff'), export: delta('exportOff') },
     };
   });
+}
+
+/** Soutirage, injection et solde d'un compteur (kWh). */
+export interface PeriodFigures {
+  readonly import: number;
+  readonly export: number;
+  /** Soutirage − injection : positif = à payer, négatif = surplus non remboursé. */
+  readonly net: number;
+}
+
+export function byPeriod(
+  v: Pick<Values, 'importPeak' | 'importOff' | 'exportPeak' | 'exportOff'>,
+): { readonly hp: PeriodFigures; readonly hc: PeriodFigures } {
+  return {
+    hp: { import: v.importPeak, export: v.exportPeak, net: v.importPeak - v.exportPeak },
+    hc: { import: v.importOff, export: v.exportOff, net: v.importOff - v.exportOff },
+  };
 }

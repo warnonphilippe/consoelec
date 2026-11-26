@@ -10,7 +10,7 @@ import { indexChart } from '../../pages/meters/meters-charts';
 import { ChartComponent } from '../../shared/chart/chart.component';
 import { FORMAT_PIPES } from '../../shared/format';
 import { IconComponent } from '../../shared/icon.component';
-import { ForecastView } from './forecast-view';
+import { ForecastView, byPeriod } from './forecast-view';
 
 const MONTHS_SHOWN = 12;
 
@@ -113,27 +113,31 @@ export class ForecastControlsCard {
 
 export type ForecastKpi = 'import' | 'export' | 'net' | 'ev';
 
-/** Chiffre clé des 12 prochains mois : soutirage, injection, solde net, effet de la voiture prévue. */
+/**
+ * Chiffre clé des 12 prochains mois, par compteur (heures pleines / heures creuses) : soutirage, injection, soldes,
+ * effet de la voiture prévue. Les deux compteurs se facturent séparément : pas de total HP + HC.
+ */
 @Component({
   selector: 'app-forecast-kpi-card',
   imports: [IconComponent, ...FORMAT_PIPES],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'card-host' },
+  styleUrl: './forecast-cards.css',
   template: `
     @if (v.summary(); as s) {
       @switch (kind()) {
         @case ('import') {
           <div class="card kpi">
             <span class="kpi-label"><app-icon name="plug" [size]="15" /> Soutirage prévu · 12 mois</span>
-            <span class="kpi-value">{{ s.import | kwh }}</span>
+            <div class="period-values">
+              <span>HP {{ s.next.hp.import | kwh }}</span>
+              <span>HC {{ s.next.hc.import | kwh }}</span>
+            </div>
             <span class="kpi-sub">
-              @if (s.lastImport !== null) {
-                12 derniers mois : {{ s.lastImport | kwh }}
+              @if (s.last; as l) {
+                12 derniers mois : HP {{ l.hp.import | kwh }} · HC {{ l.hc.import | kwh }}
               } @else {
                 selon « {{ s.profile }} »
-              }
-              @if (s.offPeakPct !== null) {
-                <br />{{ s.offPeakPct | num }} % en heures creuses
               }
             </span>
           </div>
@@ -141,10 +145,13 @@ export type ForecastKpi = 'import' | 'export' | 'net' | 'ev';
         @case ('export') {
           <div class="card kpi">
             <span class="kpi-label"><app-icon name="sun" [size]="15" /> Injection prévue · 12 mois</span>
-            <span class="kpi-value">{{ s.export | kwh }}</span>
+            <div class="period-values">
+              <span>HP {{ s.next.hp.export | kwh }}</span>
+              <span>HC {{ s.next.hc.export | kwh }}</span>
+            </div>
             <span class="kpi-sub">
-              @if (s.lastExport !== null) {
-                12 derniers mois : {{ s.lastExport | kwh }}
+              @if (s.last; as l) {
+                12 derniers mois : HP {{ l.hp.export | kwh }} · HC {{ l.hc.export | kwh }}
               } @else {
                 selon « {{ s.profile }} »
               }
@@ -152,14 +159,21 @@ export type ForecastKpi = 'import' | 'export' | 'net' | 'ev';
           </div>
         }
         @case ('net') {
+          @let hp = s.next.hp.net;
+          @let hc = s.next.hc.net;
           <div class="card kpi">
-            <span class="kpi-label"><app-icon name="bolt" [size]="15" /> Solde net prévu</span>
-            <span class="kpi-value" [class.tone-success]="s.net <= 0">{{ s.net | skwh }}</span>
+            <span class="kpi-label"><app-icon name="bolt" [size]="15" /> Soldes prévus · 12 mois</span>
+            <div class="period-values">
+              <span [class.tone-warning]="hp > 0" [class.tone-success]="hp <= 0">HP {{ hp | skwh }}</span>
+              <span [class.tone-warning]="hc > 0" [class.tone-success]="hc <= 0">HC {{ hc | skwh }}</span>
+            </div>
             <span class="kpi-sub">
-              @if (s.lastNet !== null) {
-                12 derniers mois : {{ s.lastNet | skwh }}
-              } @else {
-                soutirage − injection
+              à payer : {{ (hp > 0 ? hp : 0) + (hc > 0 ? hc : 0) | kwh }}
+              @if (hp < 0 || hc < 0) {
+                · surplus non remboursé : {{ (hp < 0 ? -hp : 0) + (hc < 0 ? -hc : 0) | kwh }}
+              }
+              @if (s.last; as l) {
+                <br />12 derniers mois : HP {{ l.hp.net | skwh }} · HC {{ l.hc.net | skwh }}
               }
             </span>
           </div>
@@ -168,11 +182,14 @@ export type ForecastKpi = 'import' | 'export' | 'net' | 'ev';
           @if (v.evImpact(); as e) {
             <div class="card kpi">
               <span class="kpi-label"><app-icon name="car" [size]="15" /> Effet de la voiture</span>
-              <span class="kpi-value">{{ e.importDelta | skwh }}</span>
+              <div class="period-values">
+                <span>HP {{ e.hp.import | skwh }}</span>
+                <span>HC {{ e.hc.import | skwh }}</span>
+              </div>
               <span class="kpi-sub"
-                >de soutirage par an (dont {{ e.offDelta | skwh }} en heures creuses)
-                @if (e.exportDelta < -1) {
-                  <br />{{ e.exportDelta | skwh }} d'injection
+                >de soutirage par an
+                @if (e.hp.export < -1 || e.hc.export < -1) {
+                  <br />injection : HP {{ e.hp.export | skwh }} · HC {{ e.hc.export | skwh }}
                 }
               </span>
             </div>
@@ -330,16 +347,19 @@ export class ForecastReliabilityCard {
     <div class="card flush">
       <div class="card-header">
         <h2>Comparaison des profils</h2>
-        <span class="hint">12 prochains mois</span>
+        <span class="hint">12 prochains mois, kWh par compteur</span>
       </div>
       <div class="table-wrap">
         <table class="table">
           <thead>
             <tr>
               <th>Profil</th>
-              <th class="num">Soutirage</th>
-              <th class="num">Injection</th>
-              <th class="num">Solde net</th>
+              <th class="num">Soutirage HP</th>
+              <th class="num">Soutirage HC</th>
+              <th class="num">Injection HP</th>
+              <th class="num">Injection HC</th>
+              <th class="num">Solde HP</th>
+              <th class="num">Solde HC</th>
             </tr>
           </thead>
           <tbody>
@@ -351,9 +371,18 @@ export class ForecastReliabilityCard {
                     <span class="badge">indisponible</span>
                   }
                 </td>
-                <td class="num">{{ c.import | num }}</td>
-                <td class="num">{{ c.export | num }}</td>
-                <td class="num">{{ c.net | skwh }}</td>
+                @if (c.figures; as f) {
+                  <td class="num">{{ f.hp.import | num }}</td>
+                  <td class="num">{{ f.hc.import | num }}</td>
+                  <td class="num">{{ f.hp.export | num }}</td>
+                  <td class="num">{{ f.hc.export | num }}</td>
+                  <td class="num" [class.tone-success]="f.hp.net <= 0">{{ f.hp.net | skwh }}</td>
+                  <td class="num" [class.tone-success]="f.hc.net <= 0">{{ f.hc.net | skwh }}</td>
+                } @else {
+                  @for (i of [1, 2, 3, 4, 5, 6]; track i) {
+                    <td class="num faint">—</td>
+                  }
+                }
               </tr>
             }
           </tbody>
@@ -376,12 +405,7 @@ export class ForecastProfilesCard {
     const set = this.v.set();
     return set.profiles.map((p) => {
       const n = set.forecasts[p.key]?.next12;
-      return {
-        profile: p,
-        import: n ? n.importPeak + n.importOff : null,
-        export: n ? n.exportPeak + n.exportOff : null,
-        net: n ? n.importPeak + n.importOff - n.exportPeak - n.exportOff : null,
-      };
+      return { profile: p, figures: n ? byPeriod(n) : null };
     });
   });
 }

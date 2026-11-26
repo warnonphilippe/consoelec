@@ -15,7 +15,9 @@ export interface MonthBar {
   readonly exportOff: number;
 }
 
-const net = (b: MonthBar): number => b.importPeak + b.importOff - b.exportPeak - b.exportOff;
+/** Soldes du mois par compteur : les heures pleines et creuses se facturent séparément. */
+const balances = (b: MonthBar): string =>
+  `Solde HP : ${fmt.signedKwh(b.importPeak - b.exportPeak)} · HC : ${fmt.signedKwh(b.importOff - b.exportOff)}`;
 
 /** Soutirage (vers le haut) et injection (vers le bas), empilés par tarif. */
 export function monthlyBalanceChart(bars: MonthBar[]) {
@@ -89,7 +91,7 @@ export function monthlyBalanceChart(bars: MonthBar[]) {
                 `${item.dataset.label}: ${fmt.kwh(Math.abs(Number(item.raw)))}`,
               footer: (items) => {
                 const bar = bars[items[0]?.dataIndex ?? 0];
-                return bar ? `Solde net : ${fmt.signedKwh(net(bar))}` : '';
+                return bar ? balances(bar) : '';
               },
             },
           },

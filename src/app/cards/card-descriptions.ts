@@ -80,20 +80,22 @@ export const CARD_DESCRIPTIONS: Record<CardId, string> = {
     "Totaux par année de chaque sous-compteur (soutirage et injection, heures pleines et creuses), avec le soutirage et l'injection totaux, le solde net, la part des heures creuses et, si la production est connue, l'autoconsommation et l'autarcie.",
   'forecast-controls':
     'Choix du profil de prévision utilisé par les cadres de la page Prévisions, et prise en compte ou non de la voiture électrique prévue.',
-  'forecast-import': 'Énergie que le profil de prévision choisi prévoit de soutirer au réseau sur les 12 prochains mois.',
-  'forecast-export': "Énergie que le profil de prévision choisi prévoit d'injecter sur le réseau sur les 12 prochains mois.",
+  'forecast-import':
+    'Énergie que le profil de prévision choisi prévoit de soutirer au réseau sur les 12 prochains mois, par compteur : heures pleines (1.8.1) et heures creuses (1.8.2), avec les 12 derniers mois mesurés.',
+  'forecast-export':
+    "Énergie que le profil de prévision choisi prévoit d'injecter sur le réseau sur les 12 prochains mois, par compteur : heures pleines (2.8.1) et heures creuses (2.8.2), avec les 12 derniers mois mesurés.",
   'forecast-net':
-    'Solde net prévu sur les 12 prochains mois (soutirage moins injection) selon le profil de prévision choisi.',
+    "Soldes prévus sur les 12 prochains mois, compteur par compteur (soutirage moins injection, en heures pleines puis en heures creuses), selon le profil de prévision choisi. Les deux compteurs se facturent séparément : un surplus en heures creuses ne compense pas le soutirage en heures pleines. Positif, c'est de l'énergie à payer ; négatif, un surplus non remboursé.",
   'forecast-ev':
-    "Effet de la voiture électrique prévue sur une année : soutirage supplémentaire (dont la part en heures creuses) et, le cas échéant, injection en moins.",
+    "Effet de la voiture électrique prévue sur une année, par compteur : soutirage supplémentaire en heures pleines et en heures creuses et, le cas échéant, injection en moins.",
   'forecast-monthly-chart':
-    'Soutirage, injection et solde prévus mois par mois sur les 12 prochains mois, selon le profil de prévision choisi.',
+    'Soutirage et injection prévus mois par mois sur les 12 prochains mois, en heures pleines et en heures creuses, avec le solde de chaque compteur dans la bulle, selon le profil de prévision choisi.',
   'forecast-index-chart':
     'Index des sous-compteurs : relevés des 6 derniers mois (traits pleins) et projection sur 18 mois (pointillés) selon le profil de prévision choisi.',
   'forecast-reliability':
     "Fiabilité de chaque profil de prévision sur les mois déjà mesurés : la prévision est refaite pour chaque mois passé avec les seuls relevés connus alors, puis comparée à ce qui a été mesuré.",
   'forecast-profiles':
-    'Prévisions des différents profils sur les 12 prochains mois, côte à côte, avec les coefficients de recalage tirés des relevés.',
+    'Prévisions des différents profils sur les 12 prochains mois, côte à côte et par compteur (soutirage, injection et solde en heures pleines et en heures creuses), avec les coefficients de recalage tirés des relevés.',
   'forecast-year-ends':
     "Index des sous-compteurs projetés au 31 décembre de l'année en cours et de la suivante, selon le profil de prévision choisi.",
   'link-mazout':
