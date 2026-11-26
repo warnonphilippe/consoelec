@@ -35,3 +35,31 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
+
+/* Cadre d'un compteur : soutirage, injection et solde */
+.meter-rows {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 16px;
+  align-items: baseline;
+  margin: 6px 0 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.meter-rows dt {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.meter-rows dd {
+  margin: 0;
+  text-align: right;
+  font-size: 17px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.meter-rows dd.balance {
+  font-size: 20px;
+  font-weight: 700;
+}

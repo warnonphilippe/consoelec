@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type { Forecast } from '../../core/calc/forecast';
@@ -111,72 +112,31 @@ export class ForecastControlsCard {
   protected readonly v = inject(ForecastView);
 }
 
-export type ForecastKpi = 'import' | 'export' | 'net' | 'ev';
+export type ForecastKpi = 'hp' | 'hc' | 'ev';
 
 /**
- * Chiffre clé des 12 prochains mois, par compteur (heures pleines / heures creuses) : soutirage, injection, soldes,
- * effet de la voiture prévue. Les deux compteurs se facturent séparément : pas de total HP + HC.
+ * Chiffres clés des 12 prochains mois : un cadre par compteur (heures pleines, heures creuses) avec son soutirage, son
+ * injection et son solde, et l'effet de la voiture prévue. Les deux compteurs se facturent séparément : pas de total
+ * HP + HC.
  */
 @Component({
   selector: 'app-forecast-kpi-card',
-  imports: [IconComponent, ...FORMAT_PIPES],
+  imports: [NgTemplateOutlet, IconComponent, ...FORMAT_PIPES],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'card-host' },
   styleUrl: './forecast-cards.css',
   template: `
     @if (v.summary(); as s) {
       @switch (kind()) {
-        @case ('import') {
-          <div class="card kpi">
-            <span class="kpi-label"><app-icon name="plug" [size]="15" /> Soutirage prévu · 12 mois</span>
-            <div class="period-values">
-              <span>HP {{ s.next.hp.import | kwh }}</span>
-              <span>HC {{ s.next.hc.import | kwh }}</span>
-            </div>
-            <span class="kpi-sub">
-              @if (s.last; as l) {
-                12 derniers mois : HP {{ l.hp.import | kwh }} · HC {{ l.hc.import | kwh }}
-              } @else {
-                selon « {{ s.profile }} »
-              }
-            </span>
-          </div>
+        @case ('hp') {
+          <ng-container
+            *ngTemplateOutlet="meter; context: { label: 'Heures pleines', icon: 'sun', f: s.next.hp, last: s.last?.hp }"
+          />
         }
-        @case ('export') {
-          <div class="card kpi">
-            <span class="kpi-label"><app-icon name="sun" [size]="15" /> Injection prévue · 12 mois</span>
-            <div class="period-values">
-              <span>HP {{ s.next.hp.export | kwh }}</span>
-              <span>HC {{ s.next.hc.export | kwh }}</span>
-            </div>
-            <span class="kpi-sub">
-              @if (s.last; as l) {
-                12 derniers mois : HP {{ l.hp.export | kwh }} · HC {{ l.hc.export | kwh }}
-              } @else {
-                selon « {{ s.profile }} »
-              }
-            </span>
-          </div>
-        }
-        @case ('net') {
-          @let hp = s.next.hp.net;
-          @let hc = s.next.hc.net;
-          <div class="card kpi">
-            <span class="kpi-label"><app-icon name="bolt" [size]="15" /> Soldes prévus · 12 mois</span>
-            <div class="period-values">
-              <span [class.tone-warning]="hp > 0" [class.tone-success]="hp <= 0">HP {{ hp | skwh }}</span>
-              <span [class.tone-warning]="hc > 0" [class.tone-success]="hc <= 0">HC {{ hc | skwh }}</span>
-            </div>
-            <span class="kpi-sub">
-              à payer : {{ (hp > 0 ? hp : 0) + (hc > 0 ? hc : 0) | kwh }}
-              @if (hp < 0 || hc < 0) {
-                · surplus non remboursé : {{ (hp < 0 ? -hp : 0) + (hc < 0 ? -hc : 0) | kwh }}
-              }
-              @if (s.last; as l) {
-                <br />12 derniers mois : HP {{ l.hp.net | skwh }} · HC {{ l.hc.net | skwh }}
-              }
-            </span>
-          </div>
+        @case ('hc') {
+          <ng-container
+            *ngTemplateOutlet="meter; context: { label: 'Heures creuses', icon: 'moon', f: s.next.hc, last: s.last?.hc }"
+          />
         }
         @case ('ev') {
           @if (v.evImpact(); as e) {
@@ -197,6 +157,28 @@ export type ForecastKpi = 'import' | 'export' | 'net' | 'ev';
         }
       }
     }
+
+    <ng-template #meter let-label="label" let-icon="icon" let-f="f" let-last="last">
+      <div class="card kpi">
+        <span class="kpi-label"><app-icon [name]="icon" [size]="15" /> {{ label }} · 12 mois</span>
+        <dl class="meter-rows">
+          <dt>Soutirage</dt>
+          <dd>{{ f.import | kwh }}</dd>
+          <dt>Injection</dt>
+          <dd>{{ f.export | kwh }}</dd>
+          <dt>Solde</dt>
+          <dd class="balance" [class.tone-warning]="f.net > 0" [class.tone-success]="f.net <= 0">
+            {{ f.net | skwh }}
+          </dd>
+        </dl>
+        <span class="kpi-sub">
+          {{ f.net > 0 ? 'à payer' : 'surplus non remboursé' }}
+          @if (last) {
+            <br />12 derniers mois : soutirage {{ last.import | kwh }} · injection {{ last.export | kwh }}
+          }
+        </span>
+      </div>
+    </ng-template>
   `,
 })
 export class ForecastKpiCard {

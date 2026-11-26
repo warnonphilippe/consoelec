@@ -45,9 +45,8 @@ export default class ForecastPage {
   protected readonly mazout = inject(LinkService).peer;
   protected readonly v = inject(ForecastView);
   protected readonly kpis: readonly { kind: ForecastKpi; id: CardId }[] = [
-    { kind: 'import', id: 'forecast-import' },
-    { kind: 'export', id: 'forecast-export' },
-    { kind: 'net', id: 'forecast-net' },
+    { kind: 'hp', id: 'forecast-hp' },
+    { kind: 'hc', id: 'forecast-hc' },
     { kind: 'ev', id: 'forecast-ev' },
   ];
 }

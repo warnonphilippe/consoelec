@@ -25,6 +25,15 @@ describe('disposition du tableau de bord', () => {
     expect(DEFAULT_DASHBOARD.every((id) => DASHBOARD_CARD_IDS.includes(id))).toBe(true);
   });
 
+  it('remplace les anciens chiffres clés des prévisions par les cadres heures pleines et heures creuses', () => {
+    expect(normalizeDashboard(['billing-hp', 'forecast-import', 'forecast-net', 'forecast-ev'])).toEqual([
+      'billing-hp',
+      'forecast-hp',
+      'forecast-hc',
+      'forecast-ev',
+    ]);
+  });
+
   it('ajoute un cadre à la fin, ou le retire', () => {
     const layout: CardId[] = ['billing-hp', 'billing-hc'];
     expect(toggleDashboardCard(layout, 'meters-recent-power')).toEqual(['billing-hp', 'billing-hc', 'meters-recent-power']);

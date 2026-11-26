@@ -41,9 +41,8 @@ export const DASHBOARD_CARD_IDS = [
   'stats-monthly-table',
   'stats-registers',
   'forecast-controls',
-  'forecast-import',
-  'forecast-export',
-  'forecast-net',
+  'forecast-hp',
+  'forecast-hc',
   'forecast-ev',
   'forecast-monthly-chart',
   'forecast-index-chart',
@@ -71,12 +70,23 @@ export function isCardId(value: unknown): value is CardId {
   return typeof value === 'string' && KNOWN.has(value);
 }
 
+/**
+ * Anciens cadres remplacés : les chiffres clés des prévisions (soutirage, injection, solde net) sont devenus un cadre
+ * par compteur (heures pleines, heures creuses), qui prennent la place du premier d'entre eux.
+ */
+const REPLACED: Readonly<Record<string, readonly CardId[]>> = {
+  'forecast-import': ['forecast-hp', 'forecast-hc'],
+  'forecast-export': ['forecast-hp', 'forecast-hc'],
+  'forecast-net': ['forecast-hp', 'forecast-hc'],
+};
+
 /** Disposition lue dans un fichier : les seuls cadres connus, sans doublon ; absente, celle d'origine. */
 export function normalizeDashboard(value: unknown): CardId[] {
   if (!Array.isArray(value)) {
     return [...DEFAULT_DASHBOARD];
   }
-  return [...new Set(value.filter(isCardId))];
+  const ids = value.flatMap((v): unknown[] => (typeof v === 'string' && REPLACED[v] ? [...REPLACED[v]] : [v]));
+  return [...new Set(ids.filter(isCardId))];
 }
 
 /** Ajoute le cadre à la fin, ou le retire s'il y est déjà. */
